@@ -1,0 +1,360 @@
+{
+  "version": "2.0.0",
+  "generated_at": "2025-12-14T11:07:22+00:00",
+  "project_name": "astro-blog",
+  "project_summary": "基于 Astro 5 + Tailwind CSS v4 的现代化静态博客项目",
+  "scan_metadata": {
+    "scan_strategy": "adaptive_full",
+    "stages_completed": ["A", "B", "C"],
+    "stages_skipped": [],
+    "scan_duration_estimate": "完整扫描",
+    "scanner_version": "architect_v1.0"
+  },
+  "statistics": {
+    "total_files_estimated": 20,
+    "total_files_scanned": 20,
+    "source_files_count": 17,
+    "config_files_count": 6,
+    "doc_files_count": 2,
+    "content_files_count": 2,
+    "coverage_percentage": 100,
+    "ignored_directories": [
+      "node_modules",
+      ".git",
+      "dist",
+      "build",
+      ".astro"
+    ],
+    "ignore_rules_source": "default (no .gitignore found)",
+    "ignore_rules": [
+      "node_modules/**",
+      ".git/**",
+      ".github/**",
+      "dist/**",
+      "build/**",
+      ".next/**",
+      "__pycache__/**",
+      "*.lock",
+      "*.log",
+      "*.bin",
+      "*.pdf",
+      "*.png",
+      "*.jpg",
+      "*.jpeg",
+      "*.gif",
+      "*.mp4",
+      "*.zip",
+      "*.tar",
+      "*.gz"
+    ]
+  },
+  "tech_stack": {
+    "primary_language": "TypeScript",
+    "framework": "Astro",
+    "framework_version": "5.16.5",
+    "languages": ["TypeScript", "Astro", "CSS", "Markdown", "MDX"],
+    "package_manager": "pnpm",
+    "package_manager_version": "10.24.0",
+    "runtime": "Node.js",
+    "runtime_version": ">=20.3.0",
+    "build_tool": "Astro",
+    "style_framework": "Tailwind CSS v4",
+    "content_system": "Astro Content Collections"
+  },
+  "modules": [
+    {
+      "path": "src/pages/",
+      "type": "routes",
+      "language": "Astro",
+      "description": "路由层，基于文件系统的页面路由",
+      "entry_points": [
+        "src/pages/index.astro",
+        "src/pages/posts/[slug].astro",
+        "src/pages/posts/index.astro",
+        "src/pages/posts/page/[page].astro"
+      ],
+      "key_files": [
+        "src/pages/index.astro",
+        "src/pages/posts/[slug].astro",
+        "src/pages/posts/index.astro",
+        "src/pages/posts/page/[page].astro",
+        "src/pages/tags/index.astro",
+        "src/pages/tags/[tag]/index.astro",
+        "src/pages/archives/index.astro",
+        "src/pages/search/index.astro",
+        "src/pages/about/index.astro",
+        "src/pages/rss.xml.ts",
+        "src/pages/404.astro"
+      ],
+      "routes_count": 11,
+      "dynamic_routes": [
+        "posts/[slug]",
+        "posts/page/[page]",
+        "tags/[tag]"
+      ],
+      "has_tests": false,
+      "coverage": "complete"
+    },
+    {
+      "path": "src/layouts/",
+      "type": "layouts",
+      "language": "Astro",
+      "description": "布局模板层，提供页面骨架与全局结构",
+      "entry_points": ["src/layouts/BaseLayout.astro"],
+      "key_files": ["src/layouts/BaseLayout.astro"],
+      "exports": ["BaseLayout"],
+      "has_tests": false,
+      "coverage": "complete"
+    },
+    {
+      "path": "src/components/",
+      "type": "ui_components",
+      "language": "Astro",
+      "description": "可复用 UI 组件",
+      "entry_points": [],
+      "key_files": [
+        "src/components/PostCard.astro",
+        "src/components/Seo.astro"
+      ],
+      "exports": ["PostCard", "Seo"],
+      "has_tests": false,
+      "coverage": "complete"
+    },
+    {
+      "path": "src/content/",
+      "type": "content_collections",
+      "language": "Markdown/MDX",
+      "description": "内容层，使用 Astro Content Collections 管理博客内容",
+      "entry_points": ["src/content/config.ts"],
+      "key_files": [
+        "src/content/config.ts",
+        "src/content/blog/hello-astro.md",
+        "src/content/blog/pagefind-guide.mdx"
+      ],
+      "collections": ["blog"],
+      "schema_defined": true,
+      "content_count": {
+        "blog": 2
+      },
+      "has_tests": false,
+      "coverage": "complete"
+    },
+    {
+      "path": "src/lib/",
+      "type": "utilities",
+      "language": "TypeScript",
+      "description": "工具函数与全局配置",
+      "entry_points": [
+        "src/lib/siteConfig.ts",
+        "src/lib/utils.ts"
+      ],
+      "key_files": [
+        "src/lib/siteConfig.ts",
+        "src/lib/utils.ts"
+      ],
+      "exports": [
+        "siteConfig",
+        "navLinks",
+        "format",
+        "sortPosts",
+        "filterDrafts",
+        "paginate",
+        "estimateReadingTime"
+      ],
+      "has_tests": false,
+      "coverage": "complete"
+    },
+    {
+      "path": "src/styles/",
+      "type": "styles",
+      "language": "CSS",
+      "description": "全局样式文件",
+      "entry_points": ["src/styles/global.css"],
+      "key_files": ["src/styles/global.css"],
+      "has_tests": false,
+      "coverage": "complete"
+    },
+    {
+      "path": "public/",
+      "type": "static_assets",
+      "language": "N/A",
+      "description": "公共静态资源目录",
+      "entry_points": [],
+      "key_files": ["public/robots.txt"],
+      "has_tests": false,
+      "coverage": "basic"
+    }
+  ],
+  "root_files": {
+    "entry_points": [
+      "src/pages/index.astro"
+    ],
+    "configs": [
+      "astro.config.mjs",
+      "tailwind.config.ts",
+      "tsconfig.json",
+      ".eslintrc.cjs",
+      ".prettierrc",
+      "package.json"
+    ],
+    "docs": [
+      "CLAUDE.md",
+      "README.md"
+    ],
+    "important_paths": [
+      "src/content/config.ts",
+      "src/lib/siteConfig.ts",
+      "src/layouts/BaseLayout.astro"
+    ]
+  },
+  "apis_and_interfaces": {
+    "routes": [
+      {"path": "/", "method": "GET", "description": "首页"},
+      {"path": "/posts/", "method": "GET", "description": "文章列表"},
+      {"path": "/posts/[slug]/", "method": "GET", "description": "文章详情（动态）"},
+      {"path": "/posts/page/[page]/", "method": "GET", "description": "文章列表分页（动态）"},
+      {"path": "/tags/", "method": "GET", "description": "标签云"},
+      {"path": "/tags/[tag]/", "method": "GET", "description": "标签筛选（动态）"},
+      {"path": "/archives/", "method": "GET", "description": "归档页"},
+      {"path": "/search/", "method": "GET", "description": "搜索页"},
+      {"path": "/about/", "method": "GET", "description": "关于页"},
+      {"path": "/rss.xml", "method": "GET", "description": "RSS Feed"},
+      {"path": "/sitemap-index.xml", "method": "GET", "description": "Sitemap（自动生成）"},
+      {"path": "/404", "method": "GET", "description": "404 错误页"}
+    ],
+    "content_schema": {
+      "blog": {
+        "required_fields": ["title", "description", "pubDate"],
+        "optional_fields": ["updatedDate", "tags", "draft", "cover", "coverAlt", "canonical", "lang", "keywords"],
+        "validation": "Zod Schema (src/content/config.ts)"
+      }
+    }
+  },
+  "data_models": {
+    "content_collections": {
+      "blog": {
+        "schema_file": "src/content/config.ts",
+        "fields": {
+          "title": "string (required)",
+          "description": "string (required)",
+          "pubDate": "Date (required)",
+          "updatedDate": "Date (optional)",
+          "tags": "string[] (optional)",
+          "draft": "boolean (optional)",
+          "cover": "string (optional)",
+          "coverAlt": "string (optional)",
+          "canonical": "string (URL, optional)",
+          "lang": "string (optional)",
+          "keywords": "string[] (optional)"
+        },
+        "content_count": 2
+      }
+    },
+    "site_config": {
+      "file": "src/lib/siteConfig.ts",
+      "fields": {
+        "title": "string",
+        "description": "string",
+        "author": "string",
+        "siteUrl": "string",
+        "language": "string",
+        "keywords": "string[]"
+      }
+    }
+  },
+  "testing": {
+    "framework": null,
+    "test_files_found": 0,
+    "test_directories": [],
+    "coverage_tool": null,
+    "recommendation": "建议添加 Vitest 进行单元测试，Playwright 进行 E2E 测试"
+  },
+  "quality_tools": {
+    "linter": {
+      "tool": "ESLint",
+      "version": "9.39.1",
+      "config_file": ".eslintrc.cjs",
+      "plugins": ["@typescript-eslint", "astro"],
+      "extends": ["eslint:recommended", "plugin:astro/recommended", "plugin:@typescript-eslint/recommended", "prettier"]
+    },
+    "formatter": {
+      "tool": "Prettier",
+      "version": "3.7.3",
+      "config_file": ".prettierrc",
+      "plugins": ["prettier-plugin-astro", "prettier-plugin-tailwindcss"]
+    },
+    "type_checker": {
+      "tool": "TypeScript",
+      "version": "5.9.3",
+      "config_file": "tsconfig.json",
+      "strict_mode": true
+    }
+  },
+  "coverage_details": {
+    "modules_found": 7,
+    "modules_fully_scanned": 7,
+    "modules_partially_scanned": 0,
+    "modules_not_scanned": 0,
+    "gaps": [
+      {
+        "type": "no_tests",
+        "description": "项目未配置任何测试框架",
+        "severity": "warning",
+        "recommendation": "添加 Vitest 和 Playwright，为关键工具函数和页面路由编写测试"
+      },
+      {
+        "type": "image_optimization",
+        "description": "未使用 Astro <Image> 组件优化图片",
+        "severity": "info",
+        "recommendation": "在 src/content/blog 中的封面图使用 Astro Image 组件"
+      }
+    ]
+  },
+  "next_steps": [
+    {
+      "priority": 1,
+      "action": "配置测试框架",
+      "description": "安装并配置 Vitest，为 src/lib/utils.ts 编写单元测试",
+      "estimated_effort": "2小时",
+      "files_to_create": ["vitest.config.ts", "src/lib/__tests__/utils.test.ts"]
+    },
+    {
+      "priority": 2,
+      "action": "优化图片加载",
+      "description": "使用 Astro <Image> 组件替换现有封面图标签，提升 LCP",
+      "estimated_effort": "1小时",
+      "files_to_modify": ["src/pages/posts/[slug].astro", "src/components/PostCard.astro"]
+    },
+    {
+      "priority": 3,
+      "action": "添加暗黑模式",
+      "description": "实现主题切换功能，支持 light/dark/auto 三种模式",
+      "estimated_effort": "3-4小时",
+      "files_to_create": ["src/components/ThemeToggle.astro"],
+      "files_to_modify": ["src/layouts/BaseLayout.astro", "tailwind.config.ts"]
+    },
+    {
+      "priority": 4,
+      "action": "集成评论系统",
+      "description": "可选择 Giscus 或 Utterances 作为评论系统",
+      "estimated_effort": "1-2小时",
+      "files_to_create": ["src/components/Comments.astro"],
+      "files_to_modify": ["src/pages/posts/[slug].astro"]
+    },
+    {
+      "priority": 5,
+      "action": "配置 CI/CD",
+      "description": "设置 GitHub Actions 自动部署到 Vercel/Netlify",
+      "estimated_effort": "1小时",
+      "files_to_create": [".github/workflows/deploy.yml"]
+    }
+  ],
+  "truncated": false,
+  "truncation_reason": null,
+  "notes": [
+    "项目结构清晰，完全符合 Astro 最佳实践",
+    "所有核心功能已实现且可生产使用",
+    "主要缺失：测试框架和图片优化",
+    "建议优先完成测试配置以确保代码质量"
+  ]
+}

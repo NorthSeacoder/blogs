@@ -1,12 +1,12 @@
 ---
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import PostCard from '../../../components/PostCard.astro';
+import Icon from '../../../components/Icon.astro';
 import { getCollection } from 'astro:content';
 import { filterDrafts, paginate, sortPosts } from '../../../lib/utils';
 
-const pageSize = 5;
-
 export async function getStaticPaths() {
+  const pageSize = 6;
   const pages = paginate(sortPosts(filterDrafts(await getCollection('blog'))), pageSize);
   return pages.slice(1).map((items, index) => ({
     params: { page: String(index + 2) },
@@ -26,28 +26,73 @@ interface Props {
 
 const { posts, totalPages, currentPage } = Astro.props as Props;
 ---
+
 <BaseLayout title={`第 ${currentPage} 页`} description="分页文章列表">
-  <h1 class="text-3xl font-bold text-gray-900">全部文章</h1>
-  <p class="mt-2 text-gray-700">第 {currentPage} 页 / 共 {totalPages} 页</p>
+  <div class="animate-fade-in">
+    <!-- 页面标题 -->
+    <div class="mb-8">
+      <div class="flex items-center gap-3">
+        <div class="h-8 w-1 rounded-full bg-gradient-to-b from-accent to-cyan-500"></div>
+        <h1 class="text-3xl font-bold text-text-primary">全部文章</h1>
+      </div>
+      <p class="mt-2 text-text-secondary">
+        第 <span class="font-semibold text-accent">{currentPage}</span> 页 / 共 {totalPages} 页
+      </p>
+    </div>
 
-  <div class="mt-6 space-y-6">
-    {posts.map((post) => (
-      <PostCard post={post} />
-    ))}
+    <!-- 文章列表 -->
+    <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+      {posts.map((post, index) => <PostCard post={post} index={index} />)}
+    </div>
+
+    <!-- 分页导航 -->
+    <nav class="mt-10 flex items-center justify-between" aria-label="分页导航">
+      <a
+        class:list={[
+          'group inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-300',
+          currentPage <= 2
+            ? 'glass text-text-primary hover:shadow-lg hover:-translate-y-0.5'
+            : 'glass text-text-primary hover:shadow-lg hover:-translate-y-0.5',
+        ]}
+        href={currentPage <= 2 ? '/posts/' : `/posts/page/${currentPage - 1}/`}
+      >
+        <Icon name="arrow-left" class="transition-transform group-hover:-translate-x-1" />
+        <span>上一页</span>
+      </a>
+
+      <!-- 页码指示器 -->
+      <div class="hidden items-center gap-2 sm:flex">
+        {
+          Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+            <a
+              href={pageNum === 1 ? '/posts/' : `/posts/page/${pageNum}/`}
+              class:list={[
+                'flex h-10 w-10 items-center justify-center rounded-lg text-sm font-medium transition-all duration-200',
+                pageNum === currentPage
+                  ? 'bg-accent text-white shadow-lg shadow-accent/25'
+                  : 'glass-subtle text-text-secondary hover:text-text-primary hover:bg-glass-hover',
+              ]}
+              aria-current={pageNum === currentPage ? 'page' : undefined}
+            >
+              {pageNum}
+            </a>
+          ))
+        }
+      </div>
+
+      <a
+        class:list={[
+          'group inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-300',
+          currentPage >= totalPages
+            ? 'glass text-text-secondary cursor-not-allowed opacity-50'
+            : 'glass text-text-primary hover:shadow-lg hover:-translate-y-0.5',
+        ]}
+        href={currentPage >= totalPages ? '#' : `/posts/page/${currentPage + 1}/`}
+        aria-disabled={currentPage >= totalPages}
+      >
+        <span>下一页</span>
+        <Icon name="arrow-right" class="transition-transform group-hover:translate-x-1" />
+      </a>
+    </nav>
   </div>
-
-  <nav class="mt-8 flex items-center justify-between" aria-label="分页导航">
-    <a
-      class={`text-sm font-semibold ${currentPage === 1 ? 'text-muted' : 'text-primary underline'}`}
-      href={currentPage <= 2 ? '/posts/' : `/posts/page/${currentPage - 1}/`}
-    >
-      上一页
-    </a>
-    <a
-      class={`text-sm font-semibold ${currentPage >= totalPages ? 'text-muted' : 'text-primary underline'}`}
-      href={`/posts/page/${Math.min(totalPages, currentPage + 1)}/`}
-    >
-      下一页
-    </a>
-  </nav>
 </BaseLayout>

@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add CLAUDE.md)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nchore: 初始化项目文档\n\n添加 CLAUDE.md 文件作为 Claude Code 的项目指导文档:\n- 说明项目处于初始化阶段\n- 为后续代码添加后的文档完善预留位置\n- 包含项目概述和待完善内容说明\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(tree:*)",
+      "Bash(find:*)",
+      "Bash(git config:*)",
+      "Bash(cat:*)",
+      "Bash(pnpm build:*)",
+      "Bash(pnpm exec astro:*)",
+      "Bash(pnpm install:*)",
+      "Bash(./node_modules/.bin/astro build:*)"
+    ]
+  }
+}

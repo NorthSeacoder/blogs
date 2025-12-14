@@ -1,31 +1,57 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import PostCard from '../../components/PostCard.astro';
+import Icon from '../../components/Icon.astro';
 import { getCollection } from 'astro:content';
 import { filterDrafts, paginate, sortPosts } from '../../lib/utils';
 
-const pageSize = 5;
+const pageSize = 6;
 const posts = paginate(sortPosts(filterDrafts(await getCollection('blog'))), pageSize);
 const pagePosts = posts[0] ?? [];
 const totalPages = posts.length || 1;
 ---
+
 <BaseLayout title="文章列表" description="所有文章列表，支持分页浏览。">
-  <h1 class="text-3xl font-bold text-gray-900">全部文章</h1>
-  <p class="mt-2 text-gray-700">最新写作和更新集合，草稿不会出现在这里。</p>
-
-  <div class="mt-6 space-y-6">
-    {pagePosts.map((post) => (
-      <PostCard post={post} />
-    ))}
-  </div>
-
-  {totalPages > 1 && (
-    <nav class="mt-8 flex items-center justify-between" aria-label="分页导航">
-      <div />
-      <div class="flex items-center gap-2 text-sm font-semibold text-primary">
-        <span class="rounded-full bg-blue-50 px-3 py-1 text-gray-700">第 1 页 / 共 {totalPages} 页</span>
-        <a href="/posts/page/2/" class="underline">下一页</a>
+  <div class="animate-fade-in">
+    <!-- 页面标题 -->
+    <div class="mb-8">
+      <div class="flex items-center gap-3">
+        <div class="h-8 w-1 rounded-full bg-gradient-to-b from-accent to-cyan-500"></div>
+        <h1 class="text-3xl font-bold text-text-primary">全部文章</h1>
       </div>
-    </nav>
-  )}
+      <p class="mt-2 text-text-secondary">最新写作和更新集合，草稿不会出现在这里。</p>
+    </div>
+
+    <!-- 文章网格 -->
+    <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+      {pagePosts.map((post, index) => <PostCard post={post} index={index} />)}
+    </div>
+
+    <!-- 分页导航 -->
+    {
+      totalPages > 1 && (
+        <nav class="mt-10 flex items-center justify-between" aria-label="分页导航">
+          <div class="text-sm text-text-secondary">
+            第 <span class="font-semibold text-accent">1</span> 页 / 共 {totalPages} 页
+          </div>
+          <a
+            href="/posts/page/2/"
+            class="group inline-flex items-center gap-2 rounded-xl glass px-5 py-2.5 text-sm font-semibold text-text-primary transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5"
+          >
+            <span>下一页</span>
+            <Icon name="arrow-right" class="transition-transform group-hover:translate-x-1" />
+          </a>
+        </nav>
+      )
+    }
+
+    <!-- 空状态 -->
+    {
+      pagePosts.length === 0 && (
+        <div class="glass rounded-2xl p-12 text-center">
+          <p class="text-text-secondary">暂无文章，敬请期待...</p>
+        </div>
+      )
+    }
+  </div>
 </BaseLayout>

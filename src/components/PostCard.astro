@@ -1,20 +1,136 @@
 ---
 import type { CollectionEntry } from 'astro:content';
+import Icon from './Icon.astro';
 import { format } from '../lib/utils';
 
-const { post } = Astro.props as { post: CollectionEntry<'blog'> };
+interface Props {
+  post: CollectionEntry<'blog'>;
+  index?: number;
+}
+
+const { post, index = 0 } = Astro.props;
+const animationDelay = `${index * 100}ms`;
 ---
-<article class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm transition hover:shadow-md">
-  <a href={`/posts/${post.slug}/`} class="text-xl font-semibold text-gray-900">
-    {post.data.title}
+
+<article
+  class="
+    group relative overflow-hidden rounded-2xl
+    glass
+    p-6
+    transition-all duration-300 ease-out
+    hover:shadow-2xl hover:shadow-accent/10
+    hover:-translate-y-1
+    animate-slide-up animate-fill-backwards
+  "
+  style={`animation-delay: ${animationDelay};`}
+>
+  <!-- 悬停渐变背景 -->
+  <div
+    class="
+      absolute inset-0 -z-10
+      bg-gradient-to-br from-accent/5 via-transparent to-cyan-500/5
+      opacity-0 transition-opacity duration-300
+      group-hover:opacity-100
+    "
+  >
+  </div>
+
+  <!-- 封面图 -->
+  {
+    post.data.cover && (
+      <div class="relative -mx-6 -mt-6 mb-4 overflow-hidden">
+        <img
+          src={post.data.cover}
+          alt={post.data.coverAlt || post.data.title}
+          loading="lazy"
+          class="
+            aspect-video w-full object-cover
+            transition-transform duration-500
+            group-hover:scale-105
+          "
+        />
+        <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+      </div>
+    )
+  }
+
+  <!-- 标题 -->
+  <a
+    href={`/posts/${post.slug}/`}
+    class="
+      block text-xl font-semibold leading-tight
+      text-text-primary
+      transition-colors duration-200
+      group-hover:text-accent
+    "
+  >
+    <span
+      class="
+        bg-gradient-to-r from-accent to-accent
+        bg-[length:0%_2px] bg-left-bottom bg-no-repeat
+        transition-[background-size] duration-300
+        group-hover:bg-[length:100%_2px]
+      "
+    >
+      {post.data.title}
+    </span>
   </a>
-  <p class="mt-2 text-sm text-muted">{format.date(post.data.pubDate)}</p>
-  <p class="mt-3 text-base text-gray-700 line-clamp-3">{post.data.description}</p>
-  {post.data.tags && post.data.tags.length > 0 && (
-    <ul class="mt-3 flex flex-wrap gap-2 text-sm text-primary" aria-label="标签">
-      {post.data.tags.map((tag) => (
-        <li class="rounded-full bg-blue-50 px-3 py-1">{tag}</li>
-      ))}
-    </ul>
-  )}
+
+  <!-- 日期 -->
+  <p class="mt-2 flex items-center gap-2 text-sm text-text-secondary">
+    <Icon name="calendar" />
+    <time datetime={post.data.pubDate.toISOString()}>
+      {format.date(post.data.pubDate)}
+    </time>
+  </p>
+
+  <!-- 描述 -->
+  <p class="mt-3 line-clamp-2 text-base leading-relaxed text-text-secondary">
+    {post.data.description}
+  </p>
+
+  <!-- 标签 -->
+  {
+    post.data.tags && post.data.tags.length > 0 && (
+      <ul class="mt-4 flex flex-wrap gap-2" aria-label="标签">
+        {post.data.tags.slice(0, 3).map((tag) => (
+          <li>
+            <a
+              href={`/tags/${tag}/`}
+              class="
+                inline-flex items-center gap-1
+                rounded-full px-3 py-1
+                text-xs font-medium
+                bg-accent/10 text-accent
+                transition-all duration-200
+                hover:bg-accent/20 hover:scale-105
+              "
+            >
+              <span class="opacity-60">#</span>
+              {tag}
+            </a>
+          </li>
+        ))}
+        {post.data.tags.length > 3 && (
+          <li class="text-xs text-text-secondary self-center">+{post.data.tags.length - 3}</li>
+        )}
+      </ul>
+    )
+  }
+
+  <!-- 阅读更多箭头 -->
+  <div
+    class="
+      absolute bottom-6 right-6
+      flex h-8 w-8 items-center justify-center
+      rounded-full
+      bg-accent/10
+      text-accent
+      opacity-0 transition-all duration-300
+      group-hover:opacity-100 group-hover:translate-x-0
+      -translate-x-2
+    "
+  >
+    <Icon name="arrow-right" />
+  </div>
 </article>

@@ -1,16 +1,109 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import GlassCard from '../../components/GlassCard.astro';
+import Icon from '../../components/Icon.astro';
 import { siteConfig } from '../../lib/siteConfig';
 ---
+
 <BaseLayout title="关于" description="关于作者与博客的介绍。">
-  <h1 class="text-3xl font-bold text-gray-900">关于本站</h1>
-  <p class="mt-3 text-gray-700">
-    这是一个以 SEO、性能和可访问性为优先级的 Astro 博客示例。内容全部本地 Markdown/MDX 编写，构建后生成纯静态文件，便于部署到任何 CDN。
-  </p>
-  <ul class="mt-6 list-disc space-y-2 pl-5 text-gray-700">
-    <li>Tailwind CSS v4 提供设计体系，减少样式维护成本。</li>
-    <li>Pagefind 在构建期生成索引，搜索体验无需后端。</li>
-    <li>RSS、Sitemap 和结构化数据确保搜索引擎友好。</li>
-  </ul>
-  <p class="mt-6 text-gray-700">作者：{siteConfig.author}</p>
+  <div class="animate-fade-in">
+    <!-- 页面标题 -->
+    <div class="mb-8">
+      <div class="flex items-center gap-3">
+        <div class="h-8 w-1 rounded-full bg-gradient-to-b from-accent to-cyan-500"></div>
+        <h1 class="text-3xl font-bold text-text-primary">关于本站</h1>
+      </div>
+    </div>
+
+    <!-- 介绍卡片 -->
+    <GlassCard padding="lg" rounded="2xl">
+      <p class="text-lg leading-relaxed text-text-secondary">
+        这是一个以 <span class="font-semibold text-accent">SEO</span>、<span
+          class="font-semibold text-accent">性能</span
+        > 和 <span class="font-semibold text-accent">可访问性</span>
+        为优先级的 Astro 博客示例。内容全部本地 Markdown/MDX 编写，构建后生成纯静态文件，便于部署到任何 CDN。
+      </p>
+
+      <!-- 特性列表 -->
+      <ul class="mt-8 space-y-4">
+        {
+          [
+            {
+              icon: '🎨',
+              title: 'Tailwind CSS v4',
+              desc: '提供设计体系，减少样式维护成本',
+            },
+            {
+              icon: '🔍',
+              title: 'Pagefind 搜索',
+              desc: '构建期生成索引，搜索体验无需后端',
+            },
+            {
+              icon: '📊',
+              title: 'SEO 友好',
+              desc: 'RSS、Sitemap 和结构化数据确保搜索引擎友好',
+            },
+            {
+              icon: '🌙',
+              title: '暗黑模式',
+              desc: '支持亮色/暗色/跟随系统三种主题模式',
+            },
+            {
+              icon: '✨',
+              title: '现代化设计',
+              desc: '毛玻璃效果、流畅动画、优雅交互',
+            },
+          ].map((item, index) => (
+            <li
+              class="flex items-start gap-4 rounded-xl glass-subtle p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 animate-slide-up animate-fill-backwards"
+              style={`animation-delay: ${index * 100}ms;`}
+            >
+              <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent/10 text-xl">
+                {item.icon}
+              </span>
+              <div>
+                <h3 class="font-semibold text-text-primary">{item.title}</h3>
+                <p class="mt-1 text-sm text-text-secondary">{item.desc}</p>
+              </div>
+            </li>
+          ))
+        }
+      </ul>
+    </GlassCard>
+
+    <!-- 作者信息 -->
+    <GlassCard padding="lg" rounded="2xl" class="mt-8">
+      <div class="flex items-center gap-4">
+        <div
+          class="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-accent to-cyan-500 text-2xl font-bold text-white"
+        >
+          {siteConfig.author.charAt(0).toUpperCase()}
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-text-primary">{siteConfig.author}</h2>
+          <p class="text-text-secondary">博客作者</p>
+        </div>
+      </div>
+
+      <!-- 联系方式 -->
+      <div class="mt-6 flex flex-wrap gap-3">
+        <a
+          href="/rss.xml"
+          class="inline-flex items-center gap-2 rounded-full glass-subtle px-4 py-2 text-sm font-medium text-text-primary transition-all hover:shadow-lg hover:scale-105"
+        >
+          <Icon name="rss" class="text-accent" />
+          <span>RSS 订阅</span>
+        </a>
+        <a
+          href="https://github.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-2 rounded-full glass-subtle px-4 py-2 text-sm font-medium text-text-primary transition-all hover:shadow-lg hover:scale-105"
+        >
+          <Icon name="github" />
+          <span>GitHub</span>
+        </a>
+      </div>
+    </GlassCard>
+  </div>
 </BaseLayout>

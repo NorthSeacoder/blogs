@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import PostCard from '../../../components/PostCard.astro';
+import Icon from '../../../components/Icon.astro';
 import { getCollection } from 'astro:content';
 import { filterDrafts, sortPosts } from '../../../lib/utils';
 
@@ -15,15 +16,52 @@ export async function getStaticPaths() {
   }));
 }
 
-const { tag, posts } = Astro.props as { tag: string; posts: Awaited<ReturnType<typeof getCollection<'blog'>>> };
+const { tag, posts } = Astro.props as {
+  tag: string;
+  posts: Awaited<ReturnType<typeof getCollection<'blog'>>>;
+};
 ---
-<BaseLayout title={`标签：${tag}`} description={`${tag} 相关的文章列表`}>
-  <h1 class="text-3xl font-bold text-gray-900">#{tag}</h1>
-  <p class="mt-2 text-gray-700">共 {posts.length} 篇文章</p>
 
-  <div class="mt-6 space-y-6">
-    {posts.map((post) => (
-      <PostCard post={post} />
-    ))}
+<BaseLayout title={`标签：${tag}`} description={`${tag} 相关的文章列表`}>
+  <div class="animate-fade-in">
+    <!-- 返回链接 -->
+    <a
+      href="/tags/"
+      class="
+        group mb-6 inline-flex items-center gap-2
+        text-sm font-medium text-text-secondary
+        transition-colors hover:text-accent
+      "
+    >
+      <Icon name="arrow-left" class="transition-transform group-hover:-translate-x-1" />
+      <span>返回标签列表</span>
+    </a>
+
+    <!-- 页面标题 -->
+    <div class="mb-8">
+      <div class="flex items-center gap-3">
+        <div class="h-8 w-1 rounded-full bg-gradient-to-b from-accent to-cyan-500"></div>
+        <h1 class="text-3xl font-bold text-text-primary">
+          <span class="text-accent">#</span>{tag}
+        </h1>
+      </div>
+      <p class="mt-2 text-text-secondary">
+        共 <span class="font-semibold text-accent">{posts.length}</span> 篇文章
+      </p>
+    </div>
+
+    <!-- 文章网格 -->
+    <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+      {posts.map((post, index) => <PostCard post={post} index={index} />)}
+    </div>
+
+    <!-- 空状态 -->
+    {
+      posts.length === 0 && (
+        <div class="glass rounded-2xl p-12 text-center">
+          <p class="text-text-secondary">该标签下暂无文章</p>
+        </div>
+      )
+    }
   </div>
 </BaseLayout>

@@ -1,27 +1,278 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
 
+/* ========================================
+   设计系统 - CSS 变量定义
+   ======================================== */
+
 :root {
+  /* 色彩系统 - 亮色主题 */
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #ffffff;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #64748b;
+  --color-accent: #3b82f6;
+  --color-accent-hover: #2563eb;
+  --color-border: #e2e8f0;
+  --color-border-subtle: #f1f5f9;
+
+  /* 毛玻璃效果 */
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-bg-hover: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+
+  /* 渐变 */
+  --gradient-hero: linear-gradient(135deg, #eff6ff 0%, #ecfeff 50%, #f0fdf4 100%);
+  --gradient-card: linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%);
+
+  /* 过渡 */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* 主题色 */
   color-scheme: light;
 }
 
-body {
-  @apply bg-white text-gray-900 antialiased;
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+.dark {
+  /* 色彩系统 - 暗色主题 */
+  --color-bg: #0f172a;
+  --color-surface: #1e293b;
+  --color-surface-elevated: #334155;
+  --color-text-primary: #f1f5f9;
+  --color-text-secondary: #94a3b8;
+  --color-accent: #60a5fa;
+  --color-accent-hover: #3b82f6;
+  --color-border: #334155;
+  --color-border-subtle: #1e293b;
+
+  /* 毛玻璃效果 - 暗色 */
+  --glass-bg: rgba(30, 41, 59, 0.7);
+  --glass-bg-hover: rgba(30, 41, 59, 0.85);
+  --glass-border: rgba(51, 65, 85, 0.5);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+
+  /* 渐变 - 暗色 */
+  --gradient-hero: linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%);
+  --gradient-card: linear-gradient(180deg, rgba(30,41,59,0.9) 0%, rgba(30,41,59,0.7) 100%);
+
+  color-scheme: dark;
 }
 
-a {
-  @apply text-primary hover:text-blue-700 transition-colors;
+/* ========================================
+   基础样式
+   ======================================== */
+
+html {
+  scroll-behavior: smooth;
 }
+
+body {
+  @apply antialiased;
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  transition: background-color var(--transition-base), color var(--transition-base);
+}
+
+/* ========================================
+   链接样式
+   ======================================== */
+
+a {
+  color: var(--color-accent);
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--color-accent-hover);
+}
+
+/* ========================================
+   布局容器
+   ======================================== */
 
 .main-container {
   @apply mx-auto max-w-4xl px-4 sm:px-6 lg:px-8;
 }
 
-.prose {
-  @apply prose-slate max-w-none prose-headings:scroll-mt-24;
+/* ========================================
+   毛玻璃效果类
+   ======================================== */
+
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
 }
 
+.glass-subtle {
+  background: var(--glass-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--glass-border);
+}
+
+.glass-strong {
+  background: var(--glass-bg);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+/* ========================================
+   排版增强 - Prose
+   ======================================== */
+
+.prose {
+  @apply max-w-none;
+  --tw-prose-body: var(--color-text-primary);
+  --tw-prose-headings: var(--color-text-primary);
+  --tw-prose-lead: var(--color-text-secondary);
+  --tw-prose-links: var(--color-accent);
+  --tw-prose-bold: var(--color-text-primary);
+  --tw-prose-counters: var(--color-text-secondary);
+  --tw-prose-bullets: var(--color-text-secondary);
+  --tw-prose-hr: var(--color-border);
+  --tw-prose-quotes: var(--color-text-primary);
+  --tw-prose-quote-borders: var(--color-accent);
+  --tw-prose-captions: var(--color-text-secondary);
+  --tw-prose-code: var(--color-text-primary);
+  --tw-prose-pre-code: #e2e8f0;
+  --tw-prose-pre-bg: #1e293b;
+  --tw-prose-th-borders: var(--color-border);
+  --tw-prose-td-borders: var(--color-border);
+}
+
+.prose :where(h1, h2, h3, h4):not(:where([class~="not-prose"] *)) {
+  @apply scroll-mt-24 font-semibold;
+}
+
+.prose :where(a):not(:where([class~="not-prose"] *)) {
+  @apply font-medium no-underline hover:underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.prose :where(code):not(:where([class~="not-prose"], pre *)) {
+  @apply rounded px-1.5 py-0.5 text-sm font-medium;
+  background-color: var(--color-surface-elevated);
+}
+
+.prose :where(pre):not(:where([class~="not-prose"] *)) {
+  @apply rounded-xl border;
+  border-color: var(--color-border);
+}
+
+.prose :where(blockquote):not(:where([class~="not-prose"] *)) {
+  @apply rounded-r-lg border-l-4 italic;
+  border-color: var(--color-accent);
+  background-color: var(--color-surface-elevated);
+  padding: 1rem 1.5rem;
+}
+
+.prose :where(img):not(:where([class~="not-prose"] *)) {
+  @apply rounded-xl shadow-lg;
+}
+
+/* ========================================
+   无障碍 - 跳过链接
+   ======================================== */
+
 .skip-link {
-  @apply absolute left-4 top-4 -translate-y-16 bg-white px-3 py-2 text-sm font-semibold text-primary shadow focus:translate-y-0;
+  @apply fixed left-4 top-4 z-50 -translate-y-16 rounded-lg px-4 py-2 text-sm font-semibold shadow-lg transition-transform focus:translate-y-0;
+  background-color: var(--color-accent);
+  color: white;
+}
+
+/* ========================================
+   动画关键帧
+   ======================================== */
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* ========================================
+   工具类
+   ======================================== */
+
+.animate-shimmer {
+  animation: shimmer 2s infinite linear;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+}
+
+/* GPU 加速提示 */
+.gpu-accelerated {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+/* 渐入动画延迟 */
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.2s; }
+.stagger-3 { animation-delay: 0.3s; }
+.stagger-4 { animation-delay: 0.4s; }
+.stagger-5 { animation-delay: 0.5s; }
+
+/* ========================================
+   滚动条美化
+   ======================================== */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) var(--color-bg);
+}
+
+/* ========================================
+   选中文本样式
+   ======================================== */
+
+::selection {
+  background-color: var(--color-accent);
+  color: white;
 }

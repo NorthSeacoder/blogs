@@ -2,6 +2,8 @@
 import '../styles/global.css';
 import { navLinks, siteConfig } from '../lib/siteConfig';
 import Seo from '../components/Seo.astro';
+import ThemeToggle from '../components/ThemeToggle.astro';
+import Icon from '../components/Icon.astro';
 
 interface Props {
   title?: string;
@@ -22,10 +24,37 @@ const {
   keywords,
   jsonLd,
 } = Astro.props;
+
+const currentPath = Astro.url.pathname;
 ---
-<!DOCTYPE html>
+
+<!doctype html>
 <html lang={lang} class="min-h-full">
   <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="generator" content={Astro.generator} />
+
+    <!-- 防闪烁脚本：在 DOM 解析前执行 -->
+    <script is:inline>
+      (function () {
+        const STORAGE_KEY = 'theme';
+        const stored = localStorage.getItem(STORAGE_KEY);
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        // 根据存储值或系统偏好设置主题
+        if (stored === 'dark' || (stored === 'system' && prefersDark) || (!stored && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      })();
+    </script>
+
+    <!-- 字体预加载 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
     <Seo
       title={title}
       description={description}
@@ -35,31 +64,130 @@ const {
       jsonLd={jsonLd}
     />
   </head>
-  <body>
-    <a href="#main" class="skip-link">Skip to content</a>
-    <header class="border-b bg-white/90 backdrop-blur sticky top-0 z-40">
-      <div class="main-container flex items-center justify-between py-4">
-        <a href="/" class="text-xl font-bold text-gray-900">{siteConfig.title}</a>
-        <nav aria-label="主导航">
-          <ul class="flex items-center gap-4 text-sm font-semibold text-gray-700">
-            {navLinks.map((link) => (
-              <li><a href={link.href}>{link.label}</a></li>
-            ))}
-          </ul>
-        </nav>
+  <body class="flex min-h-screen flex-col">
+    <!-- 跳过链接 -->
+    <a href="#main" class="skip-link">跳到主要内容</a>
+
+    <!-- 导航栏 - 毛玻璃效果 -->
+    <header
+      class="
+        fixed inset-x-0 top-0 z-50
+        glass
+        border-b border-glass
+        transition-all duration-300
+      "
+    >
+      <div class="main-container flex h-16 items-center justify-between">
+        <!-- Logo -->
+        <a
+          href="/"
+          class="
+            text-xl font-bold
+            bg-gradient-to-r from-blue-600 to-cyan-500
+            dark:from-blue-400 dark:to-cyan-400
+            bg-clip-text text-transparent
+            transition-opacity hover:opacity-80
+          "
+        >
+          {siteConfig.title}
+        </a>
+
+        <!-- 导航 -->
+        <div class="flex items-center gap-2">
+          <nav aria-label="主导航">
+            <ul class="flex items-center gap-1 text-sm font-medium">
+              {
+                navLinks.map((link) => {
+                  const isActive =
+                    currentPath === link.href ||
+                    (link.href !== '/' && currentPath.startsWith(link.href));
+                  return (
+                    <li>
+                      <a
+                        href={link.href}
+                        class:list={[
+                          'relative px-3 py-2 rounded-lg transition-all duration-200',
+                          'hover:bg-surface-elevated/50',
+                          isActive
+                            ? 'text-accent font-semibold'
+                            : 'text-text-secondary hover:text-text-primary',
+                        ]}
+                        aria-current={isActive ? 'page' : undefined}
+                      >
+                        {link.label}
+                        {isActive && (
+                          <span class="absolute bottom-0 left-1/2 h-0.5 w-4 -translate-x-1/2 rounded-full bg-accent" />
+                        )}
+                      </a>
+                    </li>
+                  );
+                })
+              }
+            </ul>
+          </nav>
+
+          <!-- 主题切换 -->
+          <ThemeToggle />
+        </div>
       </div>
     </header>
-    <main id="main" class="main-container py-10">
+
+    <!-- 主内容区 -->
+    <main id="main" class="main-container flex-1 pb-16 pt-24">
       <slot />
     </main>
-    <footer class="border-t bg-gray-50 py-6 text-center text-sm text-muted">
-      <div class="main-container flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p>
-          © {new Date().getFullYear()} {siteConfig.author}. Built with Astro & Tailwind CSS.
-        </p>
-        <div class="flex items-center gap-3 justify-center sm:justify-end">
-          <a href="/rss.xml" class="underline">RSS</a>
-          <a href="/sitemap-index.xml" class="underline">Sitemap</a>
+
+    <!-- 页脚 -->
+    <footer
+      class="
+        border-t border-border
+        bg-surface/50
+        py-8
+        text-sm text-text-secondary
+      "
+    >
+      <div class="main-container">
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <!-- 版权信息 -->
+          <p class="text-center sm:text-left">
+            &copy; {new Date().getFullYear()}
+            <span class="font-medium text-text-primary">{siteConfig.author}</span>
+            <span class="mx-2 text-border">|</span>
+            Built with
+            <a href="https://astro.build" class="hover:underline">Astro</a>
+            &
+            <a href="https://tailwindcss.com" class="hover:underline">Tailwind CSS</a>
+          </p>
+
+          <!-- 链接 -->
+          <div class="flex items-center justify-center gap-4 sm:justify-end">
+            <a
+              href="/rss.xml"
+              class="
+                flex items-center gap-1.5
+                rounded-lg px-3 py-1.5
+                transition-colors
+                hover:bg-surface-elevated/50
+              "
+              aria-label="RSS 订阅"
+            >
+              <Icon name="rss" />
+              <span>RSS</span>
+            </a>
+            <a
+              href="/sitemap-index.xml"
+              class="
+                flex items-center gap-1.5
+                rounded-lg px-3 py-1.5
+                transition-colors
+                hover:bg-surface-elevated/50
+              "
+              aria-label="Sitemap"
+            >
+              <Icon name="sitemap" />
+              <span>Sitemap</span>
+            </a>
+          </div>
         </div>
       </div>
     </footer>

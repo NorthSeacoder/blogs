@@ -1,0 +1,153 @@
+<!DOCTYPE html><html lang="zh-CN" class="min-h-full"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Astro v5.16.5"><!-- 防闪烁脚本：在 DOM 解析前执行 --><script>
+      (function () {
+        const STORAGE_KEY = 'theme';
+        const stored = localStorage.getItem(STORAGE_KEY);
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        // 根据存储值或系统偏好设置主题
+        if (stored === 'dark' || (stored === 'system' && prefersDark) || (!stored && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      })();
+    </script><!-- 字体预加载 --><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><title>文章列表 | Astro Tailwind Blog</title><meta name="description" content="所有文章列表，支持分页浏览。"><link rel="canonical" href="https://example.com/posts/"><link rel="alternate" type="application/rss+xml" title="RSS" href="/rss.xml"><meta property="og:title" content="文章列表 | Astro Tailwind Blog"><meta property="og:description" content="所有文章列表，支持分页浏览。"><meta property="og:type" content="article"><meta property="og:url" content="https://example.com/posts/"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="文章列表 | Astro Tailwind Blog"><meta name="twitter:description" content="所有文章列表，支持分页浏览。"><link rel="stylesheet" href="/_astro/index.DLeIcwoz.css"></head> <body class="flex min-h-screen flex-col"> <!-- 跳过链接 --> <a href="#main" class="skip-link">跳到主要内容</a> <!-- 导航栏 - 毛玻璃效果 --> <header class="
+        fixed inset-x-0 top-0 z-50
+        glass
+        border-b border-glass
+        transition-all duration-300
+      "> <div class="main-container flex h-16 items-center justify-between"> <!-- Logo --> <a href="/" class="
+            text-xl font-bold
+            bg-gradient-to-r from-blue-600 to-cyan-500
+            dark:from-blue-400 dark:to-cyan-400
+            bg-clip-text text-transparent
+            transition-opacity hover:opacity-80
+          "> Astro Tailwind Blog </a> <!-- 导航 --> <div class="flex items-center gap-2"> <nav aria-label="主导航"> <ul class="flex items-center gap-1 text-sm font-medium"> <li> <a href="/" class="relative px-3 py-2 rounded-lg transition-all duration-200 hover:bg-surface-elevated/50 text-text-secondary hover:text-text-primary"> 首页  </a> </li><li> <a href="/posts/" class="relative px-3 py-2 rounded-lg transition-all duration-200 hover:bg-surface-elevated/50 text-accent font-semibold" aria-current="page"> 文章 <span class="absolute bottom-0 left-1/2 h-0.5 w-4 -translate-x-1/2 rounded-full bg-accent"></span> </a> </li><li> <a href="/tags/" class="relative px-3 py-2 rounded-lg transition-all duration-200 hover:bg-surface-elevated/50 text-text-secondary hover:text-text-primary"> 标签  </a> </li><li> <a href="/archives/" class="relative px-3 py-2 rounded-lg transition-all duration-200 hover:bg-surface-elevated/50 text-text-secondary hover:text-text-primary"> 归档  </a> </li><li> <a href="/about/" class="relative px-3 py-2 rounded-lg transition-all duration-200 hover:bg-surface-elevated/50 text-text-secondary hover:text-text-primary"> 关于  </a> </li><li> <a href="/search/" class="relative px-3 py-2 rounded-lg transition-all duration-200 hover:bg-surface-elevated/50 text-text-secondary hover:text-text-primary"> 搜索  </a> </li> </ul> </nav> <!-- 主题切换 --> <button id="theme-toggle" type="button" aria-label="切换主题" class="
+    relative flex h-10 w-10 items-center justify-center
+    rounded-xl
+    glass-subtle
+    text-text-secondary
+    transition-all duration-300
+    hover:text-text-primary hover:scale-105
+    focus:outline-none focus:ring-2 focus:ring-accent/50
+  " data-astro-cid-x3pjskd3> <!-- 太阳图标 (亮色模式) --> <svg id="icon-sun" class="absolute h-5 w-5 transition-all duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" data-astro-cid-x3pjskd3></path> </svg> <!-- 月亮图标 (暗色模式) --> <svg id="icon-moon" class="absolute h-5 w-5 transition-all duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" data-astro-cid-x3pjskd3></path> </svg> <!-- 系统图标 (跟随系统) --> <svg id="icon-system" class="absolute h-5 w-5 transition-all duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" data-astro-cid-x3pjskd3></path> </svg> </button> <script type="module">const m="theme",s=["light","dark","system"];function r(){if(typeof localStorage>"u")return"system";const e=localStorage.getItem(m);return s.includes(e)?e:"system"}function l(){return typeof window>"u"?"light":window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}function u(e){return e==="system"?l():e}function d(e){const n=u(e),t=document.documentElement;n==="dark"?t.classList.add("dark"):t.classList.remove("dark"),f(e)}function f(e){const n=document.getElementById("icon-sun"),t=document.getElementById("icon-moon"),o=document.getElementById("icon-system");if(!n||!t||!o)return;[n,t,o].forEach(i=>{i.style.opacity="0",i.style.transform="scale(0.5) rotate(-180deg)"});let c;switch(e){case"light":c=n;break;case"dark":c=t;break;default:c=o}requestAnimationFrame(()=>{c.style.opacity="1",c.style.transform="scale(1) rotate(0deg)"})}function g(){const e=r(),t=(s.indexOf(e)+1)%s.length,o=s[t];localStorage.setItem(m,o),d(o)}function a(){const e=r();d(e),document.getElementById("theme-toggle")?.addEventListener("click",g),window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{r()==="system"&&d("system")})}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",a):a();document.addEventListener("astro:after-swap",a);</script>  </div> </div> </header> <!-- 主内容区 --> <main id="main" class="main-container flex-1 pb-16 pt-24">  <div class="animate-fade-in"> <!-- 页面标题 --> <div class="mb-8"> <div class="flex items-center gap-3"> <div class="h-8 w-1 rounded-full bg-gradient-to-b from-accent to-cyan-500"></div> <h1 class="text-3xl font-bold text-text-primary">全部文章</h1> </div> <p class="mt-2 text-text-secondary">最新写作和更新集合，草稿不会出现在这里。</p> </div> <!-- 文章网格 --> <div class="grid grid-cols-1 gap-6 md:grid-cols-2"> <article class="
+    group relative overflow-hidden rounded-2xl
+    glass
+    p-6
+    transition-all duration-300 ease-out
+    hover:shadow-2xl hover:shadow-accent/10
+    hover:-translate-y-1
+    animate-slide-up animate-fill-backwards
+  " style="animation-delay: 0ms;"> <!-- 悬停渐变背景 --> <div class="
+      absolute inset-0 -z-10
+      bg-gradient-to-br from-accent/5 via-transparent to-cyan-500/5
+      opacity-0 transition-opacity duration-300
+      group-hover:opacity-100
+    "></div> <!-- 封面图 --> <div class="relative -mx-6 -mt-6 mb-4 overflow-hidden"> <img src="../../assets/covers/astro-cover.svg" alt="Astro blog cover art" loading="lazy" class="
+            aspect-video w-full object-cover
+            transition-transform duration-500
+            group-hover:scale-105
+          "> <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div> </div> <!-- 标题 --> <a href="/posts/pagefind-guide/" class="
+      block text-xl font-semibold leading-tight
+      text-text-primary
+      transition-colors duration-200
+      group-hover:text-accent
+    "> <span class="
+        bg-gradient-to-r from-accent to-accent
+        bg-[length:0%_2px] bg-left-bottom bg-no-repeat
+        transition-[background-size] duration-300
+        group-hover:bg-[length:100%_2px]
+      "> 为中文优化 Pagefind 站内搜索 </span> </a> <!-- 日期 --> <p class="mt-2 flex items-center gap-2 text-sm text-text-secondary"> <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"> <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"></path> </svg> <time datetime="2025-02-12T00:00:00.000Z"> 2025年2月12日 </time> </p> <!-- 描述 --> <p class="mt-3 line-clamp-2 text-base leading-relaxed text-text-secondary"> 讲解如何在 Astro 博客中集成 Pagefind，启用 extended 二进制以支持中文检索。 </p> <!-- 标签 --> <ul class="mt-4 flex flex-wrap gap-2" aria-label="标签"> <li> <a href="/tags/Search/" class="
+                inline-flex items-center gap-1
+                rounded-full px-3 py-1
+                text-xs font-medium
+                bg-accent/10 text-accent
+                transition-all duration-200
+                hover:bg-accent/20 hover:scale-105
+              "> <span class="opacity-60">#</span> Search </a> </li><li> <a href="/tags/Pagefind/" class="
+                inline-flex items-center gap-1
+                rounded-full px-3 py-1
+                text-xs font-medium
+                bg-accent/10 text-accent
+                transition-all duration-200
+                hover:bg-accent/20 hover:scale-105
+              "> <span class="opacity-60">#</span> Pagefind </a> </li>  </ul> <!-- 阅读更多箭头 --> <div class="
+      absolute bottom-6 right-6
+      flex h-8 w-8 items-center justify-center
+      rounded-full
+      bg-accent/10
+      text-accent
+      opacity-0 transition-all duration-300
+      group-hover:opacity-100 group-hover:translate-x-0
+      -translate-x-2
+    "> <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"> <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"></path> </svg> </div> </article><article class="
+    group relative overflow-hidden rounded-2xl
+    glass
+    p-6
+    transition-all duration-300 ease-out
+    hover:shadow-2xl hover:shadow-accent/10
+    hover:-translate-y-1
+    animate-slide-up animate-fill-backwards
+  " style="animation-delay: 100ms;"> <!-- 悬停渐变背景 --> <div class="
+      absolute inset-0 -z-10
+      bg-gradient-to-br from-accent/5 via-transparent to-cyan-500/5
+      opacity-0 transition-opacity duration-300
+      group-hover:opacity-100
+    "></div> <!-- 封面图 --> <div class="relative -mx-6 -mt-6 mb-4 overflow-hidden"> <img src="../../assets/covers/astro-cover.svg" alt="Night gradient background with Astro text" loading="lazy" class="
+            aspect-video w-full object-cover
+            transition-transform duration-500
+            group-hover:scale-105
+          "> <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div> </div> <!-- 标题 --> <a href="/posts/hello-astro/" class="
+      block text-xl font-semibold leading-tight
+      text-text-primary
+      transition-colors duration-200
+      group-hover:text-accent
+    "> <span class="
+        bg-gradient-to-r from-accent to-accent
+        bg-[length:0%_2px] bg-left-bottom bg-no-repeat
+        transition-[background-size] duration-300
+        group-hover:bg-[length:100%_2px]
+      "> 使用 Astro 打造极快的博客 </span> </a> <!-- 日期 --> <p class="mt-2 flex items-center gap-2 text-sm text-text-secondary"> <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"> <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"></path> </svg> <time datetime="2024-12-01T00:00:00.000Z"> 2024年12月1日 </time> </p> <!-- 描述 --> <p class="mt-3 line-clamp-2 text-base leading-relaxed text-text-secondary"> 介绍项目目标、性能与可访问性设计，展示 Astro + Tailwind 的基础搭建。 </p> <!-- 标签 --> <ul class="mt-4 flex flex-wrap gap-2" aria-label="标签"> <li> <a href="/tags/Astro/" class="
+                inline-flex items-center gap-1
+                rounded-full px-3 py-1
+                text-xs font-medium
+                bg-accent/10 text-accent
+                transition-all duration-200
+                hover:bg-accent/20 hover:scale-105
+              "> <span class="opacity-60">#</span> Astro </a> </li><li> <a href="/tags/Performance/" class="
+                inline-flex items-center gap-1
+                rounded-full px-3 py-1
+                text-xs font-medium
+                bg-accent/10 text-accent
+                transition-all duration-200
+                hover:bg-accent/20 hover:scale-105
+              "> <span class="opacity-60">#</span> Performance </a> </li>  </ul> <!-- 阅读更多箭头 --> <div class="
+      absolute bottom-6 right-6
+      flex h-8 w-8 items-center justify-center
+      rounded-full
+      bg-accent/10
+      text-accent
+      opacity-0 transition-all duration-300
+      group-hover:opacity-100 group-hover:translate-x-0
+      -translate-x-2
+    "> <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"> <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"></path> </svg> </div> </article> </div> <!-- 分页导航 -->  <!-- 空状态 -->  </div>  </main> <!-- 页脚 --> <footer class="
+        border-t border-border
+        bg-surface/50
+        py-8
+        text-sm text-text-secondary
+      "> <div class="main-container"> <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"> <!-- 版权信息 --> <p class="text-center sm:text-left">
+&copy; 2025 <span class="font-medium text-text-primary">Your Name</span> <span class="mx-2 text-border">|</span>
+Built with
+<a href="https://astro.build" class="hover:underline">Astro</a>
+&
+<a href="https://tailwindcss.com" class="hover:underline">Tailwind CSS</a> </p> <!-- 链接 --> <div class="flex items-center justify-center gap-4 sm:justify-end"> <a href="/rss.xml" class="
+                flex items-center gap-1.5
+                rounded-lg px-3 py-1.5
+                transition-colors
+                hover:bg-surface-elevated/50
+              " aria-label="RSS 订阅"> <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"> <path d="M6.18 15.64a2.18 2.18 0 0 1 2.18 2.18C8.36 19 7.38 20 6.18 20C5 20 4 19 4 17.82a2.18 2.18 0 0 1 2.18-2.18M4 4.44A15.56 15.56 0 0 1 19.56 20h-2.83A12.73 12.73 0 0 0 4 7.27V4.44m0 5.66a9.9 9.9 0 0 1 9.9 9.9h-2.83A7.07 7.07 0 0 0 4 12.93V10.1Z"></path> </svg> <span>RSS</span> </a> <a href="/sitemap-index.xml" class="
+                flex items-center gap-1.5
+                rounded-lg px-3 py-1.5
+                transition-colors
+                hover:bg-surface-elevated/50
+              " aria-label="Sitemap"> <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"> <path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path> </svg> <span>Sitemap</span> </a> </div> </div> </div> </footer> </body></html>
