@@ -1,0 +1,33 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
+import { filterDrafts, sortPosts, format } from '../../lib/utils';
+
+const posts = sortPosts(filterDrafts(await getCollection('blog')));
+const archives = posts.reduce<Record<string, typeof posts>>((acc, post) => {
+  const key = `${post.data.pubDate.getUTCFullYear()}-${String(post.data.pubDate.getUTCMonth() + 1).padStart(2, '0')}`;
+  acc[key] = acc[key] ? [...acc[key], post] : [post];
+  return acc;
+}, {});
+const groups = Object.entries(archives).sort(([a], [b]) => (a > b ? -1 : 1));
+---
+<BaseLayout title="归档" description="按年月查看文章归档。">
+  <h1 class="text-3xl font-bold text-gray-900">归档</h1>
+  <p class="mt-2 text-gray-700">按时间浏览所有文章。</p>
+
+  <div class="mt-6 space-y-8">
+    {groups.map(([month, posts]) => (
+      <section>
+        <h2 class="text-xl font-semibold text-gray-900">{month}</h2>
+        <ul class="mt-3 space-y-2">
+          {posts.map((post) => (
+            <li class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <a href={`/posts/${post.slug}/`} class="font-semibold text-primary">{post.data.title}</a>
+              <span class="text-sm text-muted">{format.date(post.data.pubDate)}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))}
+  </div>
+</BaseLayout>

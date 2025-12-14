@@ -1,0 +1,64 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { estimateReadingTime, format } from '../../lib/utils';
+import { siteConfig } from '../../lib/siteConfig';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('blog', ({ data }) => !data.draft);
+  return posts.map((post) => ({ params: { slug: post.slug }, props: { post } }));
+}
+
+const { post } = Astro.props;
+const canonical = post.data.canonical ?? new URL(`/posts/${post.slug}/`, siteConfig.siteUrl).toString();
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BlogPosting',
+  headline: post.data.title,
+  description: post.data.description,
+  datePublished: post.data.pubDate,
+  dateModified: post.data.updatedDate ?? post.data.pubDate,
+  url: canonical,
+  author: {
+    '@type': 'Person',
+    name: siteConfig.author,
+  },
+};
+---
+<BaseLayout
+  title={post.data.title}
+  description={post.data.description}
+  canonical={canonical}
+  image={post.data.cover}
+  keywords={post.data.keywords}
+  lang={post.data.lang}
+  jsonLd={jsonLd}
+>
+  <article class="prose">
+    <p class="text-sm text-muted">{format.date(post.data.pubDate)}</p>
+    <h1 class="text-3xl font-bold text-gray-900">{post.data.title}</h1>
+    <p class="text-gray-700">{post.data.description}</p>
+    <div class="mt-2 flex items-center gap-3 text-sm text-muted">
+      <span>阅读时间：{estimateReadingTime(post.body)}</span>
+      {post.data.updatedDate && <span>更新于 {format.date(post.data.updatedDate)}</span>}
+    </div>
+    {post.data.cover && post.data.coverAlt && (
+      <img
+        src={post.data.cover}
+        alt={post.data.coverAlt}
+        loading="lazy"
+        class="mt-6 w-full rounded-lg border"
+      />
+    )}
+    <div class="mt-6">{post.render()}</div>
+    {post.data.tags && (
+      <div class="mt-6 flex flex-wrap gap-2" aria-label="标签">
+        {post.data.tags.map((tag) => (
+          <a href={`/tags/${tag}/`} class="rounded-full bg-blue-50 px-3 py-1 text-sm text-primary">
+            #{tag}
+          </a>
+        ))}
+      </div>
+    )}
+  </article>
+</BaseLayout>

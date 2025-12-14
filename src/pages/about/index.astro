@@ -1,0 +1,16 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { siteConfig } from '../../lib/siteConfig';
+---
+<BaseLayout title="关于" description="关于作者与博客的介绍。">
+  <h1 class="text-3xl font-bold text-gray-900">关于本站</h1>
+  <p class="mt-3 text-gray-700">
+    这是一个以 SEO、性能和可访问性为优先级的 Astro 博客示例。内容全部本地 Markdown/MDX 编写，构建后生成纯静态文件，便于部署到任何 CDN。
+  </p>
+  <ul class="mt-6 list-disc space-y-2 pl-5 text-gray-700">
+    <li>Tailwind CSS v4 提供设计体系，减少样式维护成本。</li>
+    <li>Pagefind 在构建期生成索引，搜索体验无需后端。</li>
+    <li>RSS、Sitemap 和结构化数据确保搜索引擎友好。</li>
+  </ul>
+  <p class="mt-6 text-gray-700">作者：{siteConfig.author}</p>
+</BaseLayout>
