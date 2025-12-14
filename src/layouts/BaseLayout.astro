@@ -1,0 +1,67 @@
+---
+import '../styles/global.css';
+import { navLinks, siteConfig } from '../lib/siteConfig';
+import Seo from '../components/Seo.astro';
+
+interface Props {
+  title?: string;
+  description?: string;
+  canonical?: string;
+  image?: string;
+  lang?: string;
+  keywords?: string[];
+  jsonLd?: Record<string, any>;
+}
+
+const {
+  title = siteConfig.title,
+  description = siteConfig.description,
+  canonical,
+  image,
+  lang = siteConfig.language,
+  keywords,
+  jsonLd,
+} = Astro.props;
+---
+<!DOCTYPE html>
+<html lang={lang} class="min-h-full">
+  <head>
+    <Seo
+      title={title}
+      description={description}
+      canonical={canonical}
+      image={image}
+      keywords={keywords}
+      jsonLd={jsonLd}
+    />
+  </head>
+  <body>
+    <a href="#main" class="skip-link">Skip to content</a>
+    <header class="border-b bg-white/90 backdrop-blur sticky top-0 z-40">
+      <div class="main-container flex items-center justify-between py-4">
+        <a href="/" class="text-xl font-bold text-gray-900">{siteConfig.title}</a>
+        <nav aria-label="主导航">
+          <ul class="flex items-center gap-4 text-sm font-semibold text-gray-700">
+            {navLinks.map((link) => (
+              <li><a href={link.href}>{link.label}</a></li>
+            ))}
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <main id="main" class="main-container py-10">
+      <slot />
+    </main>
+    <footer class="border-t bg-gray-50 py-6 text-center text-sm text-muted">
+      <div class="main-container flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p>
+          © {new Date().getFullYear()} {siteConfig.author}. Built with Astro & Tailwind CSS.
+        </p>
+        <div class="flex items-center gap-3 justify-center sm:justify-end">
+          <a href="/rss.xml" class="underline">RSS</a>
+          <a href="/sitemap-index.xml" class="underline">Sitemap</a>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

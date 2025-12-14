@@ -1,0 +1,31 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PostCard from '../../components/PostCard.astro';
+import { getCollection } from 'astro:content';
+import { filterDrafts, paginate, sortPosts } from '../../lib/utils';
+
+const pageSize = 5;
+const posts = paginate(sortPosts(filterDrafts(await getCollection('blog'))), pageSize);
+const pagePosts = posts[0] ?? [];
+const totalPages = posts.length || 1;
+---
+<BaseLayout title="文章列表" description="所有文章列表，支持分页浏览。">
+  <h1 class="text-3xl font-bold text-gray-900">全部文章</h1>
+  <p class="mt-2 text-gray-700">最新写作和更新集合，草稿不会出现在这里。</p>
+
+  <div class="mt-6 space-y-6">
+    {pagePosts.map((post) => (
+      <PostCard post={post} />
+    ))}
+  </div>
+
+  {totalPages > 1 && (
+    <nav class="mt-8 flex items-center justify-between" aria-label="分页导航">
+      <div />
+      <div class="flex items-center gap-2 text-sm font-semibold text-primary">
+        <span class="rounded-full bg-blue-50 px-3 py-1 text-gray-700">第 1 页 / 共 {totalPages} 页</span>
+        <a href="/posts/page/2/" class="underline">下一页</a>
+      </div>
+    </nav>
+  )}
+</BaseLayout>

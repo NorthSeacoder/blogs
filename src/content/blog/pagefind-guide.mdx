@@ -1,0 +1,25 @@
+---
+title: 为中文优化 Pagefind 站内搜索
+description: 讲解如何在 Astro 博客中集成 Pagefind，启用 extended 二进制以支持中文检索。
+pubDate: 2025-02-12
+updatedDate: 2025-03-01
+tags: ['Search', 'Pagefind']
+cover: '../../assets/covers/astro-cover.svg'
+coverAlt: 'Astro blog cover art'
+canonical: https://example.com/posts/pagefind-guide/
+lang: zh-CN
+keywords: ['Pagefind', '中文分词', 'Astro 搜索']
+---
+
+> Pagefind 在构建后对 `dist/` 目录索引，默认会在输出中生成 `/pagefind/` 目录。
+
+### 集成步骤
+
+1. 在 `package.json` 中新增 `pagefind` 依赖，并在 `build` 脚本中追加 `pagefind --site dist`。
+2. 搜索页引入 `@pagefind/default-ui`，为输入框绑定 `/` 快捷键以便键盘聚焦。
+3. 确保草稿文章不会出现在索引里：可以在 `getCollection` 时过滤 `draft` 字段。
+
+### 提示
+
+- extended 版本对中文检索体验更友好；使用 `npx pagefind` 即可自动下载。
+- 如果需要段落级别结果，可在 UI 组件中启用子结果展示。

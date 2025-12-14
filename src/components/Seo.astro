@@ -1,0 +1,32 @@
+---
+import { siteConfig } from '../lib/siteConfig';
+interface Props {
+  title: string;
+  description?: string;
+  canonical?: string;
+  image?: string;
+  keywords?: string[];
+  jsonLd?: Record<string, any>;
+}
+
+const { title, description, canonical, image, keywords, jsonLd } = Astro.props;
+const pageTitle = title ? `${title} | ${siteConfig.title}` : siteConfig.title;
+const desc = description ?? siteConfig.description;
+const url = canonical ?? new URL(Astro.url.pathname, siteConfig.siteUrl).toString();
+const imageUrl = image ? new URL(image, siteConfig.siteUrl).toString() : undefined;
+---
+<title>{pageTitle}</title>
+<meta name="description" content={desc} />
+{keywords && <meta name="keywords" content={keywords.join(', ')} />}
+<link rel="canonical" href={url} />
+<link rel="alternate" type="application/rss+xml" title="RSS" href="/rss.xml" />
+<meta property="og:title" content={pageTitle} />
+<meta property="og:description" content={desc} />
+<meta property="og:type" content="article" />
+<meta property="og:url" content={url} />
+{imageUrl && <meta property="og:image" content={imageUrl} />}
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={pageTitle} />
+<meta name="twitter:description" content={desc} />
+{imageUrl && <meta name="twitter:image" content={imageUrl} />}
+{jsonLd && <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>}
