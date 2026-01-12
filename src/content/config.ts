@@ -14,6 +14,9 @@ const blog = defineCollection({
     canonical: z.string().url().optional(),
     lang: z.string().optional(),
     keywords: z.array(z.string()).optional(),
+    // 系列文章支持
+    series: z.string().optional(),        // 系列名称，如 "HTTP", "JavaScript"
+    seriesOrder: z.number().optional(),   // 系列内排序
   }),
 });
 

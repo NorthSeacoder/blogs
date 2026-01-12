@@ -1,0 +1,78 @@
+---
+/**
+ * ReadingProgress - 阅读进度条组件
+ *
+ * 功能：
+ * - 显示文章阅读进度
+ * - 固定在页面顶部
+ * - 平滑动画
+ */
+---
+
+<div class="reading-progress-container" aria-hidden="true">
+  <div class="reading-progress-bar" id="reading-progress"></div>
+</div>
+
+<script>
+  function initReadingProgress() {
+    const progressBar = document.getElementById('reading-progress');
+    const article = document.querySelector('article');
+
+    if (!progressBar || !article) return;
+
+    function updateProgress() {
+      const articleRect = article.getBoundingClientRect();
+      const articleTop = articleRect.top + window.scrollY;
+      const articleHeight = articleRect.height;
+      const windowHeight = window.innerHeight;
+      const scrollY = window.scrollY;
+
+      // 计算阅读进度
+      const start = articleTop - windowHeight / 2;
+      const end = articleTop + articleHeight - windowHeight / 2;
+      const progress = Math.min(Math.max((scrollY - start) / (end - start), 0), 1);
+
+      progressBar.style.transform = `scaleX(${progress})`;
+    }
+
+    // 使用 requestAnimationFrame 优化性能
+    let ticking = false;
+    window.addEventListener('scroll', () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          updateProgress();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    });
+
+    // 初始化
+    updateProgress();
+  }
+
+  initReadingProgress();
+  document.addEventListener('astro:after-swap', initReadingProgress);
+</script>
+
+<style>
+  .reading-progress-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    z-index: 100;
+    background: transparent;
+    pointer-events: none;
+  }
+
+  .reading-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-accent), #06b6d4);
+    transform-origin: left;
+    transform: scaleX(0);
+    transition: transform 0.1s ease-out;
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+  }
+</style>

@@ -13,6 +13,7 @@ interface Props {
   lang?: string;
   keywords?: string[];
   jsonLd?: Record<string, any>;
+  wide?: boolean;
 }
 
 const {
@@ -23,6 +24,7 @@ const {
   lang = siteConfig.language,
   keywords,
   jsonLd,
+  wide = false,
 } = Astro.props;
 
 const currentPath = Astro.url.pathname;
@@ -54,6 +56,10 @@ const currentPath = Astro.url.pathname;
     <!-- 字体预加载 -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
 
     <Seo
       title={title}
@@ -68,95 +74,106 @@ const currentPath = Astro.url.pathname;
     <!-- 跳过链接 -->
     <a href="#main" class="skip-link">跳到主要内容</a>
 
-    <!-- 导航栏 - 毛玻璃效果 -->
+    <!-- 导航栏 - VSCode 标签页风格 -->
     <header
       class="
         fixed inset-x-0 top-0 z-50
-        glass
-        border-b border-glass
-        transition-all duration-300
+        bg-[var(--color-titlebar)]
+        border-b border-[var(--color-border)]
+        transition-colors duration-200
       "
     >
-      <div class="main-container flex h-16 items-center justify-between">
-        <!-- Logo -->
+      <div class="main-container flex h-12 items-center justify-between">
+        <!-- Logo - 终端风格 -->
         <a
           href="/"
           class="
-            text-xl font-bold
-            bg-gradient-to-r from-blue-600 to-cyan-500
-            dark:from-blue-400 dark:to-cyan-400
-            bg-clip-text text-transparent
+            flex items-center gap-2
+            font-mono text-sm font-medium
+            text-[var(--color-text-primary)]
             transition-opacity hover:opacity-80
           "
         >
-          {siteConfig.title}
+          <span class="text-[var(--color-accent)]">~/</span>
+          <span>{siteConfig.title.toLowerCase().replace(/\s+/g, '-')}</span>
+          <span class="text-[var(--color-comment)]">$</span>
         </a>
 
-        <!-- 导航 -->
-        <div class="flex items-center gap-2">
-          <nav aria-label="主导航">
-            <ul class="flex items-center gap-1 text-sm font-medium">
-              {
-                navLinks.map((link) => {
-                  const isActive =
-                    currentPath === link.href ||
-                    (link.href !== '/' && currentPath.startsWith(link.href));
-                  return (
-                    <li>
-                      <a
-                        href={link.href}
-                        class:list={[
-                          'relative px-3 py-2 rounded-lg transition-all duration-200',
-                          'hover:bg-surface-elevated/50',
-                          isActive
-                            ? 'text-accent font-semibold'
-                            : 'text-text-secondary hover:text-text-primary',
-                        ]}
-                        aria-current={isActive ? 'page' : undefined}
-                      >
-                        {link.label}
-                        {isActive && (
-                          <span class="absolute bottom-0 left-1/2 h-0.5 w-4 -translate-x-1/2 rounded-full bg-accent" />
-                        )}
-                      </a>
-                    </li>
-                  );
-                })
-              }
-            </ul>
+        <!-- 导航标签页 -->
+        <div class="flex items-center">
+          <nav aria-label="主导航" class="flex items-center">
+            {
+              navLinks.map((link) => {
+                const isActive =
+                  currentPath === link.href ||
+                  (link.href !== '/' && currentPath.startsWith(link.href));
+                return (
+                  <a
+                    href={link.href}
+                    class:list={[
+                      'tab font-mono text-xs',
+                      isActive && 'active',
+                    ]}
+                    aria-current={isActive ? 'page' : undefined}
+                  >
+                    {link.label}
+                  </a>
+                );
+              })
+            }
           </nav>
 
-          <!-- 主题切换 -->
-          <ThemeToggle />
+          <!-- 工具栏按钮组 -->
+          <div class="flex items-center gap-1 ml-2">
+            <!-- 搜索按钮 -->
+            <a
+              href="/search/"
+              class="
+                flex items-center justify-center
+                h-7 w-7 rounded
+                text-[var(--color-text-secondary)]
+                bg-[var(--color-surface)]
+                border border-[var(--color-border)]
+                transition-colors
+                hover:bg-[var(--color-surface-hover)]
+                hover:text-[var(--color-text-primary)]
+              "
+              aria-label="搜索"
+              title="搜索 (⌘K)"
+            >
+              <Icon name="search" size={3.5} />
+            </a>
+
+            <!-- 主题切换 -->
+            <ThemeToggle />
+          </div>
         </div>
       </div>
     </header>
 
     <!-- 主内容区 -->
-    <main id="main" class="main-container flex-1 pb-16 pt-24">
+    <main id="main" class:list={[wide ? 'main-container-wide' : 'main-container', 'flex-1 pb-16 pt-20']}>
       <slot />
     </main>
 
-    <!-- 页脚 -->
+    <!-- 页脚 - VSCode 状态栏风格 -->
     <footer
       class="
-        border-t border-border
-        bg-surface/50
-        py-8
-        text-sm text-text-secondary
+        border-t border-[var(--color-border)]
+        bg-[var(--color-surface)]
+        py-6
+        text-xs font-mono text-[var(--color-text-secondary)]
       "
     >
       <div class="main-container">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <!-- 版权信息 -->
           <p class="text-center sm:text-left">
-            &copy; {new Date().getFullYear()}
-            <span class="font-medium text-text-primary">{siteConfig.author}</span>
-            <span class="mx-2 text-border">|</span>
-            Built with
-            <a href="https://astro.build" class="hover:underline">Astro</a>
-            &
-            <a href="https://tailwindcss.com" class="hover:underline">Tailwind CSS</a>
+            <span class="syntax-comment">// </span>
+            <span class="syntax-keyword">const</span>
+            <span class="syntax-variable"> copyright</span>
+            <span> = </span>
+            <span class="syntax-string">"{new Date().getFullYear()} {siteConfig.author}"</span>
           </p>
 
           <!-- 链接 -->
@@ -165,27 +182,27 @@ const currentPath = Astro.url.pathname;
               href="/rss.xml"
               class="
                 flex items-center gap-1.5
-                rounded-lg px-3 py-1.5
                 transition-colors
-                hover:bg-surface-elevated/50
+                hover:text-[var(--color-accent)]
               "
               aria-label="RSS 订阅"
             >
-              <Icon name="rss" />
+              <Icon name="rss" size={3.5} />
               <span>RSS</span>
             </a>
             <a
-              href="/sitemap-index.xml"
+              href={siteConfig.social.github}
+              target="_blank"
+              rel="noopener noreferrer"
               class="
                 flex items-center gap-1.5
-                rounded-lg px-3 py-1.5
                 transition-colors
-                hover:bg-surface-elevated/50
+                hover:text-[var(--color-accent)]
               "
-              aria-label="Sitemap"
+              aria-label="GitHub"
             >
-              <Icon name="sitemap" />
-              <span>Sitemap</span>
+              <Icon name="github" size={3.5} />
+              <span>GitHub</span>
             </a>
           </div>
         </div>

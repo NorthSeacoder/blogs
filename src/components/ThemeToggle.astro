@@ -8,19 +8,21 @@
   type="button"
   aria-label="切换主题"
   class="
-    relative flex h-10 w-10 items-center justify-center
-    rounded-xl
-    glass-subtle
-    text-text-secondary
-    transition-all duration-300
-    hover:text-text-primary hover:scale-105
-    focus:outline-none focus:ring-2 focus:ring-accent/50
+    relative flex h-7 w-7 items-center justify-center
+    rounded
+    bg-[var(--color-surface)]
+    border border-[var(--color-border)]
+    text-[var(--color-text-secondary)]
+    transition-colors
+    hover:bg-[var(--color-surface-hover)]
+    hover:text-[var(--color-text-primary)]
+    focus:outline-none
   "
 >
   <!-- 太阳图标 (亮色模式) -->
   <svg
     id="icon-sun"
-    class="absolute h-5 w-5 transition-all duration-300"
+    class="absolute h-3.5 w-3.5 transition-all duration-200"
     fill="none"
     viewBox="0 0 24 24"
     stroke="currentColor"
@@ -36,7 +38,7 @@
   <!-- 月亮图标 (暗色模式) -->
   <svg
     id="icon-moon"
-    class="absolute h-5 w-5 transition-all duration-300"
+    class="absolute h-3.5 w-3.5 transition-all duration-200"
     fill="none"
     viewBox="0 0 24 24"
     stroke="currentColor"
@@ -52,7 +54,7 @@
   <!-- 系统图标 (跟随系统) -->
   <svg
     id="icon-system"
-    class="absolute h-5 w-5 transition-all duration-300"
+    class="absolute h-3.5 w-3.5 transition-all duration-200"
     fill="none"
     viewBox="0 0 24 24"
     stroke="currentColor"

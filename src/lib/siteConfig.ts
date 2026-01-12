@@ -1,17 +1,29 @@
 export const siteConfig = {
-  title: 'Astro Tailwind Blog',
-  description: 'A fast, SEO-first Astro blog with Tailwind CSS and Pagefind search.',
-  author: 'Your Name',
+  title: '?.log',
+  description: '探索未知的技术笔记 - 前端架构与工程化实践',
+  author: 'NorthSeacoder',
   siteUrl: 'https://example.com',
   language: 'zh-CN',
-  keywords: ['Astro', 'Tailwind', 'Blog'],
+  keywords: ['前端架构', '工程化', 'TypeScript', 'React', 'Vue', '性能优化'],
+  // 站点创建日期，用于计算运行天数
+  createdAt: new Date('2024-01-01'),
+  // 社交链接
+  social: {
+    github: 'https://github.com/NorthSeacoder',
+    twitter: '',
+    email: 'mengpeng_bj@foxmail.com',
+  },
+  // 个人简介
+  bio: '前端架构师 | 8年+经验',
+  // 技能列表
+  skills: ['TypeScript', 'React', 'Vue', 'Webpack', 'Vite', 'Monorepo'],
 };
 
 export const navLinks = [
-  { href: '/', label: '首页' },
-  { href: '/posts/', label: '文章' },
-  { href: '/tags/', label: '标签' },
-  { href: '/archives/', label: '归档' },
-  { href: '/about/', label: '关于' },
-  { href: '/search/', label: '搜索' },
+  { href: '/', label: '首页', icon: 'home' },
+  { href: '/posts/', label: '文章', icon: 'file-text' },
+  { href: '/series/', label: '系列', icon: 'folder' },
+  { href: '/tags/', label: '标签', icon: 'tag' },
+  { href: '/archives/', label: '归档', icon: 'calendar' },
+  { href: '/about/', label: '关于', icon: 'user' },
 ];

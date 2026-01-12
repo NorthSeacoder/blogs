@@ -1,0 +1,200 @@
+---
+/**
+ * CodeBlockEnhancer - 代码块增强组件
+ *
+ * 功能：
+ * - 复制按钮
+ * - 语言标签
+ * - 行号（可选）
+ */
+---
+
+<script>
+  function initCodeBlocks() {
+    const codeBlocks = document.querySelectorAll('pre:has(code)');
+
+    codeBlocks.forEach((pre) => {
+      // 避免重复初始化
+      if (pre.querySelector('.code-header')) return;
+
+      const code = pre.querySelector('code');
+      if (!code) return;
+
+      // 获取语言类型
+      const classList = Array.from(code.classList);
+      const langClass = classList.find(c => c.startsWith('language-'));
+      const lang = langClass ? langClass.replace('language-', '') : 'text';
+
+      // 创建头部容器
+      const header = document.createElement('div');
+      header.className = 'code-header';
+
+      // 语言标签
+      const langLabel = document.createElement('span');
+      langLabel.className = 'code-lang';
+      langLabel.textContent = lang.toUpperCase();
+
+      // 复制按钮
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'code-copy-btn';
+      copyBtn.setAttribute('aria-label', '复制代码');
+      copyBtn.innerHTML = `
+        <svg class="copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </svg>
+        <svg class="check-icon hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      `;
+
+      // 复制功能
+      copyBtn.addEventListener('click', async () => {
+        const text = code.textContent || '';
+        try {
+          await navigator.clipboard.writeText(text);
+          copyBtn.classList.add('copied');
+          copyBtn.querySelector('.copy-icon')?.classList.add('hidden');
+          copyBtn.querySelector('.check-icon')?.classList.remove('hidden');
+
+          setTimeout(() => {
+            copyBtn.classList.remove('copied');
+            copyBtn.querySelector('.copy-icon')?.classList.remove('hidden');
+            copyBtn.querySelector('.check-icon')?.classList.add('hidden');
+          }, 2000);
+        } catch (err) {
+          console.error('复制失败:', err);
+        }
+      });
+
+      header.appendChild(langLabel);
+      header.appendChild(copyBtn);
+
+      // 包装 pre 元素
+      const wrapper = document.createElement('div');
+      wrapper.className = 'code-block-wrapper';
+      pre.parentNode?.insertBefore(wrapper, pre);
+      wrapper.appendChild(header);
+      wrapper.appendChild(pre);
+    });
+  }
+
+  // 初始化
+  initCodeBlocks();
+
+  // 支持 Astro View Transitions
+  document.addEventListener('astro:after-swap', initCodeBlocks);
+</script>
+
+<style is:global>
+  /* 代码块包装器 */
+  .code-block-wrapper {
+    position: relative;
+    margin: 1.5rem 0;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-elevated);
+  }
+
+  /* 代码块头部 */
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 1rem;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    font-size: 0.75rem;
+  }
+
+  /* 语言标签 */
+  .code-lang {
+    color: var(--color-text-secondary);
+    font-weight: 600;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    letter-spacing: 0.05em;
+  }
+
+  /* 复制按钮 */
+  .code-copy-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.375rem;
+    border-radius: 0.375rem;
+    color: var(--color-text-secondary);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .code-copy-btn:hover {
+    color: var(--color-accent);
+    background: var(--color-accent);
+    background: rgba(59, 130, 246, 0.1);
+  }
+
+  .code-copy-btn.copied {
+    color: #10b981;
+  }
+
+  .code-copy-btn .hidden {
+    display: none;
+  }
+
+  /* 代码块内的 pre 样式重置 */
+  .code-block-wrapper pre {
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+  }
+
+  /* 代码块内容区域 */
+  .code-block-wrapper pre code {
+    display: block;
+    padding: 1rem;
+    overflow-x: auto;
+    font-size: 0.875rem;
+    line-height: 1.7;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  }
+
+  /* 亮色主题代码块背景 */
+  :root .code-block-wrapper {
+    background: #f6f8fa;
+  }
+
+  :root .code-header {
+    background: #f0f3f6;
+  }
+
+  /* 暗色主题代码块背景 */
+  .dark .code-block-wrapper {
+    background: #161b22;
+  }
+
+  .dark .code-header {
+    background: #21262d;
+  }
+
+  /* 代码块滚动条 */
+  .code-block-wrapper pre::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  .code-block-wrapper pre::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .code-block-wrapper pre::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 3px;
+  }
+
+  .code-block-wrapper pre::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-secondary);
+  }
+</style>

@@ -1,0 +1,37 @@
+---
+/**
+ * CodeWindow - VSCode 风格的代码窗口组件
+ * 用于包装内容，使其看起来像 VSCode 编辑器窗口
+ */
+interface Props {
+  filename?: string;
+  showControls?: boolean;
+  class?: string;
+}
+
+const { filename = 'untitled', showControls = true, class: className = '' } = Astro.props;
+---
+
+<div class:list={['code-window', className]}>
+  <!-- 标题栏 -->
+  <div class="code-window-titlebar">
+    {
+      showControls && (
+        <div class="window-controls">
+          <span class="window-control window-control-close" />
+          <span class="window-control window-control-minimize" />
+          <span class="window-control window-control-maximize" />
+        </div>
+      )
+    }
+    <span class="flex-1 text-center font-mono text-xs text-[var(--color-text-secondary)]">
+      {filename}
+    </span>
+    {showControls && <div class="w-[52px]" />}
+  </div>
+
+  <!-- 内容区域 -->
+  <div class="p-4">
+    <slot />
+  </div>
+</div>

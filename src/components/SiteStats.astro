@@ -1,0 +1,69 @@
+---
+/**
+ * SiteStats - 站点统计组件
+ * 显示文章数、标签数、系列数、运行天数
+ */
+import type { CollectionEntry } from 'astro:content';
+import CodeWindow from './CodeWindow.astro';
+import { siteConfig } from '../lib/siteConfig';
+
+interface Props {
+  posts: CollectionEntry<'blog'>[];
+}
+
+const { posts } = Astro.props;
+
+// 统计数据
+const tagSet = new Set<string>();
+const seriesSet = new Set<string>();
+
+posts.forEach((post) => {
+  post.data.tags?.forEach((tag) => tagSet.add(tag));
+  if (post.data.series) {
+    seriesSet.add(post.data.series);
+  } else {
+    // 从标题解析系列
+    const match = post.data.title.match(/^我不知道的\s*(.+?)\s*[-–—]/);
+    if (match) seriesSet.add(match[1]);
+  }
+});
+
+// 计算运行天数
+const daysSinceCreation = Math.floor(
+  (Date.now() - siteConfig.createdAt.getTime()) / (1000 * 60 * 60 * 24)
+);
+
+// 估算总字数（简单估算：每篇文章平均 2000 字）
+const estimatedWords = posts.length * 2000;
+const wordsDisplay = estimatedWords >= 10000
+  ? `${Math.floor(estimatedWords / 1000)}K+`
+  : `${estimatedWords}`;
+
+const stats = [
+  { key: 'posts', value: posts.length, label: '文章' },
+  { key: 'tags', value: tagSet.size, label: '标签' },
+  { key: 'series', value: seriesSet.size, label: '系列' },
+  { key: 'days', value: daysSinceCreation, label: '天' },
+];
+---
+
+<CodeWindow filename="stats.ts" showControls={false}>
+  <div class="font-mono text-xs">
+    <p class="syntax-comment">// 站点统计</p>
+    <p class="mt-2">
+      <span class="syntax-keyword">export const</span>
+      <span class="syntax-variable"> stats</span>
+      <span class="text-[var(--color-text-primary)]"> = {'{'}</span>
+    </p>
+    {stats.map((stat, i) => (
+      <p class="pl-4">
+        <span class="syntax-variable">{stat.key}</span>
+        <span class="text-[var(--color-text-primary)]">: </span>
+        <span class="syntax-number">{stat.value}</span>
+        <span class="text-[var(--color-text-primary)]">,</span>
+        <span class="syntax-comment ml-2">// {stat.label}</span>
+      </p>
+    ))}
+    <p class="text-[var(--color-text-primary)]">{'}'};</p>
+  </div>
+</CodeWindow>

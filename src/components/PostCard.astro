@@ -6,131 +6,111 @@ import { format } from '../lib/utils';
 interface Props {
   post: CollectionEntry<'blog'>;
   index?: number;
+  showSeries?: boolean;
 }
 
-const { post, index = 0 } = Astro.props;
-const animationDelay = `${index * 100}ms`;
+const { post, index = 0, showSeries = true } = Astro.props;
+const animationDelay = `${index * 50}ms`;
+
+// 解析系列标题
+const parseTitle = (title: string) => {
+  const match = title.match(/^我不知道的\s*(.+?)\s*[-–—]\s*(.+)$/);
+  if (match) {
+    return {
+      series: match[1],
+      subtitle: match[2],
+      isSeries: true,
+    };
+  }
+  return {
+    series: null,
+    subtitle: title,
+    isSeries: false,
+  };
+};
+
+const titleInfo = parseTitle(post.data.title);
+const seriesName = post.data.series || titleInfo.series;
 ---
 
 <article
   class="
-    group relative overflow-hidden rounded-2xl
-    glass
-    p-6
-    transition-all duration-300 ease-out
-    hover:shadow-2xl hover:shadow-accent/10
-    hover:-translate-y-1
+    group relative
+    code-window
+    transition-all duration-200
+    hover:border-[var(--color-accent)]
     animate-slide-up animate-fill-backwards
+    cursor-pointer
   "
   style={`animation-delay: ${animationDelay};`}
 >
-  <!-- 悬停渐变背景 -->
-  <div
-    class="
-      absolute inset-0 -z-10
-      bg-gradient-to-br from-accent/5 via-transparent to-cyan-500/5
-      opacity-0 transition-opacity duration-300
-      group-hover:opacity-100
-    "
-  >
+  <!-- 标题栏 -->
+  <div class="code-window-titlebar">
+    <div class="window-controls">
+      <span class="window-control window-control-close" />
+      <span class="window-control window-control-minimize" />
+      <span class="window-control window-control-maximize" />
+    </div>
+    <span class="flex-1 text-center font-mono text-xs text-[var(--color-text-secondary)]">
+      {post.slug}.md
+    </span>
+    <div class="w-[52px]" />
   </div>
 
-  <!-- 封面图 -->
-  {
-    post.data.cover && (
-      <div class="relative -mx-6 -mt-6 mb-4 overflow-hidden">
-        <img
-          src={post.data.cover}
-          alt={post.data.coverAlt || post.data.title}
-          loading="lazy"
-          class="
-            aspect-video w-full object-cover
-            transition-transform duration-500
-            group-hover:scale-105
-          "
-        />
-        <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-      </div>
-    )
-  }
+  <!-- 内容区域 -->
+  <a href={`/posts/${post.slug}/`} class="block p-4">
+    <!-- 系列标签 -->
+    {
+      showSeries && seriesName && (
+        <div class="mb-2">
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
+            <Icon name="folder" size={3} />
+            我不知道的 {seriesName}
+          </span>
+        </div>
+      )
+    }
 
-  <!-- 标题 -->
-  <a
-    href={`/posts/${post.slug}/`}
-    class="
-      block text-xl font-semibold leading-tight
-      text-text-primary
-      transition-colors duration-200
-      group-hover:text-accent
-    "
-  >
-    <span
-      class="
-        bg-gradient-to-r from-accent to-accent
-        bg-[length:0%_2px] bg-left-bottom bg-no-repeat
-        transition-[background-size] duration-300
-        group-hover:bg-[length:100%_2px]
-      "
-    >
-      {post.data.title}
-    </span>
+    <!-- 标题 -->
+    <h3 class="font-mono text-base font-medium text-[var(--color-text-primary)] group-hover:text-[var(--color-accent)] transition-colors">
+      {titleInfo.isSeries ? titleInfo.subtitle : post.data.title}
+    </h3>
+
+    <!-- 描述 -->
+    <p class="mt-2 text-sm text-[var(--color-text-secondary)] line-clamp-2">
+      {post.data.description}
+    </p>
+
+    <!-- 元信息 -->
+    <div class="mt-3 flex items-center gap-4 text-xs font-mono text-[var(--color-text-muted)]">
+      <span class="flex items-center gap-1">
+        <Icon name="calendar" size={3} />
+        <time datetime={post.data.pubDate.toISOString()}>
+          {format.date(post.data.pubDate)}
+        </time>
+      </span>
+
+      {
+        post.data.tags && post.data.tags.length > 0 && (
+          <span class="flex items-center gap-1">
+            <Icon name="tag" size={3} />
+            {post.data.tags.slice(0, 2).join(', ')}
+            {post.data.tags.length > 2 && ` +${post.data.tags.length - 2}`}
+          </span>
+        )
+      }
+    </div>
   </a>
 
-  <!-- 日期 -->
-  <p class="mt-2 flex items-center gap-2 text-sm text-text-secondary">
-    <Icon name="calendar" />
-    <time datetime={post.data.pubDate.toISOString()}>
-      {format.date(post.data.pubDate)}
-    </time>
-  </p>
-
-  <!-- 描述 -->
-  <p class="mt-3 line-clamp-2 text-base leading-relaxed text-text-secondary">
-    {post.data.description}
-  </p>
-
-  <!-- 标签 -->
-  {
-    post.data.tags && post.data.tags.length > 0 && (
-      <ul class="mt-4 flex flex-wrap gap-2" aria-label="标签">
-        {post.data.tags.slice(0, 3).map((tag) => (
-          <li>
-            <a
-              href={`/tags/${tag}/`}
-              class="
-                inline-flex items-center gap-1
-                rounded-full px-3 py-1
-                text-xs font-medium
-                bg-accent/10 text-accent
-                transition-all duration-200
-                hover:bg-accent/20 hover:scale-105
-              "
-            >
-              <span class="opacity-60">#</span>
-              {tag}
-            </a>
-          </li>
-        ))}
-        {post.data.tags.length > 3 && (
-          <li class="text-xs text-text-secondary self-center">+{post.data.tags.length - 3}</li>
-        )}
-      </ul>
-    )
-  }
-
-  <!-- 阅读更多箭头 -->
+  <!-- 悬停指示器 -->
   <div
     class="
-      absolute bottom-6 right-6
-      flex h-8 w-8 items-center justify-center
-      rounded-full
-      bg-accent/10
-      text-accent
-      opacity-0 transition-all duration-300
-      group-hover:opacity-100 group-hover:translate-x-0
-      -translate-x-2
+      absolute right-4 top-1/2 -translate-y-1/2
+      opacity-0 group-hover:opacity-100
+      transition-opacity
+      text-[var(--color-accent)]
     "
   >
-    <Icon name="arrow-right" />
+    <Icon name="chevron-right" size={4} />
   </div>
 </article>

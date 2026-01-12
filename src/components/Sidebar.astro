@@ -1,0 +1,31 @@
+---
+/**
+ * Sidebar - 侧边栏组件
+ * 包含站点统计、日历热力图、标签云、系列列表
+ */
+import type { CollectionEntry } from 'astro:content';
+import SiteStats from './SiteStats.astro';
+import ActivityCalendar from './ActivityCalendar.astro';
+import TagCloud from './TagCloud.astro';
+import SeriesList from './SeriesList.astro';
+
+interface Props {
+  posts: CollectionEntry<'blog'>[];
+}
+
+const { posts } = Astro.props;
+---
+
+<aside class="w-full lg:w-80 shrink-0 space-y-4">
+  <!-- 站点统计 -->
+  <SiteStats posts={posts} />
+
+  <!-- 发布日历 -->
+  <ActivityCalendar posts={posts} />
+
+  <!-- 标签云 -->
+  <TagCloud posts={posts} />
+
+  <!-- 系列列表 -->
+  <SeriesList posts={posts} />
+</aside>

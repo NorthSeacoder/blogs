@@ -1,182 +1,141 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import PostCard from '../components/PostCard.astro';
+import CodeWindow from '../components/CodeWindow.astro';
+import Sidebar from '../components/Sidebar.astro';
 import Icon from '../components/Icon.astro';
 import { getCollection } from 'astro:content';
 import { filterDrafts, sortPosts } from '../lib/utils';
 import { siteConfig } from '../lib/siteConfig';
 
 const posts = sortPosts(filterDrafts(await getCollection('blog')));
-const latest = posts.slice(0, 3);
+const latest = posts.slice(0, 5);
 ---
 
-<BaseLayout title={siteConfig.title} description={siteConfig.description}>
-  <!-- Hero 区域 -->
-  <section class="relative mb-16 animate-fade-in">
-    <!-- 背景装饰 -->
-    <div class="absolute inset-0 -z-10 overflow-hidden rounded-3xl">
-      <div
-        class="
-          absolute -left-4 -top-4 h-72 w-72 rounded-full
-          bg-blue-400/20 dark:bg-blue-500/10
-          blur-3xl
-        "
-      >
-      </div>
-      <div
-        class="
-          absolute -bottom-4 -right-4 h-72 w-72 rounded-full
-          bg-cyan-400/20 dark:bg-cyan-500/10
-          blur-3xl
-        "
-      >
-      </div>
-      <div
-        class="
-          absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-full
-          bg-purple-400/10 dark:bg-purple-500/5
-          blur-3xl
-        "
-      >
-      </div>
-    </div>
+<BaseLayout title={siteConfig.title} description={siteConfig.description} wide>
+  <div class="flex flex-col lg:flex-row gap-8">
+    <!-- 主内��区 -->
+    <div class="flex-1 min-w-0">
+      <!-- Hero 区域 - 终端风格 -->
+      <section class="mb-8 animate-fade-in">
+        <CodeWindow filename="terminal.ts">
+          <div class="font-mono text-sm leading-relaxed">
+            <!-- 注释 -->
+            <p class="syntax-comment">/**</p>
+            <p class="syntax-comment"> * @author {siteConfig.author}</p>
+            <p class="syntax-comment"> * @role {siteConfig.bio}</p>
+            <p class="syntax-comment"> */</p>
 
-    <!-- Hero 内容 -->
-    <div class="glass rounded-3xl p-8 sm:p-12">
-      <!-- 徽章 -->
-      <div class="mb-4 inline-flex items-center gap-2 rounded-full bg-accent/10 px-4 py-1.5">
-        <span class="relative flex h-2 w-2">
-          <span
-            class="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75"
-          ></span>
-          <span class="relative inline-flex h-2 w-2 rounded-full bg-accent"></span>
-        </span>
-        <span class="text-sm font-medium text-accent">静态 · SEO 优先 · 极速加载</span>
-      </div>
+            <p class="mt-4"><span class="syntax-keyword">const</span><span class="syntax-variable"> developer</span><span class="text-[var(--color-text-primary)]">&nbsp;=&nbsp;{'{'}</span></p>
+            <p class="pl-4"><span class="syntax-variable">name</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"{siteConfig.author}"</span><span class="text-[var(--color-text-primary)]">,</span></p>
+            <p class="pl-4"><span class="syntax-variable">role</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"{siteConfig.bio}"</span><span class="text-[var(--color-text-primary)]">,</span></p>
+            <p class="pl-4"><span class="syntax-variable">skills</span><span class="text-[var(--color-text-primary)]">:&nbsp;[</span>{siteConfig.skills.map((skill, i) => (<><span class="syntax-string">"{skill}"</span>{i < siteConfig.skills.length - 1 && <span class="text-[var(--color-text-primary)]">,&nbsp;</span>}</>))}<span class="text-[var(--color-text-primary)]">],</span></p>
+            <p class="text-[var(--color-text-primary)]">{'}'}</span><span class="text-[var(--color-text-primary)]">;</span></p>
 
-      <!-- 标题 -->
-      <h1
-        class="
-          text-4xl font-bold leading-tight tracking-tight
-          text-text-primary
-          sm:text-5xl
-        "
-      >
-        <span
-          class="
-            bg-gradient-to-r from-blue-600 via-cyan-500 to-blue-600
-            dark:from-blue-400 dark:via-cyan-400 dark:to-blue-400
-            bg-clip-text text-transparent
-            bg-[length:200%_auto]
-            animate-[shimmer_3s_linear_infinite]
-          "
-        >
-          {siteConfig.title}
-        </span>
-      </h1>
+            <p class="mt-4"><span class="syntax-variable">console</span><span class="text-[var(--color-text-primary)]">.</span><span class="syntax-function">log</span><span class="text-[var(--color-text-primary)]">(</span><span class="syntax-string">"Welcome to my blog!"</span><span class="text-[var(--color-text-primary)]">)</span><span class="text-[var(--color-text-primary)]">;</span><span class="cursor-blink ml-0.5 inline-block w-[2px] h-[1em] bg-[var(--color-accent)] align-text-bottom"></span></p>
+          </div>
 
-      <!-- 描述 -->
-      <p class="mt-4 max-w-2xl text-lg leading-relaxed text-text-secondary">
-        {siteConfig.description}
-      </p>
-
-      <!-- 技术标签 -->
-      <div class="mt-6 flex flex-wrap gap-3">
-        {
-          [
-            { name: 'Astro 5', icon: '🚀' },
-            { name: 'Tailwind CSS v4', icon: '🎨' },
-            { name: 'Pagefind 搜索', icon: '🔍' },
-            { name: 'TypeScript', icon: '📝' },
-          ].map((tech, i) => (
-            <span
+          <!-- 社交链接 -->
+          <div class="mt-6 pt-4 border-t border-[var(--color-border)] flex gap-3">
+            {siteConfig.social.github && (
+              <a
+                href={siteConfig.social.github}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="
+                  flex items-center gap-1.5
+                  px-3 py-1.5 rounded
+                  text-xs font-mono
+                  bg-[var(--color-surface-elevated)]
+                  text-[var(--color-text-secondary)]
+                  transition-colors
+                  hover:text-[var(--color-text-primary)]
+                  hover:bg-[var(--color-surface-hover)]
+                "
+              >
+                <Icon name="github" size={3.5} />
+                <span>GitHub</span>
+              </a>
+            )}
+            {siteConfig.social.email && (
+              <a
+                href={`mailto:${siteConfig.social.email}`}
+                class="
+                  flex items-center gap-1.5
+                  px-3 py-1.5 rounded
+                  text-xs font-mono
+                  bg-[var(--color-surface-elevated)]
+                  text-[var(--color-text-secondary)]
+                  transition-colors
+                  hover:text-[var(--color-text-primary)]
+                  hover:bg-[var(--color-surface-hover)]
+                "
+              >
+                <Icon name="mail" size={3.5} />
+                <span>Email</span>
+              </a>
+            )}
+            <a
+              href="/rss.xml"
               class="
-                inline-flex items-center gap-2
-                rounded-full
-                glass-subtle
-                px-4 py-2
-                text-sm font-medium text-text-primary
-                transition-all duration-200
-                hover:scale-105 hover:shadow-lg hover:shadow-accent/5
-                animate-slide-up animate-fill-backwards
+                flex items-center gap-1.5
+                px-3 py-1.5 rounded
+                text-xs font-mono
+                bg-[var(--color-surface-elevated)]
+                text-[var(--color-text-secondary)]
+                transition-colors
+                hover:text-[var(--color-text-primary)]
+                hover:bg-[var(--color-surface-hover)]
               "
-              style={`animation-delay: ${(i + 1) * 100}ms;`}
             >
-              <span>{tech.icon}</span>
-              <span>{tech.name}</span>
-            </span>
-          ))
-        }
-      </div>
+              <Icon name="rss" size={3.5} />
+              <span>RSS</span>
+            </a>
+          </div>
+        </CodeWindow>
+      </section>
 
-      <!-- 快捷操作 -->
-      <div class="mt-8 flex flex-wrap gap-4">
-        <a
-          href="/posts/"
-          class="
-            group inline-flex items-center gap-2
-            rounded-xl
-            bg-accent px-6 py-3
-            text-sm font-semibold text-white
-            shadow-lg shadow-accent/25
-            transition-all duration-300
-            hover:shadow-xl hover:shadow-accent/30 hover:-translate-y-0.5
-          "
-        >
-          <span>浏览文章</span>
-          <Icon name="arrow-right" class="transition-transform group-hover:translate-x-1" />
-        </a>
-        <a
-          href="/search/"
-          class="
-            group inline-flex items-center gap-2
-            rounded-xl
-            glass
-            px-6 py-3
-            text-sm font-semibold text-text-primary
-            transition-all duration-300
-            hover:shadow-lg hover:-translate-y-0.5
-          "
-        >
-          <Icon name="search" />
-          <span>搜索内容</span>
-        </a>
-      </div>
-    </div>
-  </section>
-
-  <!-- 最新文章 -->
-  <section class="space-y-6" aria-labelledby="latest-posts">
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="h-8 w-1 rounded-full bg-gradient-to-b from-accent to-cyan-500"></div>
-        <h2 id="latest-posts" class="text-2xl font-bold text-text-primary">最新文章</h2>
-      </div>
-      <a
-        href="/posts/"
-        class="
-          group flex items-center gap-1
-          text-sm font-semibold text-accent
-          transition-colors hover:text-accent-hover
-        "
-      >
-        <span>查看全部</span>
-        <Icon name="chevron-right" class="transition-transform group-hover:translate-x-1" />
-      </a>
-    </div>
-
-    <!-- 文章网格 -->
-    <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-      {latest.map((post, index) => <PostCard post={post} index={index} />)}
-    </div>
-
-    <!-- 空状态 -->
-    {
-      latest.length === 0 && (
-        <div class="glass rounded-2xl p-12 text-center">
-          <p class="text-text-secondary">暂无文章，敬请期待...</p>
+      <!-- 最新文章 -->
+      <section class="space-y-4" aria-labelledby="latest-posts">
+        <div class="flex items-center justify-between">
+          <h2 id="latest-posts" class="font-mono text-sm text-[var(--color-text-secondary)]">
+            <span class="syntax-comment">// </span>
+            <span class="syntax-variable">latest-posts</span>
+            <span class="text-[var(--color-text-muted)]">.ts</span>
+          </h2>
+          <a
+            href="/posts/"
+            class="
+              group flex items-center gap-1
+              text-xs font-mono
+              text-[var(--color-accent)]
+              transition-colors hover:text-[var(--color-accent-hover)]
+            "
+          >
+            <span>查看全部</span>
+            <Icon name="chevron-right" size={3} class="transition-transform group-hover:translate-x-0.5" />
+          </a>
         </div>
-      )
-    }
-  </section>
+
+        <!-- 文章列表 -->
+        <div class="space-y-3">
+          {latest.map((post, index) => <PostCard post={post} index={index} />)}
+        </div>
+
+        <!-- 空状态 -->
+        {
+          latest.length === 0 && (
+            <CodeWindow filename="empty.ts">
+              <p class="font-mono text-sm text-[var(--color-text-secondary)]">
+                <span class="syntax-comment">// 暂无文章，敬请期待...</span>
+              </p>
+            </CodeWindow>
+          )
+        }
+      </section>
+    </div>
+
+    <!-- 侧边栏 -->
+    <Sidebar posts={posts} />
+  </div>
 </BaseLayout>

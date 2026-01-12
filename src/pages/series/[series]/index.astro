@@ -1,0 +1,109 @@
+---
+/**
+ * 系列详情页
+ */
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import CodeWindow from '../../../components/CodeWindow.astro';
+import PostCard from '../../../components/PostCard.astro';
+import Icon from '../../../components/Icon.astro';
+import { getCollection } from 'astro:content';
+import { filterDrafts, sortPosts } from '../../../lib/utils';
+
+export async function getStaticPaths() {
+  const posts = sortPosts(filterDrafts(await getCollection('blog')));
+
+  // 收集所有系列
+  const seriesSet = new Set<string>();
+  posts.forEach((post) => {
+    let seriesName = post.data.series;
+    if (!seriesName) {
+      const match = post.data.title.match(/^我不知道的\s*(.+?)\s*[-–—]/);
+      if (match) seriesName = match[1];
+    }
+    if (seriesName) seriesSet.add(seriesName);
+  });
+
+  return Array.from(seriesSet).map((series) => ({
+    params: { series },
+    props: { series },
+  }));
+}
+
+interface Props {
+  series: string;
+}
+
+const { series } = Astro.props;
+const allPosts = sortPosts(filterDrafts(await getCollection('blog')));
+
+// 筛选该系列的文章
+const seriesPosts = allPosts.filter((post) => {
+  if (post.data.series === series) return true;
+  const match = post.data.title.match(/^我不知道的\s*(.+?)\s*[-–—]/);
+  return match && match[1] === series;
+});
+
+// 按系列顺序或日期排序
+seriesPosts.sort((a, b) => {
+  if (a.data.seriesOrder !== undefined && b.data.seriesOrder !== undefined) {
+    return a.data.seriesOrder - b.data.seriesOrder;
+  }
+  return a.data.pubDate.getTime() - b.data.pubDate.getTime();
+});
+---
+
+<BaseLayout title={`我不知道的 ${series}`} description={`「我不知道的 ${series}」系列文章`}>
+  <div class="max-w-3xl mx-auto animate-fade-in">
+    <!-- 页面标题 -->
+    <CodeWindow filename={`${series.toLowerCase().replace(/\s+/g, '-')}.ts`} class="mb-6">
+      <div class="font-mono text-sm">
+        <p class="syntax-comment">/**</p>
+        <p class="syntax-comment"> * 我不知道的 {series}</p>
+        <p class="syntax-comment"> * 共 {seriesPosts.length} 篇文章</p>
+        <p class="syntax-comment"> */</p>
+
+        <p class="mt-4">
+          <span class="syntax-keyword">export const</span>
+          <span class="syntax-variable"> series</span>
+          <span class="text-[var(--color-text-primary)]"> = {'{'}</span>
+        </p>
+        <p class="pl-4">
+          <span class="syntax-variable">name</span>
+          <span class="text-[var(--color-text-primary)]">: </span>
+          <span class="syntax-string">"我不知道的 {series}"</span>
+          <span class="text-[var(--color-text-primary)]">,</span>
+        </p>
+        <p class="pl-4">
+          <span class="syntax-variable">count</span>
+          <span class="text-[var(--color-text-primary)]">: </span>
+          <span class="syntax-number">{seriesPosts.length}</span>
+          <span class="text-[var(--color-text-primary)]">,</span>
+        </p>
+        <p class="text-[var(--color-text-primary)]">{'}'};</p>
+      </div>
+    </CodeWindow>
+
+    <!-- 文章列表 -->
+    <div class="space-y-3">
+      {seriesPosts.map((post, index) => (
+        <PostCard post={post} index={index} showSeries={false} />
+      ))}
+    </div>
+
+    <!-- 返回链接 -->
+    <div class="mt-6">
+      <a
+        href="/series/"
+        class="
+          inline-flex items-center gap-1
+          font-mono text-xs
+          text-[var(--color-accent)]
+          hover:underline
+        "
+      >
+        <Icon name="chevron-left" size={3} />
+        <span>返回系列列表</span>
+      </a>
+    </div>
+  </div>
+</BaseLayout>

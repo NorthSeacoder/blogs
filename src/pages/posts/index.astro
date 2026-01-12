@@ -1,57 +1,124 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import PostCard from '../../components/PostCard.astro';
+import CodeWindow from '../../components/CodeWindow.astro';
+import Sidebar from '../../components/Sidebar.astro';
 import Icon from '../../components/Icon.astro';
 import { getCollection } from 'astro:content';
-import { filterDrafts, paginate, sortPosts } from '../../lib/utils';
+import { filterDrafts, sortPosts } from '../../lib/utils';
 
-const pageSize = 6;
-const posts = paginate(sortPosts(filterDrafts(await getCollection('blog'))), pageSize);
-const pagePosts = posts[0] ?? [];
-const totalPages = posts.length || 1;
+const posts = sortPosts(filterDrafts(await getCollection('blog')));
+
+// 按系列分组
+const seriesMap = new Map<string, typeof posts>();
+const standalonePosts: typeof posts = [];
+
+posts.forEach((post) => {
+  let seriesName = post.data.series;
+  if (!seriesName) {
+    const match = post.data.title.match(/^我不知道的\s*(.+?)\s*[-–—]/);
+    if (match) seriesName = match[1];
+  }
+
+  if (seriesName) {
+    const existing = seriesMap.get(seriesName) || [];
+    existing.push(post);
+    seriesMap.set(seriesName, existing);
+  } else {
+    standalonePosts.push(post);
+  }
+});
+
+// 系列按文章数量排序
+const seriesEntries = Array.from(seriesMap.entries()).sort((a, b) => b[1].length - a[1].length);
 ---
 
-<BaseLayout title="文章列表" description="所有文章列表，支持分页浏览。">
-  <div class="animate-fade-in">
-    <!-- 页面标题 -->
-    <div class="mb-8">
-      <div class="flex items-center gap-3">
-        <div class="h-8 w-1 rounded-full bg-gradient-to-b from-accent to-cyan-500"></div>
-        <h1 class="text-3xl font-bold text-text-primary">全部文章</h1>
+<BaseLayout title="文章" description="所有文章列表" wide>
+  <div class="flex flex-col lg:flex-row gap-8">
+    <!-- 主内容区 -->
+    <div class="flex-1 min-w-0">
+      <!-- 页面标题 -->
+      <div class="mb-6">
+        <h1 class="font-mono text-sm text-[var(--color-text-secondary)]">
+          <span class="syntax-comment">// </span>
+          <span class="syntax-variable">posts</span>
+          <span class="text-[var(--color-text-muted)]">/index.ts</span>
+          <span class="ml-2 text-[var(--color-text-muted)]">({posts.length} 篇)</span>
+        </h1>
       </div>
-      <p class="mt-2 text-text-secondary">最新写作和更新集合，草稿不会出现在这里。</p>
-    </div>
 
-    <!-- 文章网格 -->
-    <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-      {pagePosts.map((post, index) => <PostCard post={post} index={index} />)}
-    </div>
-
-    <!-- 分页导航 -->
-    {
-      totalPages > 1 && (
-        <nav class="mt-10 flex items-center justify-between" aria-label="分页导航">
-          <div class="text-sm text-text-secondary">
-            第 <span class="font-semibold text-accent">1</span> 页 / 共 {totalPages} 页
+      <!-- 系列文章 -->
+      {seriesEntries.map(([seriesName, seriesPosts]) => (
+        <section class="mb-8">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-mono text-xs text-[var(--color-text-secondary)]">
+              <span class="syntax-comment">// </span>
+              <span class="syntax-keyword">我不知道的</span>
+              <span class="syntax-type"> {seriesName}</span>
+              <span class="text-[var(--color-text-muted)]"> ({seriesPosts.length})</span>
+            </h2>
+            <a
+              href={`/series/${encodeURIComponent(seriesName)}/`}
+              class="
+                text-xs font-mono
+                text-[var(--color-accent)]
+                hover:underline
+              "
+            >
+              查看系列 →
+            </a>
           </div>
-          <a
-            href="/posts/page/2/"
-            class="group inline-flex items-center gap-2 rounded-xl glass px-5 py-2.5 text-sm font-semibold text-text-primary transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5"
-          >
-            <span>下一页</span>
-            <Icon name="arrow-right" class="transition-transform group-hover:translate-x-1" />
-          </a>
-        </nav>
-      )
-    }
 
-    <!-- 空状态 -->
-    {
-      pagePosts.length === 0 && (
-        <div class="glass rounded-2xl p-12 text-center">
-          <p class="text-text-secondary">暂无文章，敬请期待...</p>
-        </div>
-      )
-    }
+          <div class="space-y-3">
+            {seriesPosts.slice(0, 3).map((post, index) => (
+              <PostCard post={post} index={index} showSeries={false} />
+            ))}
+          </div>
+
+          {seriesPosts.length > 3 && (
+            <a
+              href={`/series/${encodeURIComponent(seriesName)}/`}
+              class="
+                mt-3 inline-flex items-center gap-1
+                font-mono text-xs
+                text-[var(--color-text-muted)]
+                hover:text-[var(--color-accent)]
+              "
+            >
+              <span>还有 {seriesPosts.length - 3} 篇...</span>
+            </a>
+          )}
+        </section>
+      ))}
+
+      <!-- 独立文章 -->
+      {standalonePosts.length > 0 && (
+        <section>
+          <h2 class="font-mono text-xs text-[var(--color-text-secondary)] mb-3">
+            <span class="syntax-comment">// </span>
+            <span class="syntax-variable">standalone</span>
+            <span class="text-[var(--color-text-muted)]"> ({standalonePosts.length})</span>
+          </h2>
+
+          <div class="space-y-3">
+            {standalonePosts.map((post, index) => (
+              <PostCard post={post} index={index} showSeries={false} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      <!-- 空状态 -->
+      {posts.length === 0 && (
+        <CodeWindow filename="empty.ts">
+          <p class="font-mono text-sm text-[var(--color-text-secondary)]">
+            <span class="syntax-comment">// 暂无文章</span>
+          </p>
+        </CodeWindow>
+      )}
+    </div>
+
+    <!-- 侧边栏 -->
+    <Sidebar posts={posts} />
   </div>
 </BaseLayout>
