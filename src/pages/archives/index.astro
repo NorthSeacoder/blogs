@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import CodeWindow from '../../components/CodeWindow.astro';
 import Icon from '../../components/Icon.astro';
 import { getCollection } from 'astro:content';
 import { filterDrafts, sortPosts, format } from '../../lib/utils';
@@ -14,71 +15,55 @@ const groups = Object.entries(archives).sort(([a], [b]) => (a > b ? -1 : 1));
 ---
 
 <BaseLayout title="归档" description="按年月查看文章归档。">
-  <div class="animate-fade-in">
+  <div class="animate-fade-in max-w-3xl mx-auto">
     <!-- 页面标题 -->
-    <div class="mb-8">
-      <div class="flex items-center gap-3">
-        <div class="h-8 w-1 rounded-full bg-gradient-to-b from-accent to-cyan-500"></div>
-        <h1 class="text-3xl font-bold text-text-primary">归档</h1>
-      </div>
-      <p class="mt-2 text-text-secondary">
-        共 <span class="font-semibold text-accent">{posts.length}</span> 篇文章，按时间线浏览
+    <div class="mb-6">
+      <h1 class="font-mono text-sm text-[var(--color-text-secondary)]">
+        <span class="syntax-comment">// </span>
+        <span class="syntax-variable">archives</span>
+        <span class="text-[var(--color-text-muted)]">.ts</span>
+      </h1>
+      <p class="mt-2 font-mono text-xs text-[var(--color-text-muted)]">
+        // 共 <span class="syntax-number">{posts.length}</span> 篇文章
       </p>
     </div>
 
-    <!-- 时间线 -->
-    <div class="relative space-y-8 pl-8 before:absolute before:left-3 before:top-2 before:h-[calc(100%-1rem)] before:w-px before:bg-gradient-to-b before:from-accent before:to-cyan-500/20">
-      {
-        groups.map(([month, monthPosts], groupIndex) => (
-          <section
-            class="animate-slide-up animate-fill-backwards"
-            style={`animation-delay: ${groupIndex * 100}ms;`}
-          >
-            <!-- 月份标题 -->
-            <div class="relative mb-4">
-              <div class="absolute -left-8 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-accent text-white shadow-lg shadow-accent/25">
-                <Icon name="calendar-filled" size={3} />
-              </div>
-              <h2 class="text-xl font-bold text-text-primary">{month}</h2>
-              <p class="text-sm text-text-secondary">{monthPosts.length} 篇文章</p>
-            </div>
+    <!-- 归档列表 -->
+    <CodeWindow filename="timeline.ts">
+      <div class="font-mono text-sm leading-relaxed">
+        <p class="syntax-comment">// 按时间线浏览</p>
+        <p class="mt-2"><span class="syntax-keyword">const</span><span class="syntax-variable">&nbsp;archives</span><span class="text-[var(--color-text-primary)]">&nbsp;=&nbsp;{'{'}</span></p>
 
-            <!-- 文章列表 -->
-            <ul class="space-y-3">
+        {groups.length > 0 ? (
+          groups.map(([month, monthPosts], groupIndex) => (
+            <div class="pl-4 py-2">
+              <p>
+                <span class="syntax-string">"{month}"</span>
+                <span class="text-[var(--color-text-primary)]">:&nbsp;[</span>
+                <span class="text-[var(--color-text-muted)]">&nbsp;// {monthPosts.length} 篇</span>
+              </p>
               {monthPosts.map((post, index) => (
-                <li
-                  class="group glass rounded-xl p-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5"
-                  style={`animation-delay: ${(groupIndex * 100) + (index * 50)}ms;`}
-                >
-                  <a href={`/posts/${post.slug}/`} class="block">
-                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <span class="font-semibold text-text-primary transition-colors group-hover:text-accent">
-                        {post.data.title}
-                      </span>
-                      <span class="flex items-center gap-1.5 text-sm text-text-secondary">
-                        <Icon name="clock" />
-                        {format.date(post.data.pubDate)}
-                      </span>
-                    </div>
-                    {post.data.description && (
-                      <p class="mt-2 line-clamp-1 text-sm text-text-secondary">{post.data.description}</p>
-                    )}
-                  </a>
-                </li>
+                <p class="pl-4">
+                  <span class="text-[var(--color-text-primary)]">{'{'}&nbsp;</span>
+                  <span class="syntax-variable">title</span>
+                  <span class="text-[var(--color-text-primary)]">:&nbsp;</span>
+                  <a href={`/posts/${post.slug}/`} class="syntax-string hover:underline">"{post.data.title}"</a>
+                  <span class="text-[var(--color-text-primary)]">,&nbsp;</span>
+                  <span class="syntax-variable">date</span>
+                  <span class="text-[var(--color-text-primary)]">:&nbsp;</span>
+                  <span class="syntax-string">"{format.date(post.data.pubDate)}"</span>
+                  <span class="text-[var(--color-text-primary)]">&nbsp;{'}'}{index < monthPosts.length - 1 ? ',' : ''}</span>
+                </p>
               ))}
-            </ul>
-          </section>
-        ))
-      }
-    </div>
+              <p class="text-[var(--color-text-primary)]">]{groupIndex < groups.length - 1 ? ',' : ''}</p>
+            </div>
+          ))
+        ) : (
+          <p class="pl-4 syntax-comment">// 暂无文章归档</p>
+        )}
 
-    <!-- 空状态 -->
-    {
-      groups.length === 0 && (
-        <div class="glass rounded-2xl p-12 text-center">
-          <p class="text-text-secondary">暂无文章归档</p>
-        </div>
-      )
-    }
+        <p class="text-[var(--color-text-primary)]">{'}'}</span><span class="text-[var(--color-text-primary)]">;</span></p>
+      </div>
+    </CodeWindow>
   </div>
 </BaseLayout>

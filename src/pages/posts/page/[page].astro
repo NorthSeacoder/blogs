@@ -27,50 +27,46 @@ interface Props {
 const { posts, totalPages, currentPage } = Astro.props as Props;
 ---
 
-<BaseLayout title={`第 ${currentPage} 页`} description="分页文章列表">
+<BaseLayout title={`第 ${currentPage} 页`} description="分页文章列表" wide>
   <div class="animate-fade-in">
     <!-- 页面标题 -->
-    <div class="mb-8">
-      <div class="flex items-center gap-3">
-        <div class="h-8 w-1 rounded-full bg-gradient-to-b from-accent to-cyan-500"></div>
-        <h1 class="text-3xl font-bold text-text-primary">全部文章</h1>
-      </div>
-      <p class="mt-2 text-text-secondary">
-        第 <span class="font-semibold text-accent">{currentPage}</span> 页 / 共 {totalPages} 页
+    <div class="mb-6">
+      <h1 class="font-mono text-sm text-[var(--color-text-secondary)]">
+        <span class="syntax-comment">// </span>
+        <span class="syntax-variable">posts</span>
+        <span class="text-[var(--color-text-muted)]">/page/{currentPage}.ts</span>
+      </h1>
+      <p class="mt-2 font-mono text-xs text-[var(--color-text-muted)]">
+        // 第 <span class="syntax-number">{currentPage}</span> 页 / 共 {totalPages} 页
       </p>
     </div>
 
     <!-- 文章列表 -->
-    <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+    <div class="space-y-3">
       {posts.map((post, index) => <PostCard post={post} index={index} />)}
     </div>
 
     <!-- 分页导航 -->
-    <nav class="mt-10 flex items-center justify-between" aria-label="分页导航">
+    <nav class="mt-8 flex items-center justify-between font-mono text-xs" aria-label="分页导航">
       <a
-        class:list={[
-          'group inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-300',
-          currentPage <= 2
-            ? 'glass text-text-primary hover:shadow-lg hover:-translate-y-0.5'
-            : 'glass text-text-primary hover:shadow-lg hover:-translate-y-0.5',
-        ]}
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]"
         href={currentPage <= 2 ? '/posts/' : `/posts/page/${currentPage - 1}/`}
       >
-        <Icon name="arrow-left" class="transition-transform group-hover:-translate-x-1" />
-        <span>上一页</span>
+        <Icon name="arrow-left" size={3} />
+        <span>prev</span>
       </a>
 
       <!-- 页码指示器 -->
-      <div class="hidden items-center gap-2 sm:flex">
+      <div class="hidden items-center gap-1 sm:flex">
         {
           Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
             <a
               href={pageNum === 1 ? '/posts/' : `/posts/page/${pageNum}/`}
               class:list={[
-                'flex h-10 w-10 items-center justify-center rounded-lg text-sm font-medium transition-all duration-200',
+                'flex h-7 w-7 items-center justify-center rounded transition-colors',
                 pageNum === currentPage
-                  ? 'bg-accent text-white shadow-lg shadow-accent/25'
-                  : 'glass-subtle text-text-secondary hover:text-text-primary hover:bg-glass-hover',
+                  ? 'bg-[var(--color-accent)] text-white'
+                  : 'bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]',
               ]}
               aria-current={pageNum === currentPage ? 'page' : undefined}
             >
@@ -82,16 +78,16 @@ const { posts, totalPages, currentPage } = Astro.props as Props;
 
       <a
         class:list={[
-          'group inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-300',
+          'flex items-center gap-1.5 px-3 py-1.5 rounded bg-[var(--color-surface)] border border-[var(--color-border)] transition-colors',
           currentPage >= totalPages
-            ? 'glass text-text-secondary cursor-not-allowed opacity-50'
-            : 'glass text-text-primary hover:shadow-lg hover:-translate-y-0.5',
+            ? 'text-[var(--color-text-muted)] cursor-not-allowed'
+            : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]',
         ]}
         href={currentPage >= totalPages ? '#' : `/posts/page/${currentPage + 1}/`}
         aria-disabled={currentPage >= totalPages}
       >
-        <span>下一页</span>
-        <Icon name="arrow-right" class="transition-transform group-hover:translate-x-1" />
+        <span>next</span>
+        <Icon name="arrow-right" size={3} />
       </a>
     </nav>
   </div>

@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import PostCard from '../../../components/PostCard.astro';
+import CodeWindow from '../../../components/CodeWindow.astro';
 import Icon from '../../../components/Icon.astro';
 import { getCollection } from 'astro:content';
 import { filterDrafts, sortPosts } from '../../../lib/utils';
@@ -22,46 +23,46 @@ const { tag, posts } = Astro.props as {
 };
 ---
 
-<BaseLayout title={`标签：${tag}`} description={`${tag} 相关的文章列表`}>
+<BaseLayout title={`标签：${tag}`} description={`${tag} 相关的文章列表`} wide>
   <div class="animate-fade-in">
     <!-- 返回链接 -->
     <a
       href="/tags/"
       class="
-        group mb-6 inline-flex items-center gap-2
-        text-sm font-medium text-text-secondary
-        transition-colors hover:text-accent
+        group mb-4 inline-flex items-center gap-1.5
+        font-mono text-xs text-[var(--color-text-secondary)]
+        transition-colors hover:text-[var(--color-accent)]
       "
     >
-      <Icon name="arrow-left" class="transition-transform group-hover:-translate-x-1" />
-      <span>返回标签列表</span>
+      <Icon name="arrow-left" size={3} class="transition-transform group-hover:-translate-x-1" />
+      <span>../tags/</span>
     </a>
 
     <!-- 页面标题 -->
-    <div class="mb-8">
-      <div class="flex items-center gap-3">
-        <div class="h-8 w-1 rounded-full bg-gradient-to-b from-accent to-cyan-500"></div>
-        <h1 class="text-3xl font-bold text-text-primary">
-          <span class="text-accent">#</span>{tag}
-        </h1>
-      </div>
-      <p class="mt-2 text-text-secondary">
-        共 <span class="font-semibold text-accent">{posts.length}</span> 篇文章
+    <div class="mb-6">
+      <h1 class="font-mono text-sm text-[var(--color-text-secondary)]">
+        <span class="syntax-comment">// </span>
+        <span class="syntax-variable">tags</span>
+        <span class="text-[var(--color-text-muted)]">/</span>
+        <span class="syntax-string">"{tag}"</span>
+        <span class="text-[var(--color-text-muted)]">.ts</span>
+      </h1>
+      <p class="mt-2 font-mono text-xs text-[var(--color-text-muted)]">
+        // 共 <span class="syntax-number">{posts.length}</span> 篇文章
       </p>
     </div>
 
-    <!-- 文章网格 -->
-    <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-      {posts.map((post, index) => <PostCard post={post} index={index} />)}
-    </div>
-
-    <!-- 空状态 -->
-    {
-      posts.length === 0 && (
-        <div class="glass rounded-2xl p-12 text-center">
-          <p class="text-text-secondary">该标签下暂无文章</p>
-        </div>
-      )
-    }
+    <!-- 文章列表 -->
+    {posts.length > 0 ? (
+      <div class="space-y-3">
+        {posts.map((post, index) => <PostCard post={post} index={index} />)}
+      </div>
+    ) : (
+      <CodeWindow filename="empty.ts">
+        <p class="font-mono text-sm text-[var(--color-text-secondary)]">
+          <span class="syntax-comment">// 该标签下暂无文章</span>
+        </p>
+      </CodeWindow>
+    )}
   </div>
 </BaseLayout>
