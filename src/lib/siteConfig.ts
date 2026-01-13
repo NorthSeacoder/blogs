@@ -1,10 +1,10 @@
 export const siteConfig = {
   title: '?.log',
-  description: '探索未知的技术笔记 - 前端架构与工程化实践',
+  description: '探索未知的技术笔记',
   author: 'NorthSeacoder',
   siteUrl: 'https://example.com',
   language: 'zh-CN',
-  keywords: ['前端架构', '工程化', 'TypeScript', 'React', 'Vue', '性能优化'],
+  keywords: ['前端', '工程化', 'TypeScript', 'React', 'Vue'],
   // 站点创建日期，用于计算运行天数
   createdAt: new Date('2024-01-01'),
   // 社交链接
@@ -14,9 +14,9 @@ export const siteConfig = {
     email: 'mengpeng_bj@foxmail.com',
   },
   // 个人简介
-  bio: '前端架构师 | 8年+经验',
+  bio: '喜欢折腾工具的前端开发者',
   // 技能列表
-  skills: ['TypeScript', 'React', 'Vue', 'Webpack', 'Vite', 'Monorepo'],
+  skills: ['TypeScript', 'React', 'Vue', 'Vite', 'Astro'],
 };
 
 export const navLinks = [

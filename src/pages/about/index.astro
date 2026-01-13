@@ -4,72 +4,14 @@ import CodeWindow from '../../components/CodeWindow.astro';
 import Icon from '../../components/Icon.astro';
 import { siteConfig } from '../../lib/siteConfig';
 
-// 技能配置
-const skillCategories = [
-  {
-    name: 'frontend',
-    label: '前端基础',
-    items: ['JavaScript/TypeScript', 'React', 'Vue', 'HTML5/CSS3'],
-  },
-  {
-    name: 'engineering',
-    label: '工程化',
-    items: ['Webpack', 'Vite', 'Rollup', 'Monorepo', 'CI/CD'],
-  },
-  {
-    name: 'tools',
-    label: '工具开发',
-    items: ['VSCode插件', 'Figma插件', 'CLI工具', 'AST转换'],
-  },
-  {
-    name: 'architecture',
-    label: '架构能力',
-    items: ['微前端', '组件库', '性能优化', '国际化'],
-  },
-];
-
-// 时间线
-const timeline = [
-  { year: 2024, event: '创建 ?.log 博客' },
-  { year: 2019, event: '加入北京瓴岳科技，担任前端架构师' },
-  { year: 2017, event: '加入房天下，开始前端开发' },
-  { year: 2016, event: '转型软件开发' },
-];
+// 兴趣爱好
+const interests = ['前端工程化', '开发工具', 'VSCode 插件', '效率提升'];
 
 // 开源项目
 const projects = [
-  {
-    name: 'weekly',
-    desc: 'AI 技术周刊',
-    url: 'https://weekly.mengpeng.tech',
-    repo: 'https://github.com/NorthSeacoder/weekly',
-  },
-  {
-    name: 'franky',
-    desc: 'VSCode 开发提效插件',
-    url: 'https://marketplace.visualstudio.com/items?itemName=NorthSeacoder.franky',
-    repo: 'https://github.com/NorthSeacoder/franky',
-  },
-  {
-    name: 'codetransformer',
-    desc: 'AST 代码迁移工具',
-    url: 'https://marketplace.visualstudio.com/items?itemName=NorthSeacoder.codetransformer',
-    repo: 'https://github.com/NorthSeacoder/codetransformer',
-  },
-  {
-    name: 'depseeker',
-    desc: '深度依赖分析 CLI',
-    url: 'https://www.npmjs.com/package/@nsea/depseeker',
-    repo: 'https://github.com/NorthSeacoder/depseeker',
-  },
-];
-
-// 核心亮点
-const highlights = [
-  '主导 20+ 大型系统技术选型与性能优化',
-  '构建时间优化 62%，首屏性能提升 60%',
-  '开发 VSCode/Figma 插件，代码迁移效率提升 400%',
-  '4 年团队管理经验，人均开发效率提升 40%',
+  { name: 'weekly', desc: 'AI 技术周刊', repo: 'https://github.com/NorthSeacoder/weekly' },
+  { name: 'franky', desc: 'VSCode 提效插件', repo: 'https://github.com/NorthSeacoder/franky' },
+  { name: 'codetransformer', desc: 'AST 代码迁移', repo: 'https://github.com/NorthSeacoder/codetransformer' },
 ];
 ---
 
@@ -77,77 +19,61 @@ const highlights = [
   <div class="animate-fade-in">
     <!-- 两列瀑布流布局 -->
     <div class="columns-1 md:columns-2 gap-4 space-y-4">
-      <!-- 个人信息 -->
-      <CodeWindow filename="profile.ts" class="break-inside-avoid">
+      <!-- 关于我 -->
+      <CodeWindow filename="me.ts" class="break-inside-avoid">
         <div class="font-mono text-sm leading-relaxed">
           <p class="syntax-comment">/**</p>
-          <p class="syntax-comment">&nbsp;*&nbsp;@file 关于我</p>
-          <p class="syntax-comment">&nbsp;*&nbsp;@author {siteConfig.author}</p>
+          <p class="syntax-comment">&nbsp;*&nbsp;Hi, 我是 {siteConfig.author}</p>
+          <p class="syntax-comment">&nbsp;*&nbsp;一个喜欢折腾工具的前端开发者</p>
           <p class="syntax-comment">&nbsp;*/</p>
 
-          <p class="mt-4"><span class="syntax-keyword">interface</span><span class="syntax-type">&nbsp;Developer</span><span class="text-[var(--color-text-primary)]">&nbsp;{'{'}</span></p>
-          <p class="pl-4"><span class="syntax-variable">name</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-type">string</span><span class="text-[var(--color-text-primary)]">;</span></p>
-          <p class="pl-4"><span class="syntax-variable">role</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-type">string</span><span class="text-[var(--color-text-primary)]">;</span></p>
-          <p class="pl-4"><span class="syntax-variable">experience</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-type">string</span><span class="text-[var(--color-text-primary)]">;</span></p>
-          <p class="pl-4"><span class="syntax-variable">location</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-type">string</span><span class="text-[var(--color-text-primary)]">;</span></p>
-          <p class="text-[var(--color-text-primary)]">{'}'}</p>
-
-          <p class="mt-4"><span class="syntax-keyword">const</span><span class="syntax-variable">&nbsp;me</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-type">Developer</span><span class="text-[var(--color-text-primary)]">&nbsp;=&nbsp;{'{'}</span></p>
+          <p class="mt-4"><span class="syntax-keyword">const</span><span class="syntax-variable">&nbsp;me</span><span class="text-[var(--color-text-primary)]">&nbsp;=&nbsp;{'{'}</span></p>
           <p class="pl-4"><span class="syntax-variable">name</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"{siteConfig.author}"</span><span class="text-[var(--color-text-primary)]">,</span></p>
-          <p class="pl-4"><span class="syntax-variable">role</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"前端架构师"</span><span class="text-[var(--color-text-primary)]">,</span></p>
-          <p class="pl-4"><span class="syntax-variable">experience</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"8年+"</span><span class="text-[var(--color-text-primary)]">,</span></p>
           <p class="pl-4"><span class="syntax-variable">location</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"北京"</span><span class="text-[var(--color-text-primary)]">,</span></p>
+          <p class="pl-4"><span class="syntax-variable">focus</span><span class="text-[var(--color-text-primary)]">:&nbsp;[</span>{interests.map((item, i) => (<><span class="syntax-string">"{item}"</span>{i < interests.length - 1 && <span class="text-[var(--color-text-primary)]">,&nbsp;</span>}</>))}<span class="text-[var(--color-text-primary)]">],</span></p>
           <p class="text-[var(--color-text-primary)]">{'}'}</span><span class="text-[var(--color-text-primary)]">;</span></p>
         </div>
       </CodeWindow>
 
-      <!-- 核心亮点 -->
-      <CodeWindow filename="highlights.ts" class="break-inside-avoid">
+      <!-- 关于本站 -->
+      <CodeWindow filename="blog.ts" class="break-inside-avoid">
         <div class="font-mono text-sm leading-relaxed">
-          <p class="syntax-comment">// 核心亮点</p>
-          <p class="mt-2"><span class="syntax-keyword">const</span><span class="syntax-variable">&nbsp;highlights</span><span class="text-[var(--color-text-primary)]">&nbsp;=&nbsp;[</span></p>
-          {highlights.map((item, index) => (
-            <p class="pl-4">
-              <span class="syntax-string">"{item}"</span>
-              <span class="text-[var(--color-text-primary)]">{index < highlights.length - 1 ? ',' : ''}</span>
-            </p>
-          ))}
-          <p class="text-[var(--color-text-primary)]">];</p>
+          <p class="syntax-comment">/**</p>
+          <p class="syntax-comment">&nbsp;*&nbsp;关于 ?.log</p>
+          <p class="syntax-comment">&nbsp;*</p>
+          <p class="syntax-comment">&nbsp;*&nbsp;记录那些"我不知道的 xxx"</p>
+          <p class="syntax-comment">&nbsp;*&nbsp;探索未知的技术领域</p>
+          <p class="syntax-comment">&nbsp;*/</p>
+
+          <p class="mt-4"><span class="syntax-keyword">export default</span><span class="text-[var(--color-text-primary)]">&nbsp;{'{'}</span></p>
+          <p class="pl-4"><span class="syntax-variable">framework</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"Astro"</span><span class="text-[var(--color-text-primary)]">,</span></p>
+          <p class="pl-4"><span class="syntax-variable">styling</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"Tailwind CSS"</span><span class="text-[var(--color-text-primary)]">,</span></p>
+          <p class="pl-4"><span class="syntax-variable">theme</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"VSCode Dark"</span><span class="text-[var(--color-text-primary)]">,</span></p>
+          <p class="text-[var(--color-text-primary)]">{'}'}</span><span class="text-[var(--color-text-primary)]">;</span></p>
         </div>
       </CodeWindow>
 
       <!-- 联系方式 -->
       <CodeWindow filename="contact.ts" class="break-inside-avoid">
         <div class="font-mono text-sm leading-relaxed">
-          <p class="syntax-comment">// 联系方式</p>
-          <p class="mt-2"><span class="syntax-keyword">export const</span><span class="syntax-variable">&nbsp;contact</span><span class="text-[var(--color-text-primary)]">&nbsp;=&nbsp;{'{'}</span></p>
-
-          {siteConfig.social.github && (
-            <p class="pl-4"><span class="syntax-variable">github</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"github.com/NorthSeacoder"</span><span class="text-[var(--color-text-primary)]">,</span></p>
-          )}
-          {siteConfig.social.email && (
-            <p class="pl-4"><span class="syntax-variable">email</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"{siteConfig.social.email}"</span><span class="text-[var(--color-text-primary)]">,</span></p>
-          )}
-          <p class="pl-4"><span class="syntax-variable">wechat</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"north-sea-coder"</span><span class="text-[var(--color-text-primary)]">,</span></p>
+          <p class="syntax-comment">// 找到我</p>
+          <p class="mt-2"><span class="syntax-keyword">export const</span><span class="syntax-variable">&nbsp;links</span><span class="text-[var(--color-text-primary)]">&nbsp;=&nbsp;{'{'}</span></p>
+          <p class="pl-4"><span class="syntax-variable">github</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"github.com/NorthSeacoder"</span><span class="text-[var(--color-text-primary)]">,</span></p>
+          <p class="pl-4"><span class="syntax-variable">email</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"{siteConfig.social.email}"</span><span class="text-[var(--color-text-primary)]">,</span></p>
           <p class="pl-4"><span class="syntax-variable">rss</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"/rss.xml"</span><span class="text-[var(--color-text-primary)]">,</span></p>
-
           <p class="text-[var(--color-text-primary)]">{'}'}</span><span class="text-[var(--color-text-primary)]">;</span></p>
         </div>
 
         <!-- 社交链接按钮 -->
         <div class="mt-4 pt-4 border-t border-[var(--color-border)] flex flex-wrap gap-2">
-          {siteConfig.social.github && (
-            <a href={siteConfig.social.github} target="_blank" rel="noopener noreferrer" class="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]">
-              <Icon name="github" size={3.5} />
-              <span>GitHub</span>
-            </a>
-          )}
-          {siteConfig.social.email && (
-            <a href={`mailto:${siteConfig.social.email}`} class="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]">
-              <Icon name="mail" size={3.5} />
-              <span>Email</span>
-            </a>
-          )}
+          <a href={siteConfig.social.github} target="_blank" rel="noopener noreferrer" class="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]">
+            <Icon name="github" size={3.5} />
+            <span>GitHub</span>
+          </a>
+          <a href={`mailto:${siteConfig.social.email}`} class="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]">
+            <Icon name="mail" size={3.5} />
+            <span>Email</span>
+          </a>
           <a href="/rss.xml" class="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-hover)]">
             <Icon name="rss" size={3.5} />
             <span>RSS</span>
@@ -155,85 +81,23 @@ const highlights = [
         </div>
       </CodeWindow>
 
-      <!-- 技能 -->
-      <CodeWindow filename="skills.ts" class="break-inside-avoid">
-        <div class="font-mono text-sm leading-relaxed">
-          <p class="syntax-comment">// 技术栈</p>
-          <p class="mt-2"><span class="syntax-keyword">export const</span><span class="syntax-variable">&nbsp;skills</span><span class="text-[var(--color-text-primary)]">&nbsp;=&nbsp;{'{'}</span></p>
-
-          {skillCategories.map((category, catIndex) => (
-            <div class="pl-4 py-1">
-              <p><span class="syntax-variable">{category.name}</span><span class="text-[var(--color-text-primary)]">:&nbsp;[</span></p>
-              <div class="pl-4 flex flex-wrap gap-1.5 py-2">
-                {category.items.map((item) => (
-                  <span class="px-2 py-0.5 rounded bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)] text-xs">
-                    <span class="syntax-string">"{item}"</span>
-                  </span>
-                ))}
-              </div>
-              <p class="text-[var(--color-text-primary)]">]{catIndex < skillCategories.length - 1 ? ',' : ''}</p>
-            </div>
-          ))}
-
-          <p class="text-[var(--color-text-primary)]">{'}'}</span><span class="text-[var(--color-text-primary)]">;</span></p>
-        </div>
-      </CodeWindow>
-
       <!-- 开源项目 -->
       <CodeWindow filename="projects.ts" class="break-inside-avoid">
         <div class="font-mono text-sm leading-relaxed">
-          <p class="syntax-comment">// 开源项目</p>
+          <p class="syntax-comment">// 业余项目</p>
           <p class="mt-2"><span class="syntax-keyword">const</span><span class="syntax-variable">&nbsp;projects</span><span class="text-[var(--color-text-primary)]">&nbsp;=&nbsp;[</span></p>
 
           {projects.map((project, index) => (
-            <div class="pl-4 py-1">
-              <p class="text-[var(--color-text-primary)]">{'{'}</p>
-              <p class="pl-4">
-                <span class="syntax-variable">name</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span>
-                <a href={project.repo} target="_blank" rel="noopener noreferrer" class="syntax-string hover:underline">"{project.name}"</a>
-                <span class="text-[var(--color-text-primary)]">,</span>
-              </p>
-              <p class="pl-4"><span class="syntax-variable">desc</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"{project.desc}"</span><span class="text-[var(--color-text-primary)]">,</span></p>
-              <p class="text-[var(--color-text-primary)]">{'}'}{index < projects.length - 1 ? ',' : ''}</p>
-            </div>
+            <p class="pl-4">
+              <span class="text-[var(--color-text-primary)]">{'{'}&nbsp;</span>
+              <a href={project.repo} target="_blank" rel="noopener noreferrer" class="syntax-string hover:underline">"{project.name}"</a>
+              <span class="text-[var(--color-text-primary)]">:&nbsp;</span>
+              <span class="syntax-string">"{project.desc}"</span>
+              <span class="text-[var(--color-text-primary)]">&nbsp;{'}'}{index < projects.length - 1 ? ',' : ''}</span>
+            </p>
           ))}
 
           <p class="text-[var(--color-text-primary)]">];</p>
-        </div>
-      </CodeWindow>
-
-      <!-- 时间线 -->
-      <CodeWindow filename="timeline.ts" class="break-inside-avoid">
-        <div class="font-mono text-sm leading-relaxed">
-          <p class="syntax-comment">// 经历</p>
-          <p class="mt-2"><span class="syntax-keyword">const</span><span class="syntax-variable">&nbsp;timeline</span><span class="text-[var(--color-text-primary)]">&nbsp;=&nbsp;[</span></p>
-
-          {timeline.map((item, index) => (
-            <p class="pl-4"><span class="text-[var(--color-text-primary)]">{'{'}&nbsp;</span><span class="syntax-variable">year</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-number">{item.year}</span><span class="text-[var(--color-text-primary)]">,&nbsp;</span><span class="syntax-variable">event</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"{item.event}"</span><span class="text-[var(--color-text-primary)]">&nbsp;{'}'}{index < timeline.length - 1 ? ',' : ''}</span></p>
-          ))}
-
-          <p class="text-[var(--color-text-primary)]">];</p>
-        </div>
-      </CodeWindow>
-
-      <!-- 关于本站 -->
-      <CodeWindow filename="about-site.ts" class="break-inside-avoid">
-        <div class="font-mono text-sm leading-relaxed">
-          <p class="syntax-comment">/**</p>
-          <p class="syntax-comment">&nbsp;*&nbsp;关于本站</p>
-          <p class="syntax-comment">&nbsp;*</p>
-          <p class="syntax-comment">&nbsp;*&nbsp;记录前端架构与工程化实践</p>
-          <p class="syntax-comment">&nbsp;*&nbsp;分享"我不知道的 xxx"系列</p>
-          <p class="syntax-comment">&nbsp;*&nbsp;探索未知的技术领域</p>
-          <p class="syntax-comment">&nbsp;*/</p>
-
-          <p class="mt-4"><span class="syntax-keyword">export default</span><span class="text-[var(--color-text-primary)]">&nbsp;{'{'}</span></p>
-          <p class="pl-4"><span class="syntax-variable">framework</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"Astro 5"</span><span class="text-[var(--color-text-primary)]">,</span></p>
-          <p class="pl-4"><span class="syntax-variable">styling</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"Tailwind CSS v4"</span><span class="text-[var(--color-text-primary)]">,</span></p>
-          <p class="pl-4"><span class="syntax-variable">search</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"Pagefind"</span><span class="text-[var(--color-text-primary)]">,</span></p>
-          <p class="pl-4"><span class="syntax-variable">theme</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"VSCode Dark Modern"</span><span class="text-[var(--color-text-primary)]">,</span></p>
-          <p class="pl-4"><span class="syntax-variable">icons</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"Lucide"</span><span class="text-[var(--color-text-primary)]">,</span></p>
-          <p class="text-[var(--color-text-primary)]">{'}'}</span><span class="text-[var(--color-text-primary)]">;</span></p>
         </div>
       </CodeWindow>
     </div>
