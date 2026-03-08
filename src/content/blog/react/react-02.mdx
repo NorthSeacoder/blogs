@@ -9,12 +9,9 @@ pubDate: '2022-05-20'
 updatedDate: '2026-03-06'
 tags:
   - React
-  - Fiber
-  - 调和
-  - 时间分片
-  - 优先级调度
   - 并发模式
-  - 我不知道的
+  - 调和
+  - Fiber
 lang: zh-CN
 keywords:
   - React
@@ -32,7 +29,6 @@ seriesOrder: 2
 slug: react-02
 model: claude-4.6-opus
 ---
-# 我不知道的 React（02）— Fiber 架构
 
 很多人以为 Fiber 只是 React 16 引入的一种新数据结构，但实际上，它是一整套调度系统——包含数据结构、遍历算法、时间分片机制和优先级模型。React 团队花了两年重写核心引擎，不是为了换个数据结构，而是为了让渲染这件事变得"可商量"。
 
@@ -64,14 +60,16 @@ const fiberNode = {
   type: App,
   stateNode: null,
 
-  child: childFiber,     // 第一个子节点
+  child: childFiber, // 第一个子节点
   sibling: siblingFiber, // 下一个兄弟节点
-  return: parentFiber,   // 父节点
+  return: parentFiber, // 父节点
 
-  pendingProps: { /* 新的 props */ },
+  pendingProps: {
+    /* 新的 props */
+  },
   memoizedState: null,
-  flags: 0,              // 副作用标记（插入、更新、删除）
-  lanes: 0,              // 优先级
+  flags: 0, // 副作用标记（插入、更新、删除）
+  lanes: 0, // 优先级
 };
 ```
 
@@ -166,8 +164,8 @@ Fiber 架构在内存中始终维护两棵 Fiber 树。
 **Current Tree** 对应当前屏幕上显示的 UI。**Work-in-Progress Tree（WIP Tree）** 是 Render 阶段正在构建的新树。两棵树的根节点通过 `alternate` 指针互相引用。
 
 ```javascript
-currentFiber.alternate === wipFiber;  // true
-wipFiber.alternate === currentFiber;  // true
+currentFiber.alternate === wipFiber; // true
+wipFiber.alternate === currentFiber; // true
 ```
 
 Render 阶段的所有计算都在 WIP Tree 上进行——对比新旧 props、标记变更、构建新的子树。整个过程不影响 Current Tree，因此屏幕上的 UI 保持稳定。
@@ -195,9 +193,11 @@ Fiber 解决的核心问题是：**把同步、不可中断的递归渲染，改
 ---
 
 **本系列其他文章：**
+
 - 上一篇：[核心与渲染层的解耦 — React vs ReactDOM](/posts/react-01/)
 - 下一篇：[从 JSX 到 DOM — 渲染流程与 Diff 算法](/posts/react-03/)
 
 **相关主题：**
+
 - V8 系列：[从源码到执行：引擎的完整旅程](/posts/v8-01/)
 - 浏览器系列：[进程、线程与多进程架构](/posts/browser-01/)

@@ -8,12 +8,7 @@ pubDate: '2022-05-22'
 updatedDate: '2026-03-06'
 tags:
   - React
-  - ErrorBoundary
-  - 错误处理
   - 生命周期
-  - getDerivedStateFromError
-  - componentDidCatch
-  - 我不知道的
 lang: zh-CN
 keywords:
   - React
@@ -31,7 +26,6 @@ seriesOrder: 11
 slug: react-11
 model: claude-4.6-opus
 ---
-# 我不知道的 React（11）— ErrorBoundary 的工作原理与局限性
 
 React 应用中，一个子组件的渲染错误如果没有被捕获，会导致整棵组件树卸载——也就是白屏。从 React 16 开始，这个行为是刻意设计的：React 团队认为，**显示一个损坏的 UI 比完全不显示更危险**，因为损坏的 UI 可能导致用户做出错误操作（比如支付页面上金额显示错误）。
 
@@ -142,8 +136,8 @@ function Button() {
 ```jsx
 useEffect(() => {
   fetchData()
-    .then(data => setData(data))
-    .catch(err => setError(err));
+    .then((data) => setData(data))
+    .catch((err) => setError(err));
 }, []);
 ```
 
@@ -230,9 +224,11 @@ ErrorBoundary 是 React 的错误隔离机制，通过 `getDerivedStateFromError
 ---
 
 **本系列其他文章：**
+
 - 上一篇：[受控与非受控组件的选择之道](/posts/react-10/)
 - 下一篇：[Redux 核心原理与中间件机制](/posts/react-12/)
 
 **相关主题：**
+
 - Fiber 架构的两阶段设计：[可中断渲染与优先级调度](/posts/react-02/)
 - 生命周期与 Render 触发机制：[React-04](/posts/react-04/)

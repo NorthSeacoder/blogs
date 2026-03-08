@@ -6,12 +6,6 @@ pubDate: '2024-04-22'
 updatedDate: '2026-03-06'
 tags:
   - VSCode 扩展
-  - 我不知道的
-  - 发布
-  - Marketplace
-  - vsce
-  - CI/CD
-  - GitHub Actions
 lang: zh-CN
 keywords:
   - VSCode 扩展
@@ -28,7 +22,6 @@ series: VSCode 扩展
 seriesOrder: 7
 slug: vscode-extension-07
 ---
-# 我不知道的 VSCode 扩展（07）— 发布与 CI/CD 流水线
 
 ## 一、从本地到全球：发布不只是 `publish` 一下
 
@@ -40,18 +33,18 @@ slug: vscode-extension-07
 
 `package.json` 是扩展的"身份证"，Marketplace 上展示的几乎所有信息都来自它。发布前必须检查以下字段：
 
-| 字段 | 必填 | 说明 |
-|------|------|------|
-| `name` | 是 | 扩展 ID，全局唯一，只能用小写字母、数字、连字符 |
-| `displayName` | 是 | 显示名称，用户看到的名字 |
-| `description` | 是 | 一句话描述 |
-| `version` | 是 | 语义化版本号（SemVer） |
-| `publisher` | 是 | 发布者 ID（需先创建） |
-| `engines.vscode` | 是 | 兼容的 VSCode 最低版本，如 `"^1.85.0"` |
-| `icon` | 推荐 | 128×128 的 PNG 图标，没有的话 Marketplace 上会显示默认图标 |
-| `categories` | 推荐 | 分类标签，如 `["Programming Languages", "Formatters"]` |
-| `repository` | 推荐 | 源码仓库地址 |
-| `license` | 推荐 | 开源许可证，推荐 MIT |
+| 字段             | 必填 | 说明                                                       |
+| ---------------- | ---- | ---------------------------------------------------------- |
+| `name`           | 是   | 扩展 ID，全局唯一，只能用小写字母、数字、连字符            |
+| `displayName`    | 是   | 显示名称，用户看到的名字                                   |
+| `description`    | 是   | 一句话描述                                                 |
+| `version`        | 是   | 语义化版本号（SemVer）                                     |
+| `publisher`      | 是   | 发布者 ID（需先创建）                                      |
+| `engines.vscode` | 是   | 兼容的 VSCode 最低版本，如 `"^1.85.0"`                     |
+| `icon`           | 推荐 | 128×128 的 PNG 图标，没有的话 Marketplace 上会显示默认图标 |
+| `categories`     | 推荐 | 分类标签，如 `["Programming Languages", "Formatters"]`     |
+| `repository`     | 推荐 | 源码仓库地址                                               |
+| `license`        | 推荐 | 开源许可证，推荐 MIT                                       |
 
 这里有一个很多人会忽略的细节——**`engines.vscode` 不是"填个大概的版本就行"**。如果扩展用到了新版 API（比如 `LogOutputChannel` 需要 1.74+），但 `engines.vscode` 写的是 `^1.60.0`，那在旧版 VSCode 上安装后会直接报错。应该按**实际使用的最新 API 版本**来设置。
 
@@ -174,7 +167,7 @@ jobs:
         if: github.ref == 'refs/heads/main'
         with:
           name: vsix
-          path: "*.vsix"
+          path: '*.vsix'
 
   publish:
     needs: build
@@ -192,9 +185,9 @@ jobs:
 
 在 GitHub 仓库的 Settings → Secrets and variables → Actions 中，添加：
 
-| Secret 名称 | 值 |
-|------------|---|
-| `VSCE_PAT` | Azure DevOps 的 Personal Access Token |
+| Secret 名称 | 值                                    |
+| ----------- | ------------------------------------- |
+| `VSCE_PAT`  | Azure DevOps 的 Personal Access Token |
 
 ### 工作流拆解
 
@@ -241,25 +234,27 @@ vsce publish --pre-release
 
 每次发布前过一遍：
 
-| 检查项 | 状态 |
-|-------|------|
-| `package.json` 版本号已递增 | |
-| `CHANGELOG.md` 已更新 | |
-| `engines.vscode` 与实际使用的 API 匹配 | |
-| `.vscodeignore` 排除了源码和测试文件 | |
-| `npm test` 全部通过 | |
-| README 中的截图和描述是最新的 | |
-| PAT 未过期 | |
+| 检查项                                 | 状态 |
+| -------------------------------------- | ---- |
+| `package.json` 版本号已递增            |      |
+| `CHANGELOG.md` 已更新                  |      |
+| `engines.vscode` 与实际使用的 API 匹配 |      |
+| `.vscodeignore` 排除了源码和测试文件   |      |
+| `npm test` 全部通过                    |      |
+| README 中的截图和描述是最新的          |      |
+| PAT 未过期                             |      |
 
 如果你只记住一句话：**手动发布用 `vsce publish`，自动发布用 GitHub Actions + Secrets，版本号别忘了递增。**
 
 ---
 
 **本系列其他文章：**
+
 - 上一篇：[调试与测试](/posts/vscode-extension-06/)
 - 下一篇：[开发工具链与效率提升](/posts/vscode-extension-08/)
 
 **延伸阅读：**
+
 - [@vscode/vsce 文档](https://github.com/microsoft/vscode-vsce)
 - [Publishing Extensions 官方指南](https://code.visualstudio.com/api/working-with-extensions/publishing-extension)
 - [Continuous Integration 官方指南](https://code.visualstudio.com/api/working-with-extensions/continuous-integration)

@@ -30,8 +30,23 @@ const projects = [
           <p class="mt-4"><span class="syntax-keyword">const</span><span class="syntax-variable">&nbsp;me</span><span class="text-[var(--color-text-primary)]">&nbsp;=&nbsp;{'{'}</span></p>
           <p class="pl-4"><span class="syntax-variable">name</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"{siteConfig.author}"</span><span class="text-[var(--color-text-primary)]">,</span></p>
           <p class="pl-4"><span class="syntax-variable">location</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"北京"</span><span class="text-[var(--color-text-primary)]">,</span></p>
-          <p class="pl-4"><span class="syntax-variable">focus</span><span class="text-[var(--color-text-primary)]">:&nbsp;[</span>{interests.map((item, i) => (<><span class="syntax-string">"{item}"</span>{i < interests.length - 1 && <span class="text-[var(--color-text-primary)]">,&nbsp;</span>}</>))}<span class="text-[var(--color-text-primary)]">],</span></p>
-          <p class="text-[var(--color-text-primary)]">{'}'}</span><span class="text-[var(--color-text-primary)]">;</span></p>
+          <p class="pl-4">
+            <span class="syntax-variable">focus</span>
+            <span class="text-[var(--color-text-primary)]">:&nbsp;[</span>
+            {interests.map((item, i) => (
+              <>
+                <span class="syntax-string">"{item}"</span>
+                {i < interests.length - 1 && (
+                  <span class="text-[var(--color-text-primary)]">,&nbsp;</span>
+                )}
+              </>
+            ))}
+            <span class="text-[var(--color-text-primary)]">],</span>
+          </p>
+          <p>
+            <span class="text-[var(--color-text-primary)]">{'}'}</span>
+            <span class="text-[var(--color-text-primary)]">;</span>
+          </p>
         </div>
       </CodeWindow>
 
@@ -49,7 +64,10 @@ const projects = [
           <p class="pl-4"><span class="syntax-variable">framework</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"Astro"</span><span class="text-[var(--color-text-primary)]">,</span></p>
           <p class="pl-4"><span class="syntax-variable">styling</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"Tailwind CSS"</span><span class="text-[var(--color-text-primary)]">,</span></p>
           <p class="pl-4"><span class="syntax-variable">theme</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"VSCode Dark"</span><span class="text-[var(--color-text-primary)]">,</span></p>
-          <p class="text-[var(--color-text-primary)]">{'}'}</span><span class="text-[var(--color-text-primary)]">;</span></p>
+          <p>
+            <span class="text-[var(--color-text-primary)]">{'}'}</span>
+            <span class="text-[var(--color-text-primary)]">;</span>
+          </p>
         </div>
       </CodeWindow>
 
@@ -61,7 +79,10 @@ const projects = [
           <p class="pl-4"><span class="syntax-variable">github</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"github.com/NorthSeacoder"</span><span class="text-[var(--color-text-primary)]">,</span></p>
           <p class="pl-4"><span class="syntax-variable">email</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"{siteConfig.social.email}"</span><span class="text-[var(--color-text-primary)]">,</span></p>
           <p class="pl-4"><span class="syntax-variable">rss</span><span class="text-[var(--color-text-primary)]">:&nbsp;</span><span class="syntax-string">"/rss.xml"</span><span class="text-[var(--color-text-primary)]">,</span></p>
-          <p class="text-[var(--color-text-primary)]">{'}'}</span><span class="text-[var(--color-text-primary)]">;</span></p>
+          <p>
+            <span class="text-[var(--color-text-primary)]">{'}'}</span>
+            <span class="text-[var(--color-text-primary)]">;</span>
+          </p>
         </div>
 
         <!-- 社交链接按钮 -->

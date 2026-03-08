@@ -8,12 +8,8 @@ pubDate: '2024-03-15'
 updatedDate: '2026-03-04'
 tags:
   - V8
-  - async/await
-  - 状态机
-  - 协程
-  - Promise
   - 微任务
-  - 我不知道的
+  - Promise
 lang: zh-CN
 keywords:
   - V8
@@ -31,7 +27,6 @@ seriesOrder: 16
 slug: v8-16
 model: claude-sonnet-4.6
 ---
-# 我不知道的 V8（16）— async/await：状态机、伪协程与微任务调度
 
 `await` 让函数"暂停"，等 Promise 完成后"继续"——这个描述没错，但暂停是什么意思？主线程真的停下来等了吗？V8 用什么机制实现了"看似同步、实为异步"的执行模式？答案在 V8 把 async 函数转换成的**状态机**里，以及`await` 背后的**微任务调度**机制里。
 
@@ -72,8 +67,8 @@ function fetchData() {
 
           case 1:
             // await 之后的代码
-            console.log(value);  // 42
-            resolve(value);       // 整个 async 函数完成
+            console.log(value); // 42
+            resolve(value); // 整个 async 函数完成
             break;
         }
       } catch (e) {
@@ -87,6 +82,7 @@ function fetchData() {
 ```
 
 每个 `await` 把函数切成了两段：
+
 - `await` 之前：在当前状态执行
 - `await` 之后：挂到 Promise 的微任务回调里，等待下一次 `resume`
 
@@ -98,7 +94,7 @@ function fetchData() {
 async function test() {
   console.log('Before await');
   await Promise.resolve();
-  console.log('After await');   // 这行在微任务里执行
+  console.log('After await'); // 这行在微任务里执行
 }
 
 test();
@@ -111,6 +107,7 @@ console.log('After test()');
 ```
 
 执行过程：
+
 1. `test()` 被调用，执行到 `await`，状态机切到 state 1，把 `After await` 那段代码挂到 `Promise.resolve()` 的 `then` 回调（微任务）里
 2. `test()` "返回"（实际上返回了它的内部 Promise），主线程继续
 3. `console.log('After test()')` 执行
@@ -129,6 +126,7 @@ V8 为 `await` 生成专用字节码指令 `Await`。执行到 `Await` 时：
 4. 主线程继续执行后续代码
 
 Promise 解析后，V8 调用 `ResumeGenerator` 字节码：
+
 1. 从 `PromiseReaction` 里取出 Continuation
 2. 恢复上下文（变量状态、执行位置）
 3. 从 `await` 的下一行继续执行
@@ -138,9 +136,9 @@ Promise 解析后，V8 调用 `ResumeGenerator` 字节码：
 ```javascript
 async function multiAwait() {
   console.log('1');
-  await step1();    // 微任务 1
+  await step1(); // 微任务 1
   console.log('3');
-  await step2();    // 微任务 2
+  await step2(); // 微任务 2
   console.log('5');
 }
 
@@ -175,7 +173,7 @@ async 函数的错误处理通过 Promise 的 `reject` 机制传递：
 
 ```javascript
 async function mightFail() {
-  throw new Error("something went wrong");
+  throw new Error('something went wrong');
   // 等价于：return Promise.reject(new Error("..."))
 }
 
@@ -184,12 +182,12 @@ async function handler() {
   try {
     await mightFail();
   } catch (e) {
-    console.log("caught:", e.message);
+    console.log('caught:', e.message);
   }
 }
 
 // 方式二：.catch()（Promise 风格）
-mightFail().catch(e => console.log("caught:", e.message));
+mightFail().catch((e) => console.log('caught:', e.message));
 ```
 
 状态机中，V8 在 `switch` 外面包了 `try-catch`（见第一节的等效代码），任何阶段抛出的错误都会被捕获并传递给外层 Promise 的 `reject`。
@@ -225,6 +223,7 @@ async/await 在 V8 内部的实现是 Promise + 状态机：
 ---
 
 **本系列其他文章：**
+
 - 上一篇：[MutationObserver 的 DOM 监听机制](/posts/v8-15/)
 - 下一篇：[垃圾回收的算法与优化](/posts/v8-17/)
 - 相关：[微任务：执行时机、优先级与底层实现](/posts/v8-14/)

@@ -5,14 +5,8 @@ subtitle: 渲染线程为什么是单线程的
 pubDate: '2024-09-09'
 updatedDate: '2026-03-05'
 tags:
-  - 浏览器原理
-  - 渲染线程
-  - 主线程
-  - 单线程
-  - Web Workers
   - 性能优化
   - 浏览器
-  - 我不知道的
 lang: zh-CN
 keywords:
   - 浏览器原理
@@ -31,7 +25,6 @@ seriesOrder: 2
 slug: browser-02
 model: claude-sonnet-4.6
 ---
-# 我不知道的浏览器（02）— 渲染线程为什么是单线程的
 
 "JavaScript 是单线程的"——这句话几乎每个前端开发者都说过，但很少有人追问一句：**为什么**？
 
@@ -125,9 +118,11 @@ button.addEventListener('click', () => {
 ---
 
 **本系列其他文章：**
+
 - 上一篇：[进程、线程与多进程架构](/posts/browser-01/)
 - 下一篇：[事件循环：浏览器如何协调 JS 与渲染](/posts/browser-03/)
 
 **相关主题：**
+
 - 主线程的具体工作从 V8 引擎视角看：[从源码到执行：引擎的完整旅程](/posts/v8-01/)
 - 主线程的渲染部分（布局、绘制、合成）：[渲染流水线：从 HTML 到屏幕的八个步骤](/posts/browser-04/)

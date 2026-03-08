@@ -6,7 +6,7 @@ interface Props {
   canonical?: string;
   image?: string;
   keywords?: string[];
-  jsonLd?: Record<string, any>;
+  jsonLd?: Record<string, unknown>;
 }
 
 const { title, description, canonical, image, keywords, jsonLd } = Astro.props;

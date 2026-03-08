@@ -8,10 +8,6 @@ pubDate: '2024-07-10'
 updatedDate: '2026-03-06'
 tags:
   - Pixi.js
-  - 我不知道的
-  - Spine
-  - 粒子系统
-  - 插件开发
 lang: zh-CN
 keywords:
   - Pixi.js
@@ -27,6 +23,7 @@ seriesOrder: 10
 slug: pixi-10
 model: claude-4.6-opus
 ---
+
 Pixi.js 的核心只负责渲染——把像素高效地画到屏幕上。骨骼动画、粒子系统、UI 组件这些能力都由插件提供。v8 的插件生态经历了一次大规模迁移，部分老插件已经适配了新架构，部分还在路上。这篇文章梳理 v8 生态中最常用的几个插件，并拆解自定义插件的开发方式。
 
 ---
@@ -35,15 +32,15 @@ Pixi.js 的核心只负责渲染——把像素高效地画到屏幕上。骨骼
 
 截至 2026 年初，v8 的核心插件迁移状态：
 
-| 插件 | v8 状态 | 包名 |
-|------|--------|------|
-| Spine 骨骼动画 | 已迁移 | `@pixi-spine/all` |
-| 滤镜库 | 已迁移 | `pixi-filters` |
-| UI 组件 | 已迁移 | `@pixi/ui` |
-| Sound 音频 | 已迁移 | `@pixi/sound` |
-| GIF 支持 | 已迁移 | `@pixi/gif` |
-| React 绑定 | 迁移中 | `@pixi/react` |
-| 粒子系统 | 需替换 | `@barvian/particle-emitter` |
+| 插件           | v8 状态 | 包名                        |
+| -------------- | ------- | --------------------------- |
+| Spine 骨骼动画 | 已迁移  | `@pixi-spine/all`           |
+| 滤镜库         | 已迁移  | `pixi-filters`              |
+| UI 组件        | 已迁移  | `@pixi/ui`                  |
+| Sound 音频     | 已迁移  | `@pixi/sound`               |
+| GIF 支持       | 已迁移  | `@pixi/gif`                 |
+| React 绑定     | 迁移中  | `@pixi/react`               |
+| 粒子系统       | 需替换  | `@barvian/particle-emitter` |
 
 这里有一个很多人会忽略的细节——v7 时代流行的 `pixi-particles` 包（`@pixi/particle-emitter`）在 v8 中已不再维护。社区分支 `@barvian/particle-emitter` 提供了 v8 兼容版本，但 API 有部分变化。选择粒子方案前先确认版本兼容性。
 
@@ -111,15 +108,36 @@ const emitter = new Emitter(particleContainer, {
   behaviors: [
     {
       type: 'alpha',
-      config: { alpha: { list: [{ value: 1, time: 0 }, { value: 0, time: 1 }] } },
+      config: {
+        alpha: {
+          list: [
+            { value: 1, time: 0 },
+            { value: 0, time: 1 },
+          ],
+        },
+      },
     },
     {
       type: 'scale',
-      config: { scale: { list: [{ value: 0.5, time: 0 }, { value: 0.1, time: 1 }] } },
+      config: {
+        scale: {
+          list: [
+            { value: 0.5, time: 0 },
+            { value: 0.1, time: 1 },
+          ],
+        },
+      },
     },
     {
       type: 'moveSpeed',
-      config: { speed: { list: [{ value: 200, time: 0 }, { value: 50, time: 1 }] } },
+      config: {
+        speed: {
+          list: [
+            { value: 200, time: 0 },
+            { value: 50, time: 1 },
+          ],
+        },
+      },
     },
     {
       type: 'textureSingle',
@@ -244,9 +262,11 @@ Pixi.js 的核心专注渲染，复杂功能靠插件生态支撑。v8 已迁移
 ---
 
 **本系列其他文章：**
+
 - 上一篇：[物理引擎的集成实践](/posts/pixi-09/)
 
 **延伸阅读：**
+
 - [PixiJS Ecosystem](https://pixijs.com/ecosystem)
 - [@pixi/ui Documentation](https://pixijs.io/ui/)
 - [Spine Runtime for PixiJS](https://github.com/pixijs/spine)

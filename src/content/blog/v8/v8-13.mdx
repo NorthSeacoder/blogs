@@ -8,12 +8,7 @@ pubDate: '2024-03-12'
 updatedDate: '2026-03-04'
 tags:
   - V8
-  - 宏任务
   - 事件循环
-  - setTimeout
-  - 任务队列
-  - 调度
-  - 我不知道的
 lang: zh-CN
 keywords:
   - V8
@@ -31,7 +26,6 @@ seriesOrder: 13
 slug: v8-13
 model: claude-sonnet-4.6
 ---
-# 我不知道的 V8（13）— 宏任务的调度逻辑：事件循环的主干
 
 `setTimeout(fn, 0)` 的 `fn` 为什么不是"立即"执行，而是"稍后"执行？为什么两个延时相同的 `setTimeout` 之间还有顺序关系？这些问题的答案在 V8 的事件循环设计里，宏任务（Macrotasks）是这套设计的核心单元。
 
@@ -63,20 +57,20 @@ V8 的事件循环（结合浏览器的任务调度器）执行顺序：
 用代码验证这个顺序：
 
 ```javascript
-console.log("1. 同步代码开始");
+console.log('1. 同步代码开始');
 
 setTimeout(() => {
-  console.log("4. 宏任务（setTimeout）");
+  console.log('4. 宏任务（setTimeout）');
   Promise.resolve().then(() => {
-    console.log("5. 宏任务内部的微任务");
+    console.log('5. 宏任务内部的微任务');
   });
 }, 0);
 
 Promise.resolve().then(() => {
-  console.log("3. 微任务（Promise.then）");
+  console.log('3. 微任务（Promise.then）');
 });
 
-console.log("2. 同步代码结束");
+console.log('2. 同步代码结束');
 
 // 输出顺序：
 // 1. 同步代码开始
@@ -104,8 +98,8 @@ console.log("2. 同步代码结束");
 **宏任务队列是 FIFO（先进先出）**：两个都延时 0ms 的 `setTimeout`，先注册的先执行：
 
 ```javascript
-setTimeout(() => console.log("First"), 0);
-setTimeout(() => console.log("Second"), 0);
+setTimeout(() => console.log('First'), 0);
+setTimeout(() => console.log('Second'), 0);
 // 始终输出：First → Second
 ```
 
@@ -116,14 +110,14 @@ setTimeout(() => console.log("Second"), 0);
 即使延时设为 0，`fn` 也不能在当前同步代码执行期间运行。它必须等当前宏任务（包括微任务）全部完成，才能成为下一个宏任务：
 
 ```javascript
-console.log("start");
-setTimeout(() => console.log("timeout"), 0);
+console.log('start');
+setTimeout(() => console.log('timeout'), 0);
 
 // 即使这个循环运行 1 秒，timeout 也不会在它结束前执行
 const start = Date.now();
 while (Date.now() - start < 1000) {}
 
-console.log("end");
+console.log('end');
 // 输出：start → end → timeout（1 秒后）
 ```
 
@@ -141,10 +135,10 @@ console.log("end");
 
 ```javascript
 // 在一个宏任务里连续修改 DOM
-button.addEventListener("click", () => {
-  div.style.background = "red";     // 修改 1
-  div.style.width = "200px";        // 修改 2
-  div.style.height = "200px";       // 修改 3
+button.addEventListener('click', () => {
+  div.style.background = 'red'; // 修改 1
+  div.style.width = '200px'; // 修改 2
+  div.style.height = '200px'; // 修改 3
   // 这三次修改都在同一个宏任务里
   // 浏览器只在宏任务结束后统一渲染，不会中间渲染三次
 });
@@ -156,7 +150,7 @@ button.addEventListener("click", () => {
 
 ```javascript
 // Bad Case：长宏任务阻塞渲染
-button.addEventListener("click", () => {
+button.addEventListener('click', () => {
   // 处理 10000 个数据项——这可能需要 50ms+
   for (let i = 0; i < 10000; i++) {
     heavyProcess(data[i]);
@@ -194,8 +188,8 @@ processBatch(data, 0);
 // 4. setTimeout(fn, 0)（宏任务，下一轮循环）
 // 5. I/O 回调
 
-setImmediate(() => console.log("setImmediate"));
-setTimeout(() => console.log("setTimeout"), 0);
+setImmediate(() => console.log('setImmediate'));
+setTimeout(() => console.log('setTimeout'), 0);
 // Node.js 中输出顺序可能是：setImmediate → setTimeout
 // 但在 I/O 回调内部，setImmediate 总是先于 setTimeout
 ```
@@ -205,6 +199,7 @@ setTimeout(() => console.log("setTimeout"), 0);
 宏任务是事件循环的基本执行单元，每次事件循环从队列里取一个宏任务执行，完成后清空微任务，然后进入下一个宏任务。
 
 理解这套节奏，能解释：
+
 - 为什么 `setTimeout(fn, 0)` 不是"立即"执行（等待当前宏任务 + 微任务完成）
 - 为什么同一宏任务里的多次 DOM 修改不会导致多次渲染（宏任务结束才渲染）
 - 为什么长时间执行的同步代码会让页面卡顿（占用宏任务，阻塞渲染）
@@ -213,6 +208,7 @@ setTimeout(() => console.log("setTimeout"), 0);
 ---
 
 **本系列其他文章：**
+
 - 上一篇：[内联缓存的秘密](/posts/v8-12/)
 - 下一篇：[微任务：执行时机、优先级与底层实现](/posts/v8-14/)
 - 相关：[async/await 的实现原理](/posts/v8-16/)

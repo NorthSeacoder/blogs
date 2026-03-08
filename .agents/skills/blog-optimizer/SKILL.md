@@ -41,9 +41,11 @@ description: 优化当前博客仓库里的既有文章，或把旧笔记/旧博
 2. 判断是轻修、重写还是批量迁移。
 3. 显式补齐 `series` / `seriesOrder` / `type`，不要依赖标题兜底。
 4. 清理不被 schema 使用的旧字段。
-5. 把正文相对链接改为 `/posts/{slug}/`。
-6. 运行 `npm run validate`。
-7. 需要时再跑 `astro build` 验证页面与路由。
+5. 按 `docs/tag-taxonomy.md` 归并 `tags`，把一次性术语收回 `keywords`。
+6. 如果正文首个非空块是 `# 一级标题`，移除它，避免与页面 Hero 重复。
+7. 把正文相对链接改为 `/posts/{slug}/`。
+8. 运行 `npm run validate`。
+9. 需要时再跑 `astro build` 验证页面与路由。
 
 ## 批量迁移
 

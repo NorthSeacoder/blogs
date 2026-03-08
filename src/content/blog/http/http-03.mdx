@@ -8,9 +8,6 @@ updatedDate: '2026-03-06'
 tags:
   - HTTP
   - 缓存
-  - Cache-Control
-  - ETag
-  - 我不知道的
 lang: zh-CN
 keywords:
   - HTTP
@@ -26,7 +23,6 @@ seriesOrder: 3
 slug: http-03
 model: claude-4.6-opus
 ---
-# 我不知道的HTTP（03）— 浏览器缓存：强缓存、协商缓存与整条链路
 
 ## 一、问题引入
 
@@ -60,11 +56,11 @@ model: claude-4.6-opus
 
 `must-revalidate`：缓存在有效期内可以直接使用，**过期后必须向服务器验证**，不能使用过期的缓存副本。和 `no-cache` 的区别在于：`no-cache` 每次都验证，`must-revalidate` 只在过期后才验证。
 
-| 指令 | 是否存储 | 何时验证 | 典型场景 |
-|------|---------|---------|---------|
-| `no-store` | 否 | 不适用 | 支付页面、敏感数据 |
-| `no-cache` | 是 | 每次使用前 | HTML 入口文件、API 响应 |
-| `must-revalidate` | 是 | 过期后 | 需要一致性保证的静态资源 |
+| 指令              | 是否存储 | 何时验证   | 典型场景                 |
+| ----------------- | -------- | ---------- | ------------------------ |
+| `no-store`        | 否       | 不适用     | 支付页面、敏感数据       |
+| `no-cache`        | 是       | 每次使用前 | HTML 入口文件、API 响应  |
+| `must-revalidate` | 是       | 过期后     | 需要一致性保证的静态资源 |
 
 这里有一个很多人会忽略的细节——`max-age` 的计时起点是**响应生成的时间**，不是浏览器收到响应的时间。如果响应在代理服务器上缓存了 30 秒才转发到浏览器，那浏览器拿到的 `max-age=60` 实际上只剩 30 秒有效期。HTTP 通过 `Age` 响应头传递这个信息：`Age: 30` 表示响应已在中间缓存中停留了 30 秒。
 
@@ -95,19 +91,21 @@ const crypto = require('crypto');
 const content = '<h1>Hello</h1>';
 const etag = crypto.createHash('md5').update(content).digest('hex');
 
-http.createServer((req, res) => {
-  if (req.headers['if-none-match'] === etag) {
-    res.writeHead(304);
-    res.end();
-    return;
-  }
-  res.writeHead(200, {
-    'Content-Type': 'text/html',
-    'ETag': etag,
-    'Cache-Control': 'no-cache',
-  });
-  res.end(content);
-}).listen(3000);
+http
+  .createServer((req, res) => {
+    if (req.headers['if-none-match'] === etag) {
+      res.writeHead(304);
+      res.end();
+      return;
+    }
+    res.writeHead(200, {
+      'Content-Type': 'text/html',
+      ETag: etag,
+      'Cache-Control': 'no-cache',
+    });
+    res.end(content);
+  })
+  .listen(3000);
 ```
 
 第一次访问返回 200 和完整内容；第二次访问时浏览器自动带上 `If-None-Match` 头，服务器对比 ETag 后返回 304——在 DevTools 的 Network 面板中，304 响应的 Size 列只有几十字节（只有响应头没有响应体），Time 列也明显短于完整响应。这就是协商缓存节省带宽的直观体现。
@@ -155,9 +153,11 @@ http.createServer((req, res) => {
 ---
 
 **本系列其他文章：**
+
 - 上一篇：[Cookie到底是怎么工作的](/posts/http-02/)
 - 下一篇：[HTTPS握手：TLS到底做了什么](/posts/http-04/)
 
 **相关主题：**
+
 - CDN 的缓存与 DNS 智能调度如何配合？见本系列第 01 篇：[从输入URL到页面呈现](/posts/http-01/)
 - HTTP/2 的多路复用对缓存策略有什么影响？见本系列第 05 篇：[从HTTP/1.1到HTTP/3：队头阻塞是如何被消灭的](/posts/http-05/)

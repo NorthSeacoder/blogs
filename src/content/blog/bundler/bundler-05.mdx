@@ -8,13 +8,9 @@ pubDate: '2025-01-07'
 updatedDate: '2026-03-06'
 tags:
   - 打包工具
-  - 工具选型
   - Webpack
-  - Vite
-  - Rollup
-  - tsup
   - Father
-  - 我不知道的
+  - Rollup
 lang: zh-CN
 keywords:
   - 打包工具
@@ -33,7 +29,6 @@ seriesOrder: 5
 slug: bundler-05
 model: claude-sonnet-4.6
 ---
-# 我不知道的打包工具（05）— 构建工具选型：如何根据项目类型选择打包方案
 
 `npm init` 之后的第一个问题往往不是"写什么业务逻辑"，而是"用什么打包工具"。Webpack、Vite、Rollup、esbuild、tsup、Father、unbuild——名单太长了。网上的"工具对比"文章通常罗列一堆功能矩阵，但不回答那个最实际的问题：**你的项目到底该选哪个？**
 
@@ -132,15 +127,15 @@ export default defineConfig({
 
 ## 四、选型总览表
 
-| 维度 | Vite | Webpack | tsup | Rollup | unbuild | Father |
-|------|------|---------|------|--------|---------|--------|
-| 构建速度 | 快 | 慢（大项目） | 极快 | 中等 | 快 | 中等 |
-| Tree Shaking | Rollup 级 | 需配置 | 基础 | 最精确 | Rollup 级 | 依赖引擎 |
-| 多格式输出 | 非核心 | 需多配置 | ESM+CJS | 灵活 | ESM+CJS | ESM+CJS+UMD |
-| 类型声明 | 非内置 | 非内置 | 内置 | 需插件 | 内置 | 内置 |
-| 插件生态 | Rollup 兼容 | 最丰富 | 有限 | 丰富 | 有限 | Umi 生态 |
-| 配置复杂度 | 低 | 高 | 极低 | 中高 | 低 | 极低 |
-| 适合项目 | 应用 | 存量应用 | TS 工具库 | 极致体积库 | Monorepo 包 | UI 组件库 |
+| 维度         | Vite        | Webpack      | tsup      | Rollup     | unbuild     | Father      |
+| ------------ | ----------- | ------------ | --------- | ---------- | ----------- | ----------- |
+| 构建速度     | 快          | 慢（大项目） | 极快      | 中等       | 快          | 中等        |
+| Tree Shaking | Rollup 级   | 需配置       | 基础      | 最精确     | Rollup 级   | 依赖引擎    |
+| 多格式输出   | 非核心      | 需多配置     | ESM+CJS   | 灵活       | ESM+CJS     | ESM+CJS+UMD |
+| 类型声明     | 非内置      | 非内置       | 内置      | 需插件     | 内置        | 内置        |
+| 插件生态     | Rollup 兼容 | 最丰富       | 有限      | 丰富       | 有限        | Umi 生态    |
+| 配置复杂度   | 低          | 高           | 极低      | 中高       | 低          | 极低        |
+| 适合项目     | 应用        | 存量应用     | TS 工具库 | 极致体积库 | Monorepo 包 | UI 组件库   |
 
 ## 五、具体建议
 
@@ -163,8 +158,10 @@ export default defineConfig({
 ---
 
 **本系列其他文章：**
+
 - 上一篇：[Father — 组件库构建工具的设计与实践](/posts/bundler-04/)
 
 **相关主题：**
+
 - 打包后的代码在浏览器中如何执行：[渲染流水线：从 HTML 到屏幕的八个步骤](/posts/browser-04/)
 - 打包工具的原理基础：[打包工具全景 — 从 Webpack 到 Rolldown 的设计哲学](/posts/bundler-01/)

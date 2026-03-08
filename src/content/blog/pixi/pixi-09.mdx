@@ -8,10 +8,6 @@ pubDate: '2024-07-09'
 updatedDate: '2026-03-06'
 tags:
   - Pixi.js
-  - 我不知道的
-  - Matter.js
-  - 物理引擎
-  - 碰撞检测
 lang: zh-CN
 keywords:
   - Pixi.js
@@ -27,6 +23,7 @@ seriesOrder: 9
 slug: pixi-09
 model: claude-4.6-opus
 ---
+
 Pixi.js 是渲染引擎，不是物理引擎——它能把东西画出来，但不会让东西"掉下去"。要实现重力、碰撞、弹跳这些物理行为，需要集成第三方物理引擎。这篇文章以 Matter.js 为例，拆解集成过程中的几个核心问题：坐标如何同步、时间步进怎么对齐、碰撞事件如何转化为视觉反馈。
 
 ---
@@ -88,10 +85,7 @@ const PHYSICS_SCALE = 1; // 如果 stage 没缩放，scale = 1
 
 app.ticker.add(() => {
   Matter.Engine.update(engine, app.ticker.deltaMS);
-  ballSprite.position.set(
-    ball.position.x * PHYSICS_SCALE,
-    ball.position.y * PHYSICS_SCALE,
-  );
+  ballSprite.position.set(ball.position.x * PHYSICS_SCALE, ball.position.y * PHYSICS_SCALE);
   ballSprite.rotation = ball.angle;
 });
 ```
@@ -217,9 +211,11 @@ Pixi.js 和物理引擎是两个独立的世界，集成的核心是三步同步
 ---
 
 **本系列其他文章：**
+
 - 上一篇：[多分辨率与自适应渲染](/posts/pixi-08/)
 - 下一篇：[插件与扩展生态](/posts/pixi-10/)
 
 **延伸阅读：**
+
 - [Matter.js Documentation](https://brm.io/matter-js/docs/)
 - [Rapier Physics Engine](https://rapier.rs/)

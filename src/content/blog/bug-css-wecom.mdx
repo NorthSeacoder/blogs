@@ -10,11 +10,7 @@ tags:
   - CSS
   - '@layer'
   - 兼容性
-  - Safari
-  - 企业微信
-  - bug
-  - 我不知道的
-  - bugs
+  - 问题排查
 lang: zh-CN
 keywords:
   - CSS
@@ -33,7 +29,6 @@ seriesOrder: 1
 slug: bug-css-wecom
 model: claude-4.6-opus
 ---
-# 我不知道的 CSS — 一个 @layer 引发的样式崩塌
 
 ## 一、页面"裸奔"了
 
@@ -118,7 +113,7 @@ import { defineConfig } from '@umijs/max';
 const postcssPresetEnv = require('postcss-preset-env');
 
 export default defineConfig({
-  extraPostCSSPlugins: [postcssPresetEnv()]
+  extraPostCSSPlugins: [postcssPresetEnv()],
 });
 ```
 
@@ -128,11 +123,7 @@ export default defineConfig({
 
 ```json
 {
-  "browserslist": [
-    "> 0.5%",
-    "last 2 versions",
-    "Safari >= 14"
-  ]
+  "browserslist": ["> 0.5%", "last 2 versions", "Safari >= 14"]
 }
 ```
 
@@ -167,8 +158,8 @@ window.addEventListener('load', () => {
       computed: {
         display: style.display,
         fontFamily: style.fontFamily,
-        width: style.width
-      }
+        width: style.width,
+      },
     });
   }
 });
@@ -207,6 +198,7 @@ if (!CSS.supports('(--layer-test: )') || !CSS.supports('@layer test { }')) {
 ---
 
 **延伸阅读：**
+
 - [Can I Use — @layer](https://caniuse.com/css-layer)
 - [MDN — @layer](https://developer.mozilla.org/en-US/docs/Web/CSS/@layer)
 - [postcss-preset-env 文档](https://preset-env.cssdb.org/)
@@ -214,7 +206,9 @@ if (!CSS.supports('(--layer-test: )') || !CSS.supports('@layer test { }')) {
 ---
 
 **本系列其他文章：**
+
 - 下一篇：规划中
 
 **相关主题：**
+
 - 如果你对 CSS 选择器匹配和层叠机制感兴趣，可以看：[选择器匹配、优先级与层叠：CSS 样式生效的底层逻辑](/posts/css-01/)

@@ -8,12 +8,9 @@ pubDate: '2025-02-24'
 updatedDate: '2026-03-06'
 tags:
   - 打包工具
+  - esbuild
   - Webpack
   - Rollup
-  - esbuild
-  - Vite
-  - Rolldown
-  - 我不知道的
 lang: zh-CN
 keywords:
   - 打包工具
@@ -31,7 +28,6 @@ seriesOrder: 1
 slug: bundler-01
 model: claude-sonnet-4.6
 ---
-# 我不知道的打包工具（01）— 打包工具全景：从 Webpack 到 Rolldown 的设计哲学
 
 Webpack、Rollup、esbuild、Vite、Rolldown——前端打包工具的名单每隔一两年就多一个。直觉上，这像是 JavaScript 社区的造轮子癖。
 
@@ -123,13 +119,13 @@ Rolldown 是这条演进线的最新节点。它用 Rust 重写 Rollup 的核心
 
 ## 六、一张表看清取舍
 
-| 工具 | 实现语言 | 核心优势 | 核心代价 |
-|------|---------|---------|---------|
-| Webpack | JavaScript | Loader + Plugin 生态最完整 | JS 单线程，大项目构建慢 |
-| Rollup | JavaScript | ESM 静态分析，Tree Shaking 精确 | 仍是 JS 单线程，应用场景有限 |
-| esbuild | Go | 10-100x 速度提升 | 插件能力弱，Tree Shaking 不如 Rollup |
-| Vite | JS + esbuild + Rollup | 开发免打包，启动极快 | 双引擎行为不一致 |
-| Rolldown | Rust | 速度 + 精确度 + 兼容性 | 生态尚在成长（1.0 RC 阶段） |
+| 工具     | 实现语言              | 核心优势                        | 核心代价                             |
+| -------- | --------------------- | ------------------------------- | ------------------------------------ |
+| Webpack  | JavaScript            | Loader + Plugin 生态最完整      | JS 单线程，大项目构建慢              |
+| Rollup   | JavaScript            | ESM 静态分析，Tree Shaking 精确 | 仍是 JS 单线程，应用场景有限         |
+| esbuild  | Go                    | 10-100x 速度提升                | 插件能力弱，Tree Shaking 不如 Rollup |
+| Vite     | JS + esbuild + Rollup | 开发免打包，启动极快            | 双引擎行为不一致                     |
+| Rolldown | Rust                  | 速度 + 精确度 + 兼容性          | 生态尚在成长（1.0 RC 阶段）          |
 
 如果你只记住一句话：**前端打包工具的演进不是重复造轮子，而是在"速度、灵活性、输出质量"三个维度上反复寻找新的平衡点。** Webpack 选了灵活性，Rollup 选了输出质量，esbuild 选了速度，Rolldown 试图三者兼顾。
 
@@ -142,7 +138,9 @@ Webpack 用 JS 的灵活性解决了"一切皆模块"，代价是单线程的性
 ---
 
 **本系列其他文章：**
+
 - 下一篇：[esbuild 与 tsup — 零配置极速打包的底层机制](/posts/bundler-02/)
 
 **相关主题：**
+
 - 如果你对浏览器如何加载和执行打包后的代码感兴趣：[从输入 URL 到页面呈现](/posts/http-01/)

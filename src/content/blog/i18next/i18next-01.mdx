@@ -9,10 +9,7 @@ updatedDate: '2026-03-06'
 tags:
   - i18next
   - 国际化
-  - 命名空间
-  - 动态加载
   - 缓存
-  - 我不知道的
 lang: zh-CN
 keywords:
   - i18next
@@ -29,7 +26,6 @@ seriesOrder: 1
 slug: i18next-01
 model: claude-4.6-opus
 ---
-# 我不知道的 i18next（01）— 命名空间与资源加载
 
 很多人把 i18next 的命名空间当成"翻译文件的分类文件夹"，配置一下 `ns` 数组就完事了。但命名空间决定的不只是文件怎么分，它直接影响了资源的加载粒度、请求数量和内存占用。一个看似简单的配置选择，可能导致首屏多发十几个请求，也可能让翻译资源在内存里无限堆积。
 
@@ -54,8 +50,8 @@ i18next.use(Backend).init({
 `ns` 数组里的每一项，对应一个独立的翻译 JSON 文件。使用时通过冒号分隔命名空间和键名：
 
 ```javascript
-i18next.t('welcome');            // 从 defaultNS（common）取
-i18next.t('product:item.name');  // 从 product 命名空间取
+i18next.t('welcome'); // 从 defaultNS（common）取
+i18next.t('product:item.name'); // 从 product 命名空间取
 ```
 
 说白了，**命名空间就是 i18next 的资源加载单元**。每个命名空间是一次独立的加载操作——这个特性既是优势，也是陷阱。
@@ -176,11 +172,11 @@ i18next.init({
 
 三种策略的对比：
 
-| 策略 | 首屏请求 | 首屏体积 | 按需能力 | 适用场景 |
-|------|---------|---------|---------|---------|
-| 全量预加载 | 多 | 大 | 无 | 小项目、SSR |
-| 路由级按需 | 少 | 小 | 强 | SPA、大型项目 |
-| 合并文件 | 1 | 中 | 无 | 中型项目、简单架构 |
+| 策略       | 首屏请求 | 首屏体积 | 按需能力 | 适用场景           |
+| ---------- | -------- | -------- | -------- | ------------------ |
+| 全量预加载 | 多       | 大       | 无       | 小项目、SSR        |
+| 路由级按需 | 少       | 小       | 强       | SPA、大型项目      |
+| 合并文件   | 1        | 中       | 无       | 中型项目、简单架构 |
 
 ## 六、实战：自定义缓存控制
 
@@ -200,8 +196,8 @@ i18next.use({
     }
 
     fetch(`/locales/${lng}/${ns}.json`)
-      .then(res => res.json())
-      .then(data => {
+      .then((res) => res.json())
+      .then((data) => {
         // 超出上限时淘汰最早的条目
         if (cache.size >= MAX_NS) {
           const oldest = cache.keys().next().value;
@@ -210,7 +206,7 @@ i18next.use({
         cache.set(key, data);
         callback(null, data);
       })
-      .catch(err => callback(err));
+      .catch((err) => callback(err));
   },
 });
 ```
@@ -234,7 +230,9 @@ i18next 命名空间的本质是资源加载的最小单元。它决定了请求
 ---
 
 **本系列其他文章：**
+
 - 下一篇：[Trans 组件的边界与陷阱](/posts/i18next-02/)
 
 **相关主题：**
+
 - 如果你对 i18next 的复数处理机制感兴趣，可以看：[复数规则与 CLDR 标准](/posts/i18next-03/)

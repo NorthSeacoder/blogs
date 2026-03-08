@@ -9,11 +9,6 @@ updatedDate: '2026-03-06'
 tags:
   - 打包工具
   - esbuild
-  - tsup
-  - Go
-  - TypeScript
-  - 零配置
-  - 我不知道的
 lang: zh-CN
 keywords:
   - 打包工具
@@ -31,7 +26,6 @@ seriesOrder: 2
 slug: bundler-02
 model: claude-sonnet-4.6
 ---
-# 我不知道的打包工具（02）— esbuild 与 tsup：零配置极速打包的底层机制
 
 一个 TypeScript 库项目，用 Webpack 构建需要 30 秒，换成 tsup 只要 0.5 秒。快了 60 倍。这不是玄学，也不是"优化了配置"的结果——背后是语言级别的架构差异。
 
@@ -158,8 +152,10 @@ tsup 在 esbuild 之上补齐了库开发的关键缺口：类型声明文件、
 ---
 
 **本系列其他文章：**
+
 - 上一篇：[打包工具全景 — 从 Webpack 到 Rolldown 的设计哲学](/posts/bundler-01/)
 - 下一篇：[CJS、ESM、UMD 与 exports 字段 — 模块格式的那些坑](/posts/bundler-03/)
 
 **相关主题：**
+
 - 打包后的代码如何在浏览器中执行：[事件循环：浏览器如何协调 JS 与渲染](/posts/browser-03/)

@@ -9,12 +9,9 @@ pubDate: '2024-03-03'
 updatedDate: '2026-03-04'
 tags:
   - V8
-  - 函数内联
-  - TurboFan
-  - 调用栈
-  - 字节码
   - 性能优化
-  - 我不知道的
+  - 字节码
+  - TurboFan
 lang: zh-CN
 keywords:
   - V8
@@ -32,7 +29,6 @@ seriesOrder: 7
 slug: v8-07
 model: claude-sonnet-4.6
 ---
-# 我不知道的 V8（07）— 函数内联：TurboFan 最重要的优化手段
 
 函数调用在 JavaScript 里无处不在，但"调用一个函数"在 V8 内部并不简单。每次调用都要创建执行上下文、分配栈帧、传递参数、管理返回地址——这些开销在热点代码中积累，会变成性能瓶颈。TurboFan 用**函数内联（Function Inlining）**来消除这个开销。这是它最重要的优化手段之一。
 
@@ -74,7 +70,7 @@ function calculate(a, b) {
 
 // TurboFan 内联后的等效代码（引擎内部，非源码层面）
 function calculate(a, b) {
-  return (a + b) * 2;  // add 的函数体被直接替换进来
+  return (a + b) * 2; // add 的函数体被直接替换进来
 }
 ```
 
@@ -85,10 +81,12 @@ function calculate(a, b) {
 TurboFan 不会无脑内联所有函数，内联有明确的条件：
 
 **必须满足的前提：**
+
 - 函数是热点代码（被频繁调用，Ignition 的 Profiling 数据显示调用次数超过阈值）
 - 函数体足够小（通常不超过 60 条字节码指令，过大的函数内联会增加代码体积，得不偿失）
 
 **会阻止内联的情况：**
+
 - 函数包含 `try-catch` 块（处理异常需要特殊的栈帧结构）
 - 函数使用了 `arguments` 对象（可能逃逸分析失效）
 - 多态调用点：同一个调用位置传入了多种不同结构的对象
@@ -106,8 +104,8 @@ const p2 = { x: 3, y: 4 };
 function getX(obj) {
   return obj.x;
 }
-getX({ x: 1 });          // 隐藏类 C0
-getX({ x: 1, y: 2 });    // 隐藏类 C1，不同结构
+getX({ x: 1 }); // 隐藏类 C0
+getX({ x: 1, y: 2 }); // 隐藏类 C1，不同结构
 getX({ x: 1, y: 2, z: 3 }); // 隐藏类 C2，又不同
 // 三种不同的隐藏类，内联缓存进入多态状态，优化效果下降
 ```
@@ -117,6 +115,7 @@ getX({ x: 1, y: 2, z: 3 }); // 隐藏类 C2，又不同
 了解函数调用在 V8 内部的结构，有助于解释一些常见的错误信息。
 
 V8 的调用栈，每个栈帧包含：
+
 - 当前函数的字节码指针（执行到哪条指令了）
 - 局部变量的存储区域
 - 参数值
@@ -158,7 +157,7 @@ for (let i = 0; i < 10000; i++) {
 // TurboFan 假设 item.value 是数字，生成优化的机器码
 
 // 之后传入字符串
-processItem({ value: "hello" }); // 类型变化！
+processItem({ value: 'hello' }); // 类型变化！
 // → TurboFan 的假设失效
 // → V8 触发去优化，退回到 Ignition 解释执行
 // → 重新 Profiling，可能生成新的优化版本（现在考虑两种类型）
@@ -184,13 +183,19 @@ node --trace-opt your-script.js
 
 ```javascript
 // 会阻止优化：同一函数同时处理数字和字符串
-function add(a, b) { return a + b; }
-add(1, 2);           // 数字
-add("hello", " V8"); // 字符串
+function add(a, b) {
+  return a + b;
+}
+add(1, 2); // 数字
+add('hello', ' V8'); // 字符串
 
 // 更好：专用函数，保持类型单一
-function addNumbers(a, b) { return a + b; }
-function concatStrings(a, b) { return a + b; }
+function addNumbers(a, b) {
+  return a + b;
+}
+function concatStrings(a, b) {
+  return a + b;
+}
 ```
 
 **避免在热点路径上使用 `arguments`：**
@@ -222,6 +227,7 @@ function sum(...nums) {
 ---
 
 **本系列其他文章：**
+
 - 前置阅读：[函数是如何变得可调用的](/posts/v8-02/)
 - 相关：[内联缓存的秘密：属性访问如何被加速](/posts/v8-12/)
 - 相关：[隐藏类与快慢属性：对象性能的核心](/posts/v8-04/)

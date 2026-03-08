@@ -68,27 +68,24 @@ function parseMatter(raw) {
 }
 
 function sanitizeFrontmatter(frontmatter) {
-  return frontmatter.replace(
-    /^([A-Za-z_][\w-]*):\s*\[(.*)\]\s*$/gm,
-    (_, key, rawItems) => {
-      const items = rawItems
-        .split(',')
-        .map((item) => item.trim())
-        .filter(Boolean)
-        .map((item) => {
-          if (
-            (item.startsWith('"') && item.endsWith('"')) ||
-            (item.startsWith("'") && item.endsWith("'"))
-          ) {
-            return item;
-          }
+  return frontmatter.replace(/^([A-Za-z_][\w-]*):\s*\[(.*)\]\s*$/gm, (_, key, rawItems) => {
+    const items = rawItems
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .map((item) => {
+        if (
+          (item.startsWith('"') && item.endsWith('"')) ||
+          (item.startsWith("'") && item.endsWith("'"))
+        ) {
+          return item;
+        }
 
-          return JSON.stringify(item);
-        });
+        return JSON.stringify(item);
+      });
 
-      return `${key}:\n${items.map((item) => `  - ${item}`).join('\n')}`;
-    }
-  );
+    return `${key}:\n${items.map((item) => `  - ${item}`).join('\n')}`;
+  });
 }
 
 function buildSlugMap(files) {
@@ -103,7 +100,7 @@ function buildSlugMap(files) {
 
     if (seenSlugs.has(slug)) {
       throw new Error(
-        `Duplicate slug "${slug}" found in ${seenSlugs.get(slug)} and ${file.absolutePath}`
+        `Duplicate slug "${slug}" found in ${seenSlugs.get(slug)} and ${file.absolutePath}`,
       );
     }
 
@@ -133,7 +130,8 @@ function buildSeriesRouteMap(files) {
 
   for (const file of files) {
     const folder = file.directoryName;
-    const series = typeof file.data.topic === 'string' && file.data.topic ? file.data.topic : folder;
+    const series =
+      typeof file.data.topic === 'string' && file.data.topic ? file.data.topic : folder;
     seriesMap.set(folder, `/series/${encodeURIComponent(series)}/`);
   }
 
@@ -147,7 +145,7 @@ function normalizeFile(file, slugBySourcePath, slugByBasename, seriesRouteByFold
   const tags = normalizeTags(file.data.tags, series);
   const description = buildDescription(file, series);
   const rewrittenBody = escapeAngleBracketsInMarkdown(
-    rewriteRelativeLinks(file, slugBySourcePath, slugByBasename, seriesRouteByFolder)
+    rewriteRelativeLinks(file, slugBySourcePath, slugByBasename, seriesRouteByFolder),
   );
   const pubDate = normalizeDate(file.data.date);
   const updatedDate = normalizeDate(file.data.last_optimized);
@@ -182,8 +180,8 @@ function normalizeTags(value, series) {
     new Set(
       [...value, series, '我不知道的']
         .map((item) => (typeof item === 'string' ? item.trim() : ''))
-        .filter(Boolean)
-    )
+        .filter(Boolean),
+    ),
   );
 }
 
@@ -230,7 +228,7 @@ function rewriteRelativeLinks(file, slugBySourcePath, slugByBasename, seriesRout
       }
 
       return fullMatch;
-    }
+    },
   );
 }
 
@@ -259,18 +257,12 @@ function escapeAngleBracketsOutsideInlineCode(content) {
   for (const match of content.matchAll(inlineCodePattern)) {
     const [inlineCode] = match;
     const index = match.index ?? 0;
-    result += content
-      .slice(lastIndex, index)
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
+    result += content.slice(lastIndex, index).replace(/</g, '&lt;').replace(/>/g, '&gt;');
     result += inlineCode;
     lastIndex = index + inlineCode.length;
   }
 
-  result += content
-    .slice(lastIndex)
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  result += content.slice(lastIndex).replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
   return result;
 }
@@ -329,7 +321,7 @@ function slugify(input) {
 
 function pruneUndefined(value) {
   return Object.fromEntries(
-    Object.entries(value).filter(([, entryValue]) => entryValue !== undefined)
+    Object.entries(value).filter(([, entryValue]) => entryValue !== undefined),
   );
 }
 

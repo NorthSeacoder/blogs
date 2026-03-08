@@ -8,13 +8,6 @@ pubDate: '2022-05-21'
 updatedDate: '2026-03-06'
 tags:
   - React
-  - Redux
-  - 中间件
-  - Redux Toolkit
-  - Redux Thunk
-  - Redux Saga
-  - 状态管理
-  - 我不知道的
 lang: zh-CN
 keywords:
   - React
@@ -33,7 +26,6 @@ seriesOrder: 12
 slug: react-12
 model: claude-4.6-opus
 ---
-# 我不知道的 React（12）— Redux 核心原理与中间件机制
 
 很多人对 Redux 的理解停留在"一个全局状态管理工具"的层面——Store 存数据、Action 描述变更、Reducer 算新值。用起来没问题，但要问 dispatch 之后到底经历了什么、中间件为什么是三层柯里化函数、Immutability 为什么不是"建议"而是"硬性要求"，就不一定说得清了。
 
@@ -52,7 +44,7 @@ Redux 整套设计围绕一个原则：**状态的变更路径必须是单向且
 ```javascript
 function dispatch(action) {
   currentState = rootReducer(currentState, action);
-  listeners.forEach(listener => listener());
+  listeners.forEach((listener) => listener());
   return action;
 }
 ```
@@ -84,7 +76,7 @@ function reducer(state, action) {
   if (action.type === 'ADD_TODO') {
     return {
       ...state,
-      todos: [...state.todos, action.payload]
+      todos: [...state.todos, action.payload],
     };
   }
   return state;
@@ -110,12 +102,12 @@ const todosSlice = createSlice({
       state.push(action.payload);
     },
     toggleTodo: (state, action) => {
-      const todo = state.find(t => t.id === action.payload);
+      const todo = state.find((t) => t.id === action.payload);
       if (todo) {
         todo.completed = !todo.completed;
       }
-    }
-  }
+    },
+  },
 });
 ```
 
@@ -132,7 +124,7 @@ Redux 的主流程只处理同步逻辑——dispatch 一个 Action 对象，Red
 这里有一个很多人会忽略的细节——中间件的签名是一个三层嵌套函数：
 
 ```javascript
-const myMiddleware = store => next => action => {
+const myMiddleware = (store) => (next) => (action) => {
   console.log('Action 进入:', action.type);
   const result = next(action);
   console.log('State 变更后:', store.getState());
@@ -147,7 +139,7 @@ const myMiddleware = store => next => action => {
 多个中间件串联起来的执行模型类似于洋葱模型：
 
 ```javascript
-applyMiddleware(logger, thunk, saga)
+applyMiddleware(logger, thunk, saga);
 ```
 
 Action 进入时，依次经过 logger → thunk → saga → Reducer；处理完后，反向返回 saga → thunk → logger。每个中间件都可以在 `next(action)` 调用前后做自己的事情——前面执行前置逻辑，后面执行后置逻辑。
@@ -162,7 +154,7 @@ Thunk 的实现只有几行代码：
 
 ```javascript
 function thunkMiddleware({ dispatch, getState }) {
-  return next => action => {
+  return (next) => (action) => {
     if (typeof action === 'function') {
       return action(dispatch, getState);
     }
@@ -231,15 +223,15 @@ function* watchFetchUser() {
 
 如果你只记住一句话，记住这个：**Thunk 适合"请求-响应"模式的简单异步，Saga 适合需要精细控制异步流程的复杂场景。**
 
-| 维度 | Redux Thunk | Redux Saga |
-|------|------------|------------|
+| 维度     | Redux Thunk                             | Redux Saga                        |
+| -------- | --------------------------------------- | --------------------------------- |
 | 核心思路 | dispatch 一个函数，在函数里手动处理异步 | yield Effect 对象，中间件负责执行 |
-| 竞态处理 | 手动（AbortController） | 内建（takeLatest） |
-| 任务取消 | 手动 | 内建（fork/cancel） |
-| 测试 | 需要 mock dispatch 和 API | 只需验证 yield 的 Effect |
-| 代码量 | 少 | 多（Watcher + Worker 分离） |
-| 学习成本 | 低 | 中高（Generator + Effect 体系） |
-| 适用场景 | 简单 CRUD、快速原型 | 复杂异步流、大型项目 |
+| 竞态处理 | 手动（AbortController）                 | 内建（takeLatest）                |
+| 任务取消 | 手动                                    | 内建（fork/cancel）               |
+| 测试     | 需要 mock dispatch 和 API               | 只需验证 yield 的 Effect          |
+| 代码量   | 少                                      | 多（Watcher + Worker 分离）       |
+| 学习成本 | 低                                      | 中高（Generator + Effect 体系）   |
+| 适用场景 | 简单 CRUD、快速原型                     | 复杂异步流、大型项目              |
 
 实际项目中还有第三条路——**RTK Query**。它直接把数据获取和缓存管理内建到 Redux Toolkit 中，自动处理请求状态（loading / success / error）、缓存、轮询、预取等常见需求，不需要手写 Thunk 或 Saga。如果应用的异步需求主要是"从 API 取数据然后展示"，RTK Query 是目前最省心的方案。
 
@@ -262,9 +254,11 @@ Redux 的设计哲学可以用一句话概括：**用约束换可预测性。** 
 ---
 
 **本系列其他文章：**
+
 - 上一篇：[ErrorBoundary 的工作原理与局限性](/posts/react-11/)
 - 下一篇：[React Router 原理、模式与实践](/posts/react-13/)
 
 **相关主题：**
+
 - Hooks 与状态管理的关系：[useState 与 Hook 底层机制](/posts/react-05/)
 - 组件间状态共享的其他方案：[组件通信与自定义 Hooks](/posts/react-07/)

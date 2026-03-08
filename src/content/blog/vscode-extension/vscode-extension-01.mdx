@@ -6,8 +6,6 @@ pubDate: '2024-03-01'
 updatedDate: '2026-03-06'
 tags:
   - VSCode 扩展
-  - 我不知道的
-  - 扩展开发
   - Contribution Points
   - package.json
 lang: zh-CN
@@ -24,7 +22,6 @@ series: VSCode 扩展
 seriesOrder: 1
 slug: vscode-extension-01
 ---
-# 我不知道的 VSCode 扩展（01）— 从 Hello World 到核心概念
 
 ## 一、很多人用 VSCode，但不知道扩展是怎么"插"进去的
 
@@ -70,12 +67,9 @@ npm install -g yo generator-code
 import * as vscode from 'vscode';
 
 export function activate(context: vscode.ExtensionContext) {
-  let disposable = vscode.commands.registerCommand(
-    'my-ext.helloWorld',
-    () => {
-      vscode.window.showInformationMessage('Hello World!');
-    }
-  );
+  let disposable = vscode.commands.registerCommand('my-ext.helloWorld', () => {
+    vscode.window.showInformationMessage('Hello World!');
+  });
   context.subscriptions.push(disposable);
 }
 
@@ -114,15 +108,15 @@ export function deactivate() {}
 
 `contributes` 字段是 `package.json` 中最核心的部分，它告诉 VSCode 这个扩展提供了哪些能力。常见的贡献点包括：
 
-| 贡献点 | 作用 | 示例场景 |
-|-------|------|---------|
-| `commands` | 注册可执行命令 | 命令面板中出现"Hello World" |
-| `menus` | 注册菜单项 | 右键菜单新增一个操作 |
-| `views` | 注册侧边栏视图 | 在资源管理器区域新增一个面板 |
-| `configuration` | 注册配置项 | 用户设置中出现新的配置选项 |
-| `keybindings` | 注册快捷键 | Ctrl+Shift+H 触发某命令 |
-| `languages` | 注册语言支持 | 新增 `.xyz` 文件的语法高亮 |
-| `snippets` | 注册代码片段 | 输入 `log` 自动补全为 `console.log()` |
+| 贡献点          | 作用           | 示例场景                              |
+| --------------- | -------------- | ------------------------------------- |
+| `commands`      | 注册可执行命令 | 命令面板中出现"Hello World"           |
+| `menus`         | 注册菜单项     | 右键菜单新增一个操作                  |
+| `views`         | 注册侧边栏视图 | 在资源管理器区域新增一个面板          |
+| `configuration` | 注册配置项     | 用户设置中出现新的配置选项            |
+| `keybindings`   | 注册快捷键     | Ctrl+Shift+H 触发某命令               |
+| `languages`     | 注册语言支持   | 新增 `.xyz` 文件的语法高亮            |
+| `snippets`      | 注册代码片段   | 输入 `log` 自动补全为 `console.log()` |
 
 换句话说，**一个扩展即使不写一行 TypeScript 代码，仅凭 `package.json` 中的声明就能注册命令、菜单、快捷键、配置项**。代码（`activate()` 函数）只在需要执行动态逻辑时才介入。
 
@@ -134,14 +128,14 @@ export function deactivate() {}
 
 `activationEvents` 字段告诉 VSCode 何时激活这个扩展。常见的激活事件：
 
-| 事件 | 触发时机 |
-|------|---------|
-| `onCommand:xxx` | 执行某个命令时 |
-| `onLanguage:xxx` | 打开某种语言的文件时 |
-| `onView:xxx` | 显示某个视图时 |
-| `onStartupFinished` | VSCode 启动完成后 |
-| `onTerminal` | 终端打开时（2025.7 新增） |
-| `*` | 立即激活（不推荐，影响性能） |
+| 事件                | 触发时机                     |
+| ------------------- | ---------------------------- |
+| `onCommand:xxx`     | 执行某个命令时               |
+| `onLanguage:xxx`    | 打开某种语言的文件时         |
+| `onView:xxx`        | 显示某个视图时               |
+| `onStartupFinished` | VSCode 启动完成后            |
+| `onTerminal`        | 终端打开时（2025.7 新增）    |
+| `*`                 | 立即激活（不推荐，影响性能） |
 
 从 VSCode 1.74 开始，很多激活事件可以被**隐式推断**。比如扩展在 `contributes.commands` 中声明了命令，VSCode 会自动在该命令被执行时激活扩展，不需要手动写 `onCommand`。同理，如果扩展在 `contributes.languages` 中注册了语言，也不需要手动写 `onLanguage`。
 
@@ -161,9 +155,7 @@ export function deactivate() {}
       "type": "extensionHost",
       "request": "launch",
       "name": "Launch Extension",
-      "args": [
-        "--extensionDevelopmentPath=${workspaceFolder}/packages/my-extension"
-      ],
+      "args": ["--extensionDevelopmentPath=${workspaceFolder}/packages/my-extension"],
       "outFiles": ["${workspaceFolder}/packages/my-extension/out/**/*.js"],
       "preLaunchTask": "npm: watch"
     }
@@ -180,8 +172,10 @@ VSCode 扩展开发的门槛不在于 API 有多复杂，而在于理解它的**
 ---
 
 **本系列其他文章：**
+
 - 下一篇：[菜单、视图与状态栏](/posts/vscode-extension-02/)
 
 **延伸阅读：**
+
 - [VSCode Extension API 官方文档](https://code.visualstudio.com/api)
 - [Your First Extension 官方教程](https://code.visualstudio.com/api/get-started/your-first-extension)

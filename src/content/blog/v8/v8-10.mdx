@@ -9,12 +9,7 @@ pubDate: '2024-03-07'
 updatedDate: '2026-03-04'
 tags:
   - V8
-  - 类型转换
-  - ToPrimitive
-  - 加法运算
   - 字节码
-  - ECMAScript
-  - 我不知道的
 lang: zh-CN
 keywords:
   - V8
@@ -32,7 +27,6 @@ seriesOrder: 10
 slug: v8-10
 model: claude-sonnet-4.6
 ---
-# 我不知道的 V8（10）— 1 + "2" 为什么等于 "12"：类型转换的底层逻辑
 
 `1 + "2"` 的结果是 `"12"` 而不是 `3`——大多数开发者知道这个结果，背后的理由通常是"JavaScript 会把数字转成字符串"。但这个说法不够精确。为什么是数字转成字符串，而不是字符串转成数字？`+` 运算符究竟在什么时候做字符串拼接，什么时候做数字加法？ECMAScript 规范对这套逻辑有明确的定义，V8 的字节码忠实实现了它。
 
@@ -41,9 +35,9 @@ model: claude-sonnet-4.6
 `+` 是 JavaScript 里唯一一个"重载"的运算符——它既能做数字加法，也能做字符串拼接。这和其他算术运算符不同：
 
 ```javascript
-console.log(1 * "2");  // 2，乘法只做数值运算，"2" 被转为数字
-console.log(1 - "2");  // -1，减法同上
-console.log(1 + "2");  // "12"，加法有字符串拼接模式
+console.log(1 * '2'); // 2，乘法只做数值运算，"2" 被转为数字
+console.log(1 - '2'); // -1，减法同上
+console.log(1 + '2'); // "12"，加法有字符串拼接模式
 ```
 
 为什么加法如此特殊？历史原因：早期 JavaScript 用 `+` 承担字符串拼接的职责（那时还没有模板字符串），这个行为被固定进了规范。
@@ -67,25 +61,25 @@ ECMAScript 规范（Section 13.15.3，Abstract Relational Comparison 以外的 `
 用这个规则解析几个例子：
 
 ```javascript
-1 + "2"
+1 + '2';
 // ToPrimitive(1) = 1, ToPrimitive("2") = "2"
 // 右操作数是字符串 → 字符串拼接模式
 // ToString(1) = "1", ToString("2") = "2"
 // 结果："12"
 
-1 + true
+1 + true;
 // ToPrimitive(1) = 1, ToPrimitive(true) = true
 // 没有字符串 → 数值加法模式
 // ToNumber(1) = 1, ToNumber(true) = 1
 // 结果：2
 
-null + undefined
+null + undefined;
 // ToPrimitive(null) = null, ToPrimitive(undefined) = undefined
 // 没有字符串 → 数值加法模式
 // ToNumber(null) = 0, ToNumber(undefined) = NaN
 // 结果：NaN
 
-"" + null
+'' + null;
 // ToPrimitive("") = "", ToPrimitive(null) = null
 // 左操作数是字符串 → 字符串拼接模式
 // ToString("") = "", ToString(null) = "null"
@@ -101,22 +95,22 @@ null + undefined
 
 ```javascript
 // 自定义 valueOf 的对象
-const obj1 = { valueOf: () => 3, toString: () => "obj" };
-console.log(obj1 + "2"); // "32"
+const obj1 = { valueOf: () => 3, toString: () => 'obj' };
+console.log(obj1 + '2'); // "32"
 // ToPrimitive(obj1) = 3（valueOf 返回数字 3，是原始值）
 // 然后：ToPrimitive 结果是 3，有字符串 → 字符串拼接
 // ToString(3) = "3", ToString("2") = "2" → "32"
 
 // 没有 valueOf 的对象
-const obj2 = { toString: () => "hello" };
-console.log(obj2 + " world"); // "hello world"
+const obj2 = { toString: () => 'hello' };
+console.log(obj2 + ' world'); // "hello world"
 // ToPrimitive(obj2)：valueOf 返回 obj2 本身（非原始值） → 调用 toString → "hello"
 
 // 普通对象（默认 toString 返回 "[object Object]"）
-console.log({} + "2"); // "[object Object]2"
+console.log({} + '2'); // "[object Object]2"
 
 // 数组的 toString 会把元素用逗号连接
-console.log([1, 2] + "2"); // "1,22"
+console.log([1, 2] + '2'); // "1,22"
 // ToPrimitive([1, 2])：valueOf 返回数组本身（非原始值） → toString → "1,2"
 // "1,2" + "2" → "1,22"
 
@@ -181,20 +175,24 @@ node --print-bytecode --print-bytecode-filter=add script.js
 function combine(a, b) {
   return a + b;
 }
-combine(1, 2);        // 数值加法路径
-combine("hello", " world"); // 字符串拼接路径
+combine(1, 2); // 数值加法路径
+combine('hello', ' world'); // 字符串拼接路径
 // 两种类型 → 函数进入多态状态，TurboFan 难以优化
 
 // Better：用专用函数处理不同类型
-function addNumbers(a, b) { return a + b; }
-function concatStrings(a, b) { return a + b; }
+function addNumbers(a, b) {
+  return a + b;
+}
+function concatStrings(a, b) {
+  return a + b;
+}
 ```
 
 避免意外类型转换的常见建议：
 
 ```javascript
 // 不推荐：隐式转换，意图不明确
-const result = someValue + "";  // 把某个值转成字符串
+const result = someValue + ''; // 把某个值转成字符串
 
 // 推荐：显式转换，意图清晰，也更利于 TurboFan 优化
 const result = String(someValue);
@@ -215,5 +213,6 @@ const result = `${someValue}`;
 ---
 
 **本系列其他文章：**
+
 - 上一篇：[词法作用域与执行上下文](/posts/v8-09/)
 - 下一篇：[惰性解析与闭包：V8 的按需编译策略](/posts/v8-11/)

@@ -29,12 +29,6 @@ const daysSinceCreation = Math.floor(
   (Date.now() - siteConfig.createdAt.getTime()) / (1000 * 60 * 60 * 24)
 );
 
-// 估算总字数（简单估算：每篇文章平均 2000 字）
-const estimatedWords = posts.length * 2000;
-const wordsDisplay = estimatedWords >= 10000
-  ? `${Math.floor(estimatedWords / 1000)}K+`
-  : `${estimatedWords}`;
-
 const stats = [
   { key: 'posts', value: posts.length, label: '文章' },
   { key: 'tags', value: tagSet.size, label: '标签' },
@@ -51,7 +45,7 @@ const stats = [
       <span class="syntax-variable"> stats</span>
       <span class="text-[var(--color-text-primary)]"> = {'{'}</span>
     </p>
-    {stats.map((stat, i) => (
+    {stats.map((stat) => (
       <p class="pl-4">
         <span class="syntax-variable">{stat.key}</span>
         <span class="text-[var(--color-text-primary)]">: </span>

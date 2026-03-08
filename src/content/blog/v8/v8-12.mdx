@@ -8,13 +8,8 @@ pubDate: '2024-03-11'
 updatedDate: '2026-03-04'
 tags:
   - V8
-  - 内联缓存
-  - IC
-  - 单态
-  - 多态
-  - 超多态
   - TurboFan
-  - 我不知道的
+  - 内联缓存
 lang: zh-CN
 keywords:
   - V8
@@ -33,7 +28,6 @@ seriesOrder: 12
 slug: v8-12
 model: claude-sonnet-4.6
 ---
-# 我不知道的 V8（12）— 内联缓存：属性访问如何变成 O(1) 直接读
 
 `obj.x` 看起来很简单，但 JavaScript 是动态类型语言，V8 不知道 `obj` 的 `x` 在哪——每次都去查？那性能没法看。V8 的解法是**内联缓存（Inline Cache，IC）**：第一次访问时记录 "这种形状的对象，x 在 offset 0"，后续直接复用这个结论，无需重新查找。理解 IC，就能理解 V8 性能优化中很多反直觉的行为背后的原因。
 
@@ -48,6 +42,7 @@ function getX(obj) {
 ```
 
 每次调用 `getX`，`obj` 可能是任何对象，`x` 可能在不同的位置。在没有优化的情况下，V8 每次都要：
+
 1. 检查 `obj` 的类型和隐藏类
 2. 沿原型链查找 `x`
 3. 如果是快属性，找到偏移量；如果是慢属性，查哈希表
@@ -97,8 +92,8 @@ getX({ x: 5, y: 6 }); // 还是 C0，命中
 **多态（Polymorphic）**：见过 2-4 种隐藏类，稍慢
 
 ```javascript
-const o3 = { x: 1, y: 2 };       // 隐藏类 C0
-const o4 = { y: 2, x: 1 };       // 隐藏类 C1（属性顺序不同）
+const o3 = { x: 1, y: 2 }; // 隐藏类 C0
+const o4 = { y: 2, x: 1 }; // 隐藏类 C1（属性顺序不同）
 getX(o3); // IC: { C0 → offset 0 }
 getX(o4); // IC 命中失败 → 扩展为多态: { C0 → offset 0, C1 → offset 1 }
 ```
@@ -150,14 +145,14 @@ TurboFan 阶段（当函数成为热点）：
 // 不同顺序 → 不同隐藏类 → IC 多态
 function makeUser(isAdmin) {
   if (isAdmin) {
-    return { role: "admin", name: "Bob" }; // 隐藏类 C0
+    return { role: 'admin', name: 'Bob' }; // 隐藏类 C0
   }
-  return { name: "Alice", role: "user" };  // 隐藏类 C1（顺序不同！）
+  return { name: 'Alice', role: 'user' }; // 隐藏类 C1（顺序不同！）
 }
 
 // 修复：统一属性顺序
 function makeUser(isAdmin) {
-  return { name: isAdmin ? "Bob" : "Alice", role: isAdmin ? "admin" : "user" };
+  return { name: isAdmin ? 'Bob' : 'Alice', role: isAdmin ? 'admin' : 'user' };
   // 所有对象都是 { name, role } 的顺序 → 共享隐藏类
 }
 ```
@@ -166,10 +161,12 @@ function makeUser(isAdmin) {
 
 ```javascript
 // 不同对象有不同的属性子集 → 每个变体一个隐藏类
-function getVal(obj) { return obj.value; }
-getVal({ value: 1 });              // 隐藏类 C0
-getVal({ value: 2, tag: "a" });    // 隐藏类 C1
-getVal({ value: 3, tag: "b", extra: true }); // 隐藏类 C2
+function getVal(obj) {
+  return obj.value;
+}
+getVal({ value: 1 }); // 隐藏类 C0
+getVal({ value: 2, tag: 'a' }); // 隐藏类 C1
+getVal({ value: 3, tag: 'b', extra: true }); // 隐藏类 C2
 // IC 在三次调用后变成多态甚至超多态
 
 // 改进：统一对象形状，不需要的属性赋 null
@@ -198,21 +195,27 @@ function processItems(items) {
 IC 不仅缓存对象自身的属性访问，也缓存原型链上的属性查找结果：
 
 ```javascript
-function Animal(name) { this.name = name; }
-Animal.prototype.describe = function() { return this.name; };
+function Animal(name) {
+  this.name = name;
+}
+Animal.prototype.describe = function () {
+  return this.name;
+};
 
-const a1 = new Animal("cat");
+const a1 = new Animal('cat');
 a1.describe(); // 第一次：沿原型链找到 describe，缓存路径
-               // IC 记录：对象隐藏类 + 原型链上 describe 的位置
+// IC 记录：对象隐藏类 + 原型链上 describe 的位置
 
-const a2 = new Animal("dog");
+const a2 = new Animal('dog');
 a2.describe(); // IC 命中，不需要重新查原型链
 ```
 
 **注意**：如果原型被修改，相关的 IC 会失效：
 
 ```javascript
-Animal.prototype.describe = function() { return `[${this.name}]`; };
+Animal.prototype.describe = function () {
+  return `[${this.name}]`;
+};
 // 所有之前缓存了 describe 位置的 IC 都失效
 // 下次访问需要重新查找并更新缓存
 ```
@@ -228,6 +231,7 @@ Animal.prototype.describe = function() { return `[${this.name}]`; };
 ---
 
 **本系列其他文章：**
+
 - 上一篇：[惰性解析与闭包](/posts/v8-11/)
 - 下一篇：[宏任务的调度逻辑](/posts/v8-13/)
 - 相关：[隐藏类与快慢属性：对象性能的核心](/posts/v8-04/)

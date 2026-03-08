@@ -8,12 +8,8 @@ pubDate: '2024-02-23'
 updatedDate: '2026-03-04'
 tags:
   - V8
-  - Callable
   - 字节码
-  - 调用栈
   - 执行上下文
-  - 函数对象
-  - 我不知道的
 lang: zh-CN
 keywords:
   - V8
@@ -31,7 +27,6 @@ seriesOrder: 2
 slug: v8-02
 model: claude-sonnet-4.6
 ---
-# 我不知道的 V8（02）— 函数是如何变得"可调用"的
 
 在 JavaScript 里，函数既是对象（`typeof fn === 'function'`，但 `fn instanceof Object === true`），又是可执行的代码块。这个"双重身份"不是语言层面的比喻，而是 V8 内部有具体实现的机制。一个普通对象写了 `foo()` 会抛出 `TypeError: foo is not a function`，但函数对象写了 `foo()` 就可以执行——V8 做了什么来区分它们？
 
@@ -44,22 +39,22 @@ function sayHello(name) {
   return `Hello, ${name}!`;
 }
 
-console.log(typeof sayHello);               // "function"
-console.log(sayHello instanceof Object);    // true
-console.log(sayHello.length);               // 1（参数个数）
-console.log(sayHello.name);                 // "sayHello"
+console.log(typeof sayHello); // "function"
+console.log(sayHello instanceof Object); // true
+console.log(sayHello.length); // 1（参数个数）
+console.log(sayHello.name); // "sayHello"
 ```
 
 `sayHello` 可以被当作对象（有属性、可以传递、可以赋值），也可以被调用（`sayHello("V8")`）。普通对象做不到后者。
 
 在 V8 的 C++ 层，函数被表示为 `JSFunction` 对象，它比普通 `JSObject` 多了几个关键属性：
 
-| 属性 | 作用 |
-|------|------|
-| `code` | 指向函数的字节码或优化后的机器码 |
-| `context` | 捕获函数定义时的词法环境（闭包的来源） |
-| `shared_info` | 共享信息，包含参数数量、函数名等元数据 |
-| `[[Call]]` 内部方法 | 标记"这个对象可以被调用" |
+| 属性                | 作用                                   |
+| ------------------- | -------------------------------------- |
+| `code`              | 指向函数的字节码或优化后的机器码       |
+| `context`           | 捕获函数定义时的词法环境（闭包的来源） |
+| `shared_info`       | 共享信息，包含参数数量、函数名等元数据 |
+| `[[Call]]` 内部方法 | 标记"这个对象可以被调用"               |
 
 **`[[Call]]` 内部方法**是关键。普通对象没有这个方法，调用时 V8 会检查它，找不到就抛 `TypeError`。函数对象有 `[[Call]]`，调用时 V8 执行它指向的字节码（或机器码）。
 
@@ -70,6 +65,7 @@ console.log(sayHello.name);                 // "sayHello"
 **步骤一：解析为 AST**
 
 Parser 读取函数声明，在 AST 中生成一个 `FunctionDeclaration` 节点，记录：
+
 - 函数名 `sayHello`
 - 参数列表 `[name]`
 - 函数体（返回语句）
@@ -109,6 +105,7 @@ Return                     ; 返回结果
 **2. 创建执行上下文**
 
 为 `sayHello` 分配一个新的执行上下文，包含：
+
 - 变量绑定：`name = "V8"`
 - `this` 绑定（取决于调用方式）
 - 作用域链：指向 `sayHello` 的词法环境
@@ -146,7 +143,7 @@ const arrowSay = (name) => `Hello, ${name}!`;
 console.log(arrowSay.prototype); // undefined
 
 // 不能作为构造函数
-new arrowSay("V8"); // TypeError: arrowSay is not a constructor
+new arrowSay('V8'); // TypeError: arrowSay is not a constructor
 ```
 
 **V8 的处理差异：**
@@ -184,6 +181,7 @@ JavaScript 函数之所以"可调用"，是因为 V8 为函数对象添加了 `[
 ---
 
 **本系列其他文章：**
+
 - 上一篇：[从源码到执行：引擎的完整旅程](/posts/v8-01/)
 - 下一篇：[隐藏类与快慢属性：对象性能的核心](/posts/v8-04/)
 - 延伸阅读：[函数内联：TurboFan 最重要的优化手段](/posts/v8-07/)

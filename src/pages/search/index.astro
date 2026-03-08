@@ -214,10 +214,9 @@ import CodeWindow from '../../components/CodeWindow.astro';
       // 清空之前的内容
       searchEl.innerHTML = '';
 
-      // @ts-ignore
-      if (typeof PagefindUI !== 'undefined') {
-        // @ts-ignore
-        new PagefindUI({
+      const PagefindUIConstructor = window.PagefindUI;
+      if (typeof PagefindUIConstructor !== 'undefined') {
+        new PagefindUIConstructor({
           element: '#search',
           showSubResults: true,
           autofocus: true,

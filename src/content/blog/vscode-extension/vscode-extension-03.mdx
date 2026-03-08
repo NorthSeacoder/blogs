@@ -8,11 +8,6 @@ pubDate: '2024-03-15'
 updatedDate: '2026-03-06'
 tags:
   - VSCode 扩展
-  - 我不知道的
-  - Webview
-  - Output Channel
-  - CSP
-  - 消息通信
 lang: zh-CN
 keywords:
   - VSCode 扩展
@@ -28,7 +23,6 @@ series: VSCode 扩展
 seriesOrder: 3
 slug: vscode-extension-03
 ---
-# 我不知道的 VSCode 扩展（03）— Webview 与 Output Channel
 
 ## 一、当 TreeView 不够用的时候
 
@@ -47,15 +41,10 @@ import * as vscode from 'vscode';
 
 export function activate(context: vscode.ExtensionContext) {
   let disposable = vscode.commands.registerCommand('my-ext.openPanel', () => {
-    const panel = vscode.window.createWebviewPanel(
-      'myPanel',
-      'My Panel',
-      vscode.ViewColumn.One,
-      {
-        enableScripts: true,
-        retainContextWhenHidden: true,
-      }
-    );
+    const panel = vscode.window.createWebviewPanel('myPanel', 'My Panel', vscode.ViewColumn.One, {
+      enableScripts: true,
+      retainContextWhenHidden: true,
+    });
 
     panel.webview.html = getHtml();
   });
@@ -95,9 +84,9 @@ function getHtml(): string {
 
 **`options`** 对象中有两个重要开关：
 
-| 选项 | 默认值 | 作用 |
-|------|-------|------|
-| `enableScripts` | `false` | 是否允许运行 JavaScript |
+| 选项                      | 默认值  | 作用                         |
+| ------------------------- | ------- | ---------------------------- |
+| `enableScripts`           | `false` | 是否允许运行 JavaScript      |
 | `retainContextWhenHidden` | `false` | 面板切换到后台时是否保持状态 |
 
 这里有一个很多人会忽略的细节——**`retainContextWhenHidden` 为 `false` 时，Webview 切到后台就会被销毁，切回来时重新创建**。如果 Webview 里有用户填写的表单数据，不设 `true` 的话切个标签就丢了。但设为 `true` 会增加内存占用，所以只在确实需要时才开启。
@@ -125,7 +114,7 @@ panel.webview.onDidReceiveMessage(
     }
   },
   undefined,
-  context.subscriptions
+  context.subscriptions,
 );
 ```
 
@@ -159,24 +148,17 @@ Webview 默认禁止加载外部资源和执行内联脚本（即使 `enableScri
 **（1）配置 `localResourceRoots`**，告诉 VSCode 允许从哪些目录加载资源：
 
 ```typescript
-const panel = vscode.window.createWebviewPanel(
-  'myPanel',
-  'My Panel',
-  vscode.ViewColumn.One,
-  {
-    enableScripts: true,
-    localResourceRoots: [
-      vscode.Uri.joinPath(context.extensionUri, 'media'),
-    ],
-  }
-);
+const panel = vscode.window.createWebviewPanel('myPanel', 'My Panel', vscode.ViewColumn.One, {
+  enableScripts: true,
+  localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'media')],
+});
 ```
 
 **（2）使用 `asWebviewUri` 转换路径**。本地文件路径不能直接在 Webview 中使用，需要转成 Webview 专用的 URI：
 
 ```typescript
 const scriptUri = panel.webview.asWebviewUri(
-  vscode.Uri.joinPath(context.extensionUri, 'media', 'main.js')
+  vscode.Uri.joinPath(context.extensionUri, 'media', 'main.js'),
 );
 
 panel.webview.html = `<!DOCTYPE html>
@@ -219,13 +201,13 @@ export function activate(context: vscode.ExtensionContext) {
 
 核心方法只有几个：
 
-| 方法 | 作用 |
-|------|------|
-| `append(text)` | 追加文本，不换行 |
-| `appendLine(text)` | 追加文本并换行 |
-| `clear()` | 清空通道内容 |
+| 方法                   | 作用                                  |
+| ---------------------- | ------------------------------------- |
+| `append(text)`         | 追加文本，不换行                      |
+| `appendLine(text)`     | 追加文本并换行                        |
+| `clear()`              | 清空通道内容                          |
 | `show(preserveFocus?)` | 显示输出面板。`true` = 焦点留在编辑器 |
-| `dispose()` | 销毁通道 |
+| `dispose()`            | 销毁通道                              |
 
 ### LogOutputChannel：带日志级别的输出通道
 
@@ -246,22 +228,24 @@ logger.debug('Request payload: ...');
 
 ## 四、Webview vs Output Channel：怎么选
 
-| 场景 | 推荐 | 原因 |
-|------|------|------|
-| 展示复杂 UI（表单、图表、预览） | Webview | 需要自定义渲染 |
-| 输出日志和调试信息 | Output Channel | 轻量、原生集成 |
-| 实时展示构建/编译状态 | Output Channel | 流式追加，无需刷新 |
-| 可视化配置编辑器 | Webview | 需要表单交互 |
-| 扩展运行状态监控 | 状态栏 + Output Channel | 状态栏显示摘要，Output Channel 显示详情 |
+| 场景                            | 推荐                    | 原因                                    |
+| ------------------------------- | ----------------------- | --------------------------------------- |
+| 展示复杂 UI（表单、图表、预览） | Webview                 | 需要自定义渲染                          |
+| 输出日志和调试信息              | Output Channel          | 轻量、原生集成                          |
+| 实时展示构建/编译状态           | Output Channel          | 流式追加，无需刷新                      |
+| 可视化配置编辑器                | Webview                 | 需要表单交互                            |
+| 扩展运行状态监控                | 状态栏 + Output Channel | 状态栏显示摘要，Output Channel 显示详情 |
 
 问题的关键在于——**Webview 的成本远高于 Output Channel**。每个 Webview 本质上是一个独立的 Chromium 渲染进程，内存开销在 30-100MB 级别。如果只是输出文本信息，用 Webview 就是杀鸡用牛刀。
 
 ---
 
 **本系列其他文章：**
+
 - 上一篇：[菜单、视图与状态栏](/posts/vscode-extension-02/)
 - 下一篇：[API 全景与实战技巧](/posts/vscode-extension-04/)
 
 **延伸阅读：**
+
 - [Webview API 指南](https://code.visualstudio.com/api/extension-guides/webview)
 - [vscode-webview-ui-toolkit](https://github.com/microsoft/vscode-webview-ui-toolkit)（微软官方 Webview UI 组件库）

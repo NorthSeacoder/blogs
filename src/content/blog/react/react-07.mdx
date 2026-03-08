@@ -9,11 +9,6 @@ pubDate: '2022-05-22'
 updatedDate: '2026-03-06'
 tags:
   - React
-  - 组件通信
-  - 自定义Hook
-  - forwardRef
-  - useImperativeHandle
-  - 我不知道的
 lang: zh-CN
 keywords:
   - React
@@ -30,7 +25,6 @@ seriesOrder: 7
 slug: react-07
 model: claude-4.6-opus
 ---
-# 我不知道的 React（07）— 组件通信与自定义 Hooks 实战
 
 React 组件之间要共享数据，方式不止一种。从最常见的 Props 到 Context，再到 Ref 暴露子组件方法，每一种都有各自的适用场景和陷阱。但组件通信只是前半段——当多个组件反复写着相同的状态逻辑时，如何把这些逻辑抽离成可复用的单元，才是 Hooks 体系真正的威力所在。
 
@@ -74,9 +68,7 @@ function Parent() {
   return (
     <>
       <TextInput ref={inputRef} />
-      <button onClick={() => inputRef.current.focus()}>
-        聚焦输入框
-      </button>
+      <button onClick={() => inputRef.current.focus()}>聚焦输入框</button>
     </>
   );
 }
@@ -92,7 +84,9 @@ const TextInput = forwardRef(function TextInput(props, ref) {
 
   useImperativeHandle(ref, () => ({
     focus: () => inputRef.current.focus(),
-    clear: () => { inputRef.current.value = ''; }
+    clear: () => {
+      inputRef.current.value = '';
+    },
   }));
 
   return <input ref={inputRef} type="text" />;
@@ -143,7 +137,7 @@ function SearchBox() {
     }
   }, [debouncedQuery]);
 
-  return <input onChange={e => setQuery(e.target.value)} />;
+  return <input onChange={(e) => setQuery(e.target.value)} />;
 }
 ```
 
@@ -230,9 +224,11 @@ function useEventListener(eventName, handler, element = window) {
 ---
 
 **本系列其他文章：**
+
 - 上一篇：[核心 Hooks 详解](/posts/react-06/)
 - 下一篇：[逻辑复用的三代进化 — HOC、Render Props 与 Hooks](/posts/react-08/)
 
 **相关主题：**
+
 - useState 底层机制：[批量更新与 Hook 底层机制](/posts/react-05/)
 - 生命周期与 Render：[生命周期演进与 Render 触发机制](/posts/react-04/)

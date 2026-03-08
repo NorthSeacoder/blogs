@@ -5,11 +5,8 @@ subtitle: 从握手到心跳的全链路解析
 pubDate: '2025-01-10'
 updatedDate: '2026-03-06'
 tags:
-  - WebSocket
-  - 实时通信
   - 网络协议
-  - WebTransport
-  - 我不知道的
+  - WebSocket
 lang: zh-CN
 keywords:
   - WebSocket
@@ -25,7 +22,6 @@ seriesOrder: 1
 slug: ws-01
 model: claude-4.6-opus
 ---
-# 我不知道的 WebSocket — 从握手到心跳的全链路解析
 
 ## 一、为什么 HTTP 轮询不够用？
 
@@ -251,8 +247,8 @@ const wss = new WebSocket.Server({
   port: 8080,
   perMessageDeflate: {
     zlibDeflateOptions: { level: 6 },
-    threshold: 1024  // 小于 1KB 的消息不压缩
-  }
+    threshold: 1024, // 小于 1KB 的消息不压缩
+  },
 });
 ```
 
@@ -305,6 +301,7 @@ WebSocket 解决了 HTTP 请求-响应模型在实时通信中的根本限制—
 ---
 
 **延伸阅读：**
+
 - [RFC 6455 — The WebSocket Protocol](https://datatracker.ietf.org/doc/html/rfc6455)
 - [MDN — WebSocket API](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket)
 - [MDN — WebTransport API](https://developer.mozilla.org/en-US/docs/Web/API/WebTransport)
@@ -313,8 +310,10 @@ WebSocket 解决了 HTTP 请求-响应模型在实时通信中的根本限制—
 ---
 
 **本系列其他文章：**
+
 - 下一篇：规划中
 
 **相关主题：**
+
 - 如果你对 HTTP 协议的演进感兴趣，可以看：[我不知道的 HTTP 系列](/series/HTTP/)
 - 如果你对浏览器网络请求的底层机制感兴趣，可以看：[我不知道的浏览器系列](/series/%E6%B5%8F%E8%A7%88%E5%99%A8/)

@@ -4,6 +4,14 @@ import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
 import { z } from 'zod';
+import {
+  FORBIDDEN_TAGS,
+  STRATEGIC_TAGS,
+  TAG_ALIASES,
+  TAG_POLICY_DOC,
+  cleanTagList,
+  getTagLimit,
+} from './tag-taxonomy.mjs';
 
 const blogSchema = z.object({
   title: z.string(),
@@ -29,7 +37,32 @@ const blogSchema = z.object({
 const requiredFields = ['title', 'description', 'pubDate'];
 const recommendedFields = ['tags', 'keywords'];
 
-function validateFile(filePath) {
+function collectMarkdownFiles(dir) {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const fullPath = path.join(dir, entry.name);
+
+    if (entry.isDirectory()) {
+      return collectMarkdownFiles(fullPath);
+    }
+
+    return entry.name.endsWith('.md') || entry.name.endsWith('.mdx') ? [fullPath] : [];
+  });
+}
+
+function buildGlobalTagCounts(files) {
+  const counts = new Map();
+
+  files.forEach((filePath) => {
+    const { data } = matter(fs.readFileSync(filePath, 'utf8'));
+    cleanTagList(data.tags).forEach((tag) => {
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    });
+  });
+
+  return counts;
+}
+
+function validateFile(filePath, globalTagCounts) {
   const result = {
     file: filePath,
     status: 'valid',
@@ -79,29 +112,76 @@ function validateFile(filePath) {
       result.messages.push('⚠️  有 cover 但缺少 coverAlt（无障碍访问）');
     }
 
+    if (Array.isArray(data.tags)) {
+      const duplicateTags = data.tags.filter((tag, index) => data.tags.indexOf(tag) !== index);
+      if (duplicateTags.length > 0) {
+        if (result.status === 'valid') {
+          result.status = 'warning';
+        }
+        result.messages.push(`⚠️  存在重复标签: ${[...new Set(duplicateTags)].join(', ')}`);
+      }
+
+      const limit = getTagLimit(data.type);
+      if (data.tags.length > limit) {
+        if (result.status === 'valid') {
+          result.status = 'warning';
+        }
+        result.messages.push(`⚠️  标签数量过多：当前 ${data.tags.length}，建议最多 ${limit} 个`);
+      }
+
+      const forbiddenTags = data.tags.filter((tag) => FORBIDDEN_TAGS.has(tag));
+      if (forbiddenTags.length > 0) {
+        if (result.status === 'valid') {
+          result.status = 'warning';
+        }
+        result.messages.push(`⚠️  包含已禁用标签: ${forbiddenTags.join(', ')}`);
+      }
+
+      const legacyTags = data.tags
+        .filter((tag) => TAG_ALIASES.has(tag))
+        .map((tag) => `${tag} -> ${TAG_ALIASES.get(tag)}`);
+      if (legacyTags.length > 0) {
+        if (result.status === 'valid') {
+          result.status = 'warning';
+        }
+        result.messages.push(`⚠️  建议使用规范标签: ${legacyTags.join(', ')}`);
+      }
+
+      const singletonTags = cleanTagList(data.tags).filter((tag) => {
+        if (STRATEGIC_TAGS.has(tag)) return false;
+        return (globalTagCounts.get(tag) ?? 0) <= 1;
+      });
+      if (singletonTags.length > 0) {
+        if (result.status === 'valid') {
+          result.status = 'warning';
+        }
+        result.messages.push(
+          `⚠️  这些标签目前只出现在一篇文章里，建议改放 keywords: ${singletonTags.join(', ')}`,
+        );
+      }
+    }
+
+    const { content: body } = matter(content);
+    const firstNonEmptyLine = body.split('\n').find((line) => line.trim() !== '');
+    if (firstNonEmptyLine && /^#\s+/.test(firstNonEmptyLine)) {
+      if (result.status === 'valid') {
+        result.status = 'warning';
+      }
+      result.messages.push('⚠️  正文首个非空行是一级标题；文章页已单独渲染标题，建议移除这个 H1');
+    }
+
     if (result.status === 'valid') {
       result.messages.push('✅ Frontmatter 完整且符合规范');
     }
   } catch (error) {
     result.status = 'error';
-    result.messages.push(`❌ 文件读取失败: ${error instanceof Error ? error.message : String(error)}`);
+    result.messages.push(
+      `❌ 文件读取失败: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 
   return result;
 }
-
-function collectMarkdownFiles(dir) {
-  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    const fullPath = path.join(dir, entry.name);
-
-    if (entry.isDirectory()) {
-      return collectMarkdownFiles(fullPath);
-    }
-
-    return entry.name.endsWith('.md') || entry.name.endsWith('.mdx') ? [fullPath] : [];
-  });
-}
-
 function main() {
   console.log('🔍 开始验证博客文章 frontmatter...\n');
 
@@ -113,13 +193,14 @@ function main() {
   }
 
   const files = collectMarkdownFiles(contentDir);
+  const globalTagCounts = buildGlobalTagCounts(files);
 
   if (files.length === 0) {
     console.log('⚠️  没有找到任何 Markdown 文件');
     process.exit(0);
   }
 
-  const results = files.map(validateFile);
+  const results = files.map((filePath) => validateFile(filePath, globalTagCounts));
   let hasErrors = false;
   let hasWarnings = false;
 
@@ -160,6 +241,7 @@ function main() {
   console.log('  - type: post | index     # 普通文章或系列导读');
   console.log('  - series: string         # 系列名');
   console.log('  - seriesOrder: number    # 系列内顺序\n');
+  console.log(`标签约束说明：${TAG_POLICY_DOC}\n`);
 
   if (hasErrors) {
     console.error('❌ 验证失败：存在错误，请修复后重试');

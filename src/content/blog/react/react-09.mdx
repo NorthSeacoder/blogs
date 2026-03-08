@@ -9,11 +9,6 @@ pubDate: '2022-05-20'
 updatedDate: '2026-03-06'
 tags:
   - React
-  - Portals
-  - 事件冒泡
-  - 合成事件
-  - createPortal
-  - 我不知道的
 lang: zh-CN
 keywords:
   - React
@@ -30,7 +25,6 @@ seriesOrder: 9
 slug: react-09
 model: claude-4.6-opus
 ---
-# 我不知道的 React（09）— Portals 与事件冒泡的真相
 
 React 组件渲染到 DOM 的位置，通常由它在组件树中的位置决定——父组件在哪个 DOM 节点下，子组件就渲染在那个节点内部。这在绝大多数场景下没有问题，但有一类 UI 元素天然需要"跳出"父组件的 DOM 结构：模态框、Toast 提示、Tooltip 浮层。
 
@@ -51,7 +45,7 @@ function Modal({ children }) {
     <div className="modal-backdrop">
       <div className="modal-content">{children}</div>
     </div>,
-    modalRoot
+    modalRoot,
   );
 }
 ```
@@ -152,11 +146,11 @@ function Modal({ children, onClose }) {
 
   return ReactDOM.createPortal(
     <div className="backdrop" onClick={onClose}>
-      <div className="content" onClick={e => e.stopPropagation()}>
+      <div className="content" onClick={(e) => e.stopPropagation()}>
         {children}
       </div>
     </div>,
-    modalRoot
+    modalRoot,
   );
 }
 ```
@@ -188,17 +182,11 @@ function Modal({ children, onClose }) {
   }, []);
 
   return ReactDOM.createPortal(
-    <div
-      ref={modalRef}
-      tabIndex={-1}
-      role="dialog"
-      aria-modal="true"
-      className="modal"
-    >
+    <div ref={modalRef} tabIndex={-1} role="dialog" aria-modal="true" className="modal">
       {children}
       <button onClick={onClose}>关闭</button>
     </div>,
-    document.getElementById('modal-root')
+    document.getElementById('modal-root'),
   );
 }
 ```
@@ -216,9 +204,11 @@ React Portals 的核心能力是把 DOM 渲染位置和 React 组件树的逻辑
 ---
 
 **本系列其他文章：**
+
 - 上一篇：[逻辑复用的三代进化 — HOC、Render Props 与 Hooks](/posts/react-08/)
 - 下一篇：[受控与非受控组件的选择之道](/posts/react-10/)
 
 **相关主题：**
+
 - Fiber 架构与事件系统：[可中断渲染与优先级调度](/posts/react-02/)
 - 从 JSX 到 DOM 的渲染流程：[渲染流程与 Diff 算法](/posts/react-03/)

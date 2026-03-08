@@ -8,12 +8,6 @@ pubDate: '2024-04-15'
 updatedDate: '2026-03-06'
 tags:
   - VSCode 扩展
-  - 我不知道的
-  - 调试
-  - Debug
-  - launch.json
-  - vscode-test
-  - 断点
 lang: zh-CN
 keywords:
   - VSCode 扩展
@@ -30,7 +24,6 @@ series: VSCode 扩展
 seriesOrder: 6
 slug: vscode-extension-06
 ---
-# 我不知道的 VSCode 扩展（06）— 调试与测试
 
 ## 一、扩展调试不是"调 Node.js"
 
@@ -80,12 +73,8 @@ VSCode 扩展运行在一个特殊的环境——**Extension Host（扩展宿主
 
 ```json
 {
-  "args": [
-    "--extensionDevelopmentPath=${workspaceFolder}/packages/my-extension"
-  ],
-  "outFiles": [
-    "${workspaceFolder}/packages/my-extension/out/**/*.js"
-  ]
+  "args": ["--extensionDevelopmentPath=${workspaceFolder}/packages/my-extension"],
+  "outFiles": ["${workspaceFolder}/packages/my-extension/out/**/*.js"]
 }
 ```
 
@@ -225,22 +214,24 @@ suite('Extension Test Suite', () => {
 
 ## 六、调试效率清单
 
-| 技巧 | 场景 |
-|------|------|
-| `preLaunchTask: "npm: watch"` | 修改代码后自动重编译 |
-| 条件断点 | 循环中定位特定迭代 |
-| 日志断点（Logpoint） | 不修改代码输出调试信息 |
-| 异常断点 | 快速定位异常抛出位置 |
-| `Developer: Show Running Extensions` | 查看扩展激活时间和资源占用 |
-| `Developer: Open Webview Developer Tools` | 调试 Webview 中的前端代码 |
-| 分离纯逻辑做单元测试 | 不依赖 VSCode 运行时，测试速度快 |
+| 技巧                                      | 场景                             |
+| ----------------------------------------- | -------------------------------- |
+| `preLaunchTask: "npm: watch"`             | 修改代码后自动重编译             |
+| 条件断点                                  | 循环中定位特定迭代               |
+| 日志断点（Logpoint）                      | 不修改代码输出调试信息           |
+| 异常断点                                  | 快速定位异常抛出位置             |
+| `Developer: Show Running Extensions`      | 查看扩展激活时间和资源占用       |
+| `Developer: Open Webview Developer Tools` | 调试 Webview 中的前端代码        |
+| 分离纯逻辑做单元测试                      | 不依赖 VSCode 运行时，测试速度快 |
 
 ---
 
 **本系列其他文章：**
+
 - 上一篇：[生命周期与激活策略](/posts/vscode-extension-05/)
 - 下一篇：[发布与 CI/CD 流水线](/posts/vscode-extension-07/)
 
 **延伸阅读：**
+
 - [Testing Extensions 官方指南](https://code.visualstudio.com/api/working-with-extensions/testing-extension)
 - [@vscode/test-electron GitHub](https://github.com/microsoft/vscode-test)

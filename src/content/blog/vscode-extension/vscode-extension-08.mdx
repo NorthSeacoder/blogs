@@ -8,12 +8,7 @@ pubDate: '2024-06-12'
 updatedDate: '2026-03-06'
 tags:
   - VSCode 扩展
-  - 我不知道的
-  - 工具链
-  - starter-vscode
-  - reactive-vscode
   - esbuild
-  - webview-ui-toolkit
 lang: zh-CN
 keywords:
   - VSCode 扩展
@@ -30,7 +25,6 @@ series: VSCode 扩展
 seriesOrder: 8
 slug: vscode-extension-08
 ---
-# 我不知道的 VSCode 扩展（08）— 开发工具链与效率提升
 
 ## 一、官方脚手架够用，但不够好
 
@@ -40,14 +34,14 @@ slug: vscode-extension-08
 
 [starter-vscode](https://github.com/antfu/starter-vscode)（antfu 维护）是目前社区中最成熟的 VSCode 扩展启动模板，解决了 `yo code` 的几个核心短板：
 
-| 特性 | yo code | starter-vscode |
-|------|---------|---------------|
-| 构建工具 | tsc | esbuild（快 10-100 倍） |
-| 包管理器 | npm | pnpm |
-| 测试框架 | 无 | Vitest |
-| 自动发布 | 无 | GitHub Actions 预配置 |
-| Lint | 无 | ESLint + antfu config |
-| 调试配置 | 基础 | 完善（含 watch 模式） |
+| 特性     | yo code | starter-vscode          |
+| -------- | ------- | ----------------------- |
+| 构建工具 | tsc     | esbuild（快 10-100 倍） |
+| 包管理器 | npm     | pnpm                    |
+| 测试框架 | 无      | Vitest                  |
+| 自动发布 | 无      | GitHub Actions 预配置   |
+| Lint     | 无      | ESLint + antfu config   |
+| 调试配置 | 基础    | 完善（含 watch 模式）   |
 
 ### esbuild vs tsc：为什么用打包器
 
@@ -91,9 +85,7 @@ let count = 0;
 let statusBarItem: vscode.StatusBarItem;
 
 export function activate(context: vscode.ExtensionContext) {
-  statusBarItem = vscode.window.createStatusBarItem(
-    vscode.StatusBarAlignment.Right
-  );
+  statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right);
   statusBarItem.text = `Count: ${count}`;
   statusBarItem.command = 'my-ext.increment';
   statusBarItem.show();
@@ -102,7 +94,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('my-ext.increment', () => {
       count++;
       statusBarItem.text = `Count: ${count}`; // 手动更新 UI
-    })
+    }),
   );
 
   context.subscriptions.push(statusBarItem);
@@ -136,14 +128,14 @@ export = defineExtension(() => {
 
 ### 常用的 composable
 
-| 函数 | 对应的 VSCode API |
-|------|-----------------|
-| `useCommand` | `vscode.commands.registerCommand` |
-| `useStatusBarItem` | `vscode.window.createStatusBarItem` |
+| 函数                  | 对应的 VSCode API                             |
+| --------------------- | --------------------------------------------- |
+| `useCommand`          | `vscode.commands.registerCommand`             |
+| `useStatusBarItem`    | `vscode.window.createStatusBarItem`           |
 | `useActiveTextEditor` | `vscode.window.activeTextEditor` 的响应式版本 |
-| `useConfiguration` | `vscode.workspace.getConfiguration` |
-| `useWebviewView` | Webview 视图提供者 |
-| `useTreeView` | TreeDataProvider |
+| `useConfiguration`    | `vscode.workspace.getConfiguration`           |
+| `useWebviewView`      | Webview 视图提供者                            |
+| `useTreeView`         | TreeDataProvider                              |
 
 ### 什么时候该用
 
@@ -156,9 +148,10 @@ reactive-vscode 适合**有复杂状态管理需求**的扩展——比如多个
 [vscode-webview-ui-toolkit](https://github.com/microsoft/vscode-webview-ui-toolkit)（微软官方维护）提供了一组 Web Components，样式和行为与 VSCode 原生 UI 一致：
 
 ```html
-<script type="module"
-  src="https://cdn.jsdelivr.net/npm/@vscode/webview-ui-toolkit@1/dist/toolkit.min.js">
-</script>
+<script
+  type="module"
+  src="https://cdn.jsdelivr.net/npm/@vscode/webview-ui-toolkit@1/dist/toolkit.min.js"
+></script>
 
 <vscode-button appearance="primary">Save</vscode-button>
 <vscode-text-field placeholder="Search..."></vscode-text-field>
@@ -207,22 +200,24 @@ esbuild.build({
 
 ## 六、工具选型总结
 
-| 需求 | 推荐工具 | 原因 |
-|------|---------|------|
-| 快速创建项目 | starter-vscode | 现代工具链预配置 |
-| 复杂状态管理 | reactive-vscode | 响应式绑定，减少样板代码 |
-| Webview UI | vscode-webview-ui-toolkit | 官方维护，自动适配主题 |
-| 快速编译 | esbuild | 比 tsc 快 100 倍 |
-| 包体积优化 | esbuild bundle + .vscodeignore | 减少安装体积 |
-| 测试 | @vscode/test-electron + Vitest | 集成测试 + 单元测试 |
+| 需求         | 推荐工具                       | 原因                     |
+| ------------ | ------------------------------ | ------------------------ |
+| 快速创建项目 | starter-vscode                 | 现代工具链预配置         |
+| 复杂状态管理 | reactive-vscode                | 响应式绑定，减少样板代码 |
+| Webview UI   | vscode-webview-ui-toolkit      | 官方维护，自动适配主题   |
+| 快速编译     | esbuild                        | 比 tsc 快 100 倍         |
+| 包体积优化   | esbuild bundle + .vscodeignore | 减少安装体积             |
+| 测试         | @vscode/test-electron + Vitest | 集成测试 + 单元测试      |
 
 ---
 
 **本系列其他文章：**
+
 - 上一篇：[发布与 CI/CD 流水线](/posts/vscode-extension-07/)
 - 下一篇：[架构、进程模型与源码导读](/posts/vscode-extension-09/)
 
 **延伸阅读：**
+
 - [starter-vscode GitHub](https://github.com/antfu/starter-vscode)
 - [reactive-vscode 文档](https://reactive-vscode.netlify.app/)
 - [vscode-webview-ui-toolkit Storybook](https://microsoft.github.io/vscode-webview-ui-toolkit/)

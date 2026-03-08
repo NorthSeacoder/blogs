@@ -9,12 +9,9 @@ pubDate: '2024-03-12'
 updatedDate: '2026-03-04'
 tags:
   - V8
+  - 事件循环
   - 微任务
   - Promise
-  - queueMicrotask
-  - MicrotaskQueue
-  - 事件循环
-  - 我不知道的
 lang: zh-CN
 keywords:
   - V8
@@ -32,13 +29,13 @@ seriesOrder: 14
 slug: v8-14
 model: claude-sonnet-4.6
 ---
-# 我不知道的 V8（14）— 微任务：执行时机、优先级与底层实现
 
 "Promise 的 then 回调比 setTimeout 先执行"——大多数 JavaScript 开发者知道这个结论，但很少有人能说清楚为什么。这不是约定俗成的规则，而是 V8 内部有具体的执行机制在支撑：`MicrotaskQueue` 数据结构 + `PerformMicrotaskCheckpoint` 触发点。理解这套机制，才能解释微任务的所有行为，包括一些反直觉的边界情况。
 
 ## 一、微任务包括哪些
 
 V8 中的微任务（Microtasks）包含三类：
+
 - **Promise 回调**：`Promise.then()`、`Promise.catch()`、`Promise.finally()`
 - **`queueMicrotask()`**：直接向微任务队列添加任务的 API
 - **MutationObserver 回调**：DOM 变化后的通知回调
@@ -86,6 +83,7 @@ queueMicrotask(() => console.log('Direct micro'));
 **清空过程：**
 
 V8 的核心函数是 `PerformMicrotaskCheckpoint`。它在以下时机被调用：
+
 - 当前宏任务（或脚本）执行完毕，调用栈清空时
 - 显式调用 `queueMicrotask` 后的检查点
 - 某些 Promise 操作后
@@ -101,7 +99,7 @@ Promise.resolve()
     // 在微任务里再加一个微任务
     return Promise.resolve('Micro 2');
   })
-  .then(v => console.log(v));
+  .then((v) => console.log(v));
 
 // 输出：
 // Micro 1
@@ -203,13 +201,13 @@ queueMicrotask(() => {
 
 ## 六、微任务 vs 宏任务 vs 同步代码：选哪个
 
-| 场景 | 推荐方式 | 原因 |
-|------|---------|------|
-| 必须立即执行 | 同步代码 | 无延迟 |
-| 当前宏任务结束后立即执行 | `queueMicrotask` / `Promise.then` | 在渲染前完成，响应最快 |
-| 延迟到下一轮事件循环 | `setTimeout(fn, 0)` | 给渲染和其他宏任务腾出空间 |
-| 固定间隔重复执行 | `setInterval` / `requestAnimationFrame` | 周期性任务 |
-| DOM 变化后响应 | `MutationObserver` | 批量变化，微任务级别的即时性 |
+| 场景                     | 推荐方式                                | 原因                         |
+| ------------------------ | --------------------------------------- | ---------------------------- |
+| 必须立即执行             | 同步代码                                | 无延迟                       |
+| 当前宏任务结束后立即执行 | `queueMicrotask` / `Promise.then`       | 在渲染前完成，响应最快       |
+| 延迟到下一轮事件循环     | `setTimeout(fn, 0)`                     | 给渲染和其他宏任务腾出空间   |
+| 固定间隔重复执行         | `setInterval` / `requestAnimationFrame` | 周期性任务                   |
+| DOM 变化后响应           | `MutationObserver`                      | 批量变化，微任务级别的即时性 |
 
 ## 七、总结
 
@@ -222,6 +220,7 @@ queueMicrotask(() => {
 ---
 
 **本系列其他文章：**
+
 - 上一篇：[宏任务的调度逻辑](/posts/v8-13/)
 - 下一篇：[MutationObserver 的 DOM 监听机制](/posts/v8-15/)
 - 延伸阅读：[async/await 的实现原理](/posts/v8-16/)

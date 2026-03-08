@@ -20,8 +20,9 @@ description: 为当前 Astro 博客撰写新文章、续写草稿、创建系列
 开始前优先读取这些文件：
 
 1. `src/content/config.ts`
-2. 同主题或同系列的现有文章
-3. `src/pages/series/index.astro` 和 `src/pages/series/[series]/index.astro`，仅在需要确认系列展示逻辑时读取
+2. `docs/tag-taxonomy.md`
+3. 同主题或同系列的现有文章
+4. `src/pages/series/index.astro` 和 `src/pages/series/[series]/index.astro`，仅在需要确认系列展示逻辑时读取
 
 不要无差别扫描整个内容目录，只读取当前选题附近的文件。
 
@@ -49,6 +50,15 @@ description: 为当前 Astro 博客撰写新文章、续写草稿、创建系列
 - `seriesOrder`
 - `slug`
 
+### 1.1 标签规则
+
+- 普通文章最多 `4` 个标签，系列导读最多 `3` 个
+- 优先复用 `docs/tag-taxonomy.md` 里的标签，不要随手发明新标签
+- 系列名/主题名可以作为标签；品牌词 `我不知道的` 不作为标签
+- `系列索引` 不作为标签；系列导读依靠 `type: index` 表达
+- 只在当前文章里出现一次的细粒度术语，写进 `keywords`，不要塞进 `tags`
+- 如果一个标签当前看起来不会在至少第二篇文章里复用，默认不用
+
 ### 2. 系列规则
 
 - 普通系列文章：必须写 `series`，最好写 `seriesOrder`
@@ -71,8 +81,9 @@ description: 为当前 Astro 博客撰写新文章、续写草稿、创建系列
 1. 先确认这是独立文章、系列文章，还是系列导读。
 2. 读取相邻文章，避免重复论点和重复示例。
 3. 先定标题、slug、series、seriesOrder，再写正文。
-4. 写完后运行 `npm run validate`。
-5. 需要验证站点渲染时，优先用：
+4. 正文不要再写开头的 `# 一级标题`，文章页会单独渲染标题。
+5. 写完后运行 `npm run validate`。
+6. 需要验证站点渲染时，优先用：
    `npx -y node@20.19.0 node_modules/astro/astro.js build`
 
 ## 风格要求

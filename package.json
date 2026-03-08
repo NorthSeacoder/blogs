@@ -11,8 +11,9 @@
     "start": "npm run dev",
     "build": "astro build && pagefind",
     "preview": "astro preview",
-    "lint": "eslint .",
+    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint \"src/**/*.{astro,js,mjs,cjs,ts}\" \"scripts/**/*.{js,mjs,cjs,ts}\" astro.config.mjs tailwind.config.ts",
     "format": "prettier . --write",
+    "tags:normalize": "node scripts/normalize-tags.mjs",
     "import:drafts": "node scripts/import-blog-drafts.mjs",
     "validate": "node scripts/validate-frontmatter.mjs",
     "validate:watch": "node --watch scripts/validate-frontmatter.mjs"

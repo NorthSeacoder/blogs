@@ -9,13 +9,6 @@ pubDate: '2022-05-22'
 updatedDate: '2026-03-06'
 tags:
   - React
-  - useEffect
-  - useContext
-  - useReducer
-  - useRef
-  - useMemo
-  - useCallback
-  - 我不知道的
 lang: zh-CN
 keywords:
   - React
@@ -34,7 +27,6 @@ seriesOrder: 6
 slug: react-06
 model: claude-4.6-opus
 ---
-# 我不知道的 React（06）— 核心 Hooks 详解
 
 上一篇讲了 `useState` 的批量更新和 Hook 链表机制。但 React 的 Hook 体系远不止状态管理——副作用处理、跨层级通信、性能优化，每一个场景都有对应的 Hook。这些 Hook 单独看都不难，但很多人以为掌握了用法就等于理解了原理，结果在实际项目中踩了各种坑。
 
@@ -98,7 +90,7 @@ function Counter() {
 ```jsx
 useEffect(() => {
   const id = setInterval(() => {
-    setCount(c => c + 1); // 不读 count，不需要依赖
+    setCount((c) => c + 1); // 不读 count，不需要依赖
   }, 1000);
   return () => clearInterval(id);
 }, []);
@@ -190,10 +182,10 @@ function ThemedButton() {
 ```jsx
 function ProductList({ products, filter }) {
   const filtered = useMemo(() => {
-    return products.filter(p => p.category === filter);
+    return products.filter((p) => p.category === filter);
   }, [products, filter]);
 
-  return filtered.map(p => <ProductCard key={p.id} product={p} />);
+  return filtered.map((p) => <ProductCard key={p.id} product={p} />);
 }
 ```
 
@@ -245,5 +237,6 @@ React 的核心 Hook 体系，每一个都解决一个特定的问题域。
 - [返回系列索引：我不知道的 React](/blog/react-00)
 
 **相关主题：**
+
 - 生命周期与 Render 触发机制：[React-04](/posts/react-04/)
 - 逻辑复用的三代进化：[React-08](/posts/react-08/)

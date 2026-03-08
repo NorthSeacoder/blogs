@@ -8,12 +8,7 @@ pubDate: '2022-05-22'
 updatedDate: '2026-03-06'
 tags:
   - React
-  - JSX
-  - Diff算法
   - 虚拟DOM
-  - Key
-  - Reconciliation
-  - 我不知道的
 lang: zh-CN
 keywords:
   - React
@@ -31,6 +26,7 @@ seriesOrder: 3
 slug: react-03
 model: claude-4.6-opus
 ---
+
 ## 一、JSX 不是 HTML
 
 很多人以为 JSX 就是在 JavaScript 里写 HTML，但实际上浏览器根本不认识 JSX。它既不是合法的 JavaScript，也不是真正的 HTML——它是一层语法糖，需要经过编译才能执行。
@@ -46,17 +42,13 @@ model: claude-4.6-opus
 const element = <div className="app">Hello React</div>;
 
 // React 17 之前——经典模式
-const element = React.createElement(
-  'div',
-  { className: 'app' },
-  'Hello React'
-);
+const element = React.createElement('div', { className: 'app' }, 'Hello React');
 
 // React 17+ ——新 JSX Transform
 import { jsx as _jsx } from 'react/jsx-runtime';
 const element = _jsx('div', {
   className: 'app',
-  children: 'Hello React'
+  children: 'Hello React',
 });
 ```
 

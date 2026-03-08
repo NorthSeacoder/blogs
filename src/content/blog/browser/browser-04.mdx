@@ -7,17 +7,8 @@ subtitle: 渲染流水线：从 HTML 到屏幕的八个步骤
 pubDate: '2024-09-09'
 updatedDate: '2026-03-05'
 tags:
-  - 浏览器原理
-  - 渲染流水线
-  - Reflow
-  - Repaint
-  - 合成
   - 性能优化
-  - Layout
-  - Paint
-  - Compositing
   - 浏览器
-  - 我不知道的
 lang: zh-CN
 keywords:
   - 浏览器原理
@@ -39,7 +30,6 @@ seriesOrder: 4
 slug: browser-04
 model: claude-sonnet-4.6
 ---
-# 我不知道的浏览器（04）— 渲染流水线：从 HTML 到屏幕的八个步骤
 
 很多人以为修改一个 CSS 属性会触发"浏览器重新绘制页面"，但实际上——改 `transform` 只需要合成线程处理，改 `width` 要从布局步骤重新计算，改 `background-color` 跳过布局但仍需重绘。这三种操作的性能开销可以差 10 倍以上。
 
@@ -156,7 +146,7 @@ for (let i = 0; i < boxes.length; i++) {
 ```javascript
 // 正确写法：先批量读，再批量写
 const boxes = document.querySelectorAll('.box');
-const widths = Array.from(boxes).map(box => box.offsetWidth); // 一次性读取
+const widths = Array.from(boxes).map((box) => box.offsetWidth); // 一次性读取
 
 for (let i = 0; i < boxes.length; i++) {
   boxes[i].style.width = widths[i] + 10 + 'px'; // 批量写，不再触发强制布局
@@ -174,8 +164,10 @@ for (let i = 0; i < boxes.length; i++) {
 ---
 
 **本系列其他文章：**
+
 - 上一篇：[事件循环：浏览器如何协调 JS 与渲染](/posts/browser-03/)
 
 **相关主题：**
+
 - 合成层分层的底层实现可参考：[渲染线程为什么是单线程的](/posts/browser-02/)
 - CSS `transform` 触发的内联缓存机制：[内联缓存：属性访问如何变成 O(1) 直接读](/posts/v8-12/)

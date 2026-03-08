@@ -8,12 +8,9 @@ pubDate: '2024-03-06'
 updatedDate: '2026-03-04'
 tags:
   - V8
-  - 词法作用域
+  - 闭包
   - 执行上下文
   - ScopeInfo
-  - 闭包
-  - 作用域链
-  - 我不知道的
 lang: zh-CN
 keywords:
   - V8
@@ -31,7 +28,6 @@ seriesOrder: 9
 slug: v8-09
 model: claude-4.6-opus-high-thinking
 ---
-# 我不知道的 V8（09）— 词法作用域与执行上下文：静态与动态的协作
 
 "作用域"和"执行上下文"这两个概念，很多 JavaScript 开发者混用。它们不是同一个东西，但联系很紧密。更少有人知道的是，这两个概念在 V8 内部有具体的数据结构对应——理解这些结构，才能真正解释闭包的行为，以及变量查找为什么是这个顺序。
 
@@ -42,10 +38,10 @@ model: claude-4.6-opus-high-thinking
 下面这段代码，你能说出 `inner` 会打印什么吗？
 
 ```javascript
-const x = "global";
+const x = 'global';
 
 function outer() {
-  const x = "outer";
+  const x = 'outer';
   function inner() {
     console.log(x);
   }
@@ -75,10 +71,10 @@ outer();
 
 ```javascript
 function outer() {
-  let count = 0;      // outer 的词法环境中有 count
+  let count = 0; // outer 的词法环境中有 count
 
   function inner() {
-    count++;           // inner 在词法上是 outer 的内部，可以访问 count
+    count++; // inner 在词法上是 outer 的内部，可以访问 count
     return count;
   }
 
@@ -86,8 +82,8 @@ function outer() {
 }
 
 const increment = outer(); // outer 执行完毕，其执行上下文理论上应该销毁
-increment();  // 1
-increment();  // 2
+increment(); // 1
+increment(); // 2
 ```
 
 `outer` 执行结束后，通常它的执行上下文会销毁。但 `inner` 还持有对 `outer` 词法环境的引用（这就是闭包）。V8 会保留 `count` 所在的词法环境，不销毁它。
@@ -132,10 +128,10 @@ InnerEnv: {
 下面这段代码，`greet` 被调用时会打印哪个 `greeting`？
 
 ```javascript
-const greeting = "Hello from global";
+const greeting = 'Hello from global';
 
 function makeGreeter() {
-  const greeting = "Hello from makeGreeter";
+  const greeting = 'Hello from makeGreeter';
   return function greet() {
     console.log(greeting);
   };
@@ -163,7 +159,7 @@ export function fn() {
 }
 
 // module2.js
-import { fn } from "./module1.js";
+import { fn } from './module1.js';
 const x = 2;
 fn(); // 输出 1，不是 2
 ```
@@ -172,10 +168,10 @@ fn(); // 输出 1，不是 2
 
 ## 八、总结
 
-| 概念 | 确定时机 | 作用 | V8 数据结构 |
-|------|---------|------|------------|
-| 词法作用域 | 代码编译时（静态） | 确定变量可见范围 | `ScopeInfo`（编译时）+ `LexicalEnvironment`（调用时实例化） |
-| 执行上下文 | 函数调用时（动态） | 存储变量值、管理 this | 调用栈上的 Context 对象 |
+| 概念       | 确定时机           | 作用                  | V8 数据结构                                                 |
+| ---------- | ------------------ | --------------------- | ----------------------------------------------------------- |
+| 词法作用域 | 代码编译时（静态） | 确定变量可见范围      | `ScopeInfo`（编译时）+ `LexicalEnvironment`（调用时实例化） |
+| 执行上下文 | 函数调用时（动态） | 存储变量值、管理 this | 调用栈上的 Context 对象                                     |
 
 作用域是"在哪里可以找到变量"的静态规则，执行上下文是"运行时真正去哪里找"的动态过程。闭包存在，是因为执行上下文销毁了，但词法环境（作用域）还被引用着。
 
@@ -184,8 +180,10 @@ fn(); // 输出 1，不是 2
 ---
 
 **本系列其他文章：**
+
 - 上一篇：[1 + "2" 的计算过程与底层解析](/posts/v8-10/)
 - 下一篇：[惰性解析与闭包：V8 的按需编译策略](/posts/v8-11/)
 
 **相关主题：**
+
 - 函数调用与调用栈：[函数是如何变得可调用的](/posts/v8-02/)
