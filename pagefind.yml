@@ -1,0 +1,29 @@
+# Pagefind 配置文件
+# 文档: https://pagefind.app/docs/config-options/
+
+# 源目录
+site: dist
+
+# 输出目录
+output_subdir: pagefind
+
+# 强制使用中文
+force_language: zh-cn
+
+# 根选择器 - 只索引文章内容
+root_selector: body
+
+# 排除选择器 - 不索引这些元素
+exclude_selectors:
+  - "nav"
+  - "footer"
+  - ".skip-link"
+  - ".toc-container"
+  - ".code-header"
+  - "[aria-hidden='true']"
+
+# 保留索引属性
+keep_index_url: false
+
+# 日志级别
+verbose: false

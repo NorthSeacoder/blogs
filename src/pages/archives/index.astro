@@ -1,11 +1,10 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import CodeWindow from '../../components/CodeWindow.astro';
-import Icon from '../../components/Icon.astro';
 import { getCollection } from 'astro:content';
-import { filterDrafts, sortPosts, format } from '../../lib/utils';
+import { filterContentPosts, filterDrafts, sortPosts, format } from '../../lib/utils';
 
-const posts = sortPosts(filterDrafts(await getCollection('blog')));
+const posts = filterContentPosts(sortPosts(filterDrafts(await getCollection('blog'))));
 const archives = posts.reduce<Record<string, typeof posts>>((acc, post) => {
   const key = `${post.data.pubDate.getUTCFullYear()}-${String(post.data.pubDate.getUTCMonth() + 1).padStart(2, '0')}`;
   acc[key] = acc[key] ? [...acc[key], post] : [post];
@@ -15,7 +14,7 @@ const groups = Object.entries(archives).sort(([a], [b]) => (a > b ? -1 : 1));
 ---
 
 <BaseLayout title="归档" description="按年月查看文章归档。">
-  <div class="animate-fade-in max-w-3xl mx-auto">
+  <div class="animate-fade-in mx-auto max-w-3xl">
     <!-- 页面标题 -->
     <div class="mb-6">
       <h1 class="font-mono text-sm text-[var(--color-text-secondary)]">
@@ -32,38 +31,103 @@ const groups = Object.entries(archives).sort(([a], [b]) => (a > b ? -1 : 1));
     <CodeWindow filename="timeline.ts">
       <div class="font-mono text-sm leading-relaxed">
         <p class="syntax-comment">// 按时间线浏览</p>
-        <p class="mt-2"><span class="syntax-keyword">const</span><span class="syntax-variable">&nbsp;archives</span><span class="text-[var(--color-text-primary)]">&nbsp;=&nbsp;{'{'}</span></p>
+        <p class="mt-2">
+          <span class="syntax-keyword">const</span><span class="syntax-variable"
+            >&nbsp;archives</span
+          ><span class="text-[var(--color-text-primary)]">&nbsp;=&nbsp;{'{'}</span>
+        </p>
 
-        {groups.length > 0 ? (
-          groups.map(([month, monthPosts], groupIndex) => (
-            <div class="pl-4 py-2">
-              <p>
-                <span class="syntax-string">"{month}"</span>
-                <span class="text-[var(--color-text-primary)]">:&nbsp;[</span>
-                <span class="text-[var(--color-text-muted)]">&nbsp;// {monthPosts.length} 篇</span>
-              </p>
-              {monthPosts.map((post, index) => (
-                <p class="pl-4">
-                  <span class="text-[var(--color-text-primary)]">{'{'}&nbsp;</span>
-                  <span class="syntax-variable">title</span>
-                  <span class="text-[var(--color-text-primary)]">:&nbsp;</span>
-                  <a href={`/posts/${post.slug}/`} class="syntax-string hover:underline">"{post.data.title}"</a>
-                  <span class="text-[var(--color-text-primary)]">,&nbsp;</span>
-                  <span class="syntax-variable">date</span>
-                  <span class="text-[var(--color-text-primary)]">:&nbsp;</span>
-                  <span class="syntax-string">"{format.date(post.data.pubDate)}"</span>
-                  <span class="text-[var(--color-text-primary)]">&nbsp;{'}'}{index < monthPosts.length - 1 ? ',' : ''}</span>
+        {
+          groups.length > 0 ? (
+            groups.map(([month, monthPosts], groupIndex) => (
+              <div class="py-2 pl-4">
+                <p>
+                  <span class="syntax-string">"{month}"</span>
+                  <span class="text-[var(--color-text-primary)]">:&nbsp;[</span>
+                  <span class="text-[var(--color-text-muted)]">
+                    &nbsp;// {monthPosts.length} 篇
+                  </span>
                 </p>
-              ))}
-              <p class="text-[var(--color-text-primary)]">]{groupIndex < groups.length - 1 ? ',' : ''}</p>
-            </div>
-          ))
-        ) : (
-          <p class="pl-4 syntax-comment">// 暂无文章归档</p>
-        )}
+                {monthPosts.map((post, index) => (
+                  <div class="py-1 pl-4" data-archive-entry>
+                    <div class="min-w-0 overflow-hidden whitespace-nowrap" data-archive-single>
+                      <span class="text-[var(--color-text-primary)]">{'{'}&nbsp;</span>
+                      <span class="syntax-variable">title</span>
+                      <span class="text-[var(--color-text-primary)]">:&nbsp;</span>
+                      <a href={`/posts/${post.slug}/`} class="syntax-string hover:underline">
+                        "{post.data.title}"
+                      </a>
+                      <span class="text-[var(--color-text-primary)]">,&nbsp;</span>
+                      <span class="syntax-variable">date</span>
+                      <span class="text-[var(--color-text-primary)]">:&nbsp;</span>
+                      <span class="syntax-string">"{format.date(post.data.pubDate)}"</span>
+                      <span class="text-[var(--color-text-primary)]">
+                        &nbsp;{'}'}
+                        {index < monthPosts.length - 1 ? ',' : ''}
+                      </span>
+                    </div>
 
-        <p class="text-[var(--color-text-primary)]">{'}'}</span><span class="text-[var(--color-text-primary)]">;</span></p>
+                    <div class="hidden" data-archive-multi>
+                      <div class="text-[var(--color-text-primary)]">{'{'}</div>
+                      <div class="min-w-0 pl-4">
+                        <span class="syntax-variable">title</span>
+                        <span class="text-[var(--color-text-primary)]">:&nbsp;</span>
+                        <a
+                          href={`/posts/${post.slug}/`}
+                          class="syntax-string break-words hover:underline"
+                        >
+                          "{post.data.title}"
+                        </a>
+                        <span class="text-[var(--color-text-primary)]">,</span>
+                      </div>
+                      <div class="pl-4 whitespace-nowrap">
+                        <span class="syntax-variable">date</span>
+                        <span class="text-[var(--color-text-primary)]">:&nbsp;</span>
+                        <span class="syntax-string">"{format.date(post.data.pubDate)}"</span>
+                      </div>
+                      <div class="text-[var(--color-text-primary)]">
+                        <span class="text-[var(--color-text-primary)]">
+                          {'}'}
+                          {index < monthPosts.length - 1 ? ',' : ''}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <p class="text-[var(--color-text-primary)]">
+                  ]{groupIndex < groups.length - 1 ? ',' : ''}
+                </p>
+              </div>
+            ))
+          ) : (
+            <p class="syntax-comment pl-4">// 暂无文章归档</p>
+          )
+        }
+
+        <p class="text-[var(--color-text-primary)]">{'}'};</p>
       </div>
     </CodeWindow>
   </div>
+
+  <script is:inline>
+    (() => {
+      const syncArchiveEntryLayouts = () => {
+        document.querySelectorAll('[data-archive-entry]').forEach((entry) => {
+          const single = entry.querySelector('[data-archive-single]');
+          const multi = entry.querySelector('[data-archive-multi]');
+
+          if (!(single instanceof HTMLElement) || !(multi instanceof HTMLElement)) return;
+
+          const shouldWrap = single.scrollWidth > single.clientWidth;
+          single.classList.toggle('hidden', shouldWrap);
+          multi.classList.toggle('hidden', !shouldWrap);
+        });
+      };
+
+      syncArchiveEntryLayouts();
+      window.addEventListener('load', syncArchiveEntryLayouts);
+      window.addEventListener('resize', syncArchiveEntryLayouts, { passive: true });
+      document.fonts?.ready?.then(syncArchiveEntryLayouts);
+    })();
+  </script>
 </BaseLayout>

@@ -1,0 +1,353 @@
+<!DOCTYPE html><html lang="zh-CN" class="min-h-full"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Astro v5.16.5"><!-- 防闪烁脚本：在 DOM 解析前执行 --><script>
+      (function () {
+        const STORAGE_KEY = 'theme';
+        const stored = localStorage.getItem(STORAGE_KEY);
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        // 根据存储值或系统偏好设置主题
+        if (stored === 'dark' || (stored === 'system' && prefersDark) || (!stored && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      })();
+    </script><!-- 字体预加载 --><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"><title>我不知道的 VSCode 扩展（03）— Webview 与 Output Channel | ?.log</title><meta name="description" content="上一篇介绍的菜单和树视图能覆盖大部分交互场景，但它们有一个共同的限制——只能展示 VSCode 预定义的 UI 组件。如果需要一个表单、一个图表、一个富文本编辑器，TreeView 就无能为力了。"><meta name="keywords" content="VSCode 扩展, 我不知道的, Webview, Output Channel, CSP, 消息通信"><link rel="canonical" href="https://example.com/posts/vscode-extension-03/"><link rel="alternate" type="application/rss+xml" title="RSS" href="/rss.xml"><meta property="og:title" content="我不知道的 VSCode 扩展（03）— Webview 与 Output Channel | ?.log"><meta property="og:description" content="上一篇介绍的菜单和树视图能覆盖大部分交互场景，但它们有一个共同的限制——只能展示 VSCode 预定义的 UI 组件。如果需要一个表单、一个图表、一个富文本编辑器，TreeView 就无能为力了。"><meta property="og:type" content="article"><meta property="og:url" content="https://example.com/posts/vscode-extension-03/"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="我不知道的 VSCode 扩展（03）— Webview 与 Output Channel | ?.log"><meta name="twitter:description" content="上一篇介绍的菜单和树视图能覆盖大部分交互场景，但它们有一个共同的限制——只能展示 VSCode 预定义的 UI 组件。如果需要一个表单、一个图表、一个富文本编辑器，TreeView 就无能为力了。"><script type="application/ld+json">{JSON.stringify(jsonLd)}</script><link rel="stylesheet" href="/_astro/index.sfjfXeKE.css">
+<link rel="stylesheet" href="/_astro/_slug_.KigR83JL.css"></head> <body class="flex min-h-screen flex-col"> <!-- 跳过链接 --> <a href="#main" class="skip-link">跳到主要内容</a> <!-- 导航栏 - VSCode 标签页风格 --> <header class="
+        fixed inset-x-0 top-0 z-50
+        bg-[var(--color-titlebar)]
+        border-b border-[var(--color-border)]
+        transition-colors duration-200
+      "> <div class="main-container flex h-12 items-center justify-between"> <!-- Logo - 终端风格 --> <a href="/" class="
+            flex items-center gap-2
+            font-mono text-sm font-medium
+            text-[var(--color-text-primary)]
+            transition-opacity hover:opacity-80
+          "> <span class="text-[var(--color-accent)]">~/</span> <span>?.log</span> <span class="text-[var(--color-comment)]">$</span> </a> <!-- 导航标签页 --> <div class="flex items-center"> <nav aria-label="主导航" class="flex items-center"> <a href="/" class="tab font-mono text-xs"> 首页 </a><a href="/posts/" class="tab font-mono text-xs active" aria-current="page"> 文章 </a><a href="/series/" class="tab font-mono text-xs"> 系列 </a><a href="/tags/" class="tab font-mono text-xs"> 标签 </a><a href="/archives/" class="tab font-mono text-xs"> 归档 </a><a href="/about/" class="tab font-mono text-xs"> 关于 </a> </nav> <!-- 工具栏按钮组 --> <div class="flex items-center gap-1 ml-2"> <!-- 搜索按钮 --> <a href="/search/" class="
+                flex items-center justify-center
+                h-7 w-7 rounded
+                text-[var(--color-text-secondary)]
+                bg-[var(--color-surface)]
+                border border-[var(--color-border)]
+                transition-colors
+                hover:bg-[var(--color-surface-hover)]
+                hover:text-[var(--color-text-primary)]
+              " aria-label="搜索" title="搜索 (⌘K)"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:search">   <symbol id="ai:lucide:search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m21 21l-4.34-4.34"/><circle cx="11" cy="11" r="8"/></g></symbol><use href="#ai:lucide:search"></use>  </svg> </a> <!-- 主题切换 --> <button id="theme-toggle" type="button" aria-label="切换主题" class="
+    relative flex h-7 w-7 items-center justify-center
+    rounded
+    bg-[var(--color-surface)]
+    border border-[var(--color-border)]
+    text-[var(--color-text-secondary)]
+    transition-colors
+    hover:bg-[var(--color-surface-hover)]
+    hover:text-[var(--color-text-primary)]
+    focus:outline-none
+  " data-astro-cid-x3pjskd3> <!-- 太阳图标 (亮色模式) --> <svg id="icon-sun" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" data-astro-cid-x3pjskd3></path> </svg> <!-- 月亮图标 (暗色模式) --> <svg id="icon-moon" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" data-astro-cid-x3pjskd3></path> </svg> <!-- 系统图标 (跟随系统) --> <svg id="icon-system" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" data-astro-cid-x3pjskd3></path> </svg> </button> <script type="module">const m="theme",s=["light","dark","system"];function r(){if(typeof localStorage>"u")return"system";const e=localStorage.getItem(m);return s.includes(e)?e:"system"}function l(){return typeof window>"u"?"light":window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}function u(e){return e==="system"?l():e}function d(e){const n=u(e),t=document.documentElement;n==="dark"?t.classList.add("dark"):t.classList.remove("dark"),f(e)}function f(e){const n=document.getElementById("icon-sun"),t=document.getElementById("icon-moon"),o=document.getElementById("icon-system");if(!n||!t||!o)return;[n,t,o].forEach(i=>{i.style.opacity="0",i.style.transform="scale(0.5) rotate(-180deg)"});let c;switch(e){case"light":c=n;break;case"dark":c=t;break;default:c=o}requestAnimationFrame(()=>{c.style.opacity="1",c.style.transform="scale(1) rotate(0deg)"})}function g(){const e=r(),t=(s.indexOf(e)+1)%s.length,o=s[t];localStorage.setItem(m,o),d(o)}function a(){const e=r();d(e),document.getElementById("theme-toggle")?.addEventListener("click",g),window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{r()==="system"&&d("system")})}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",a):a();document.addEventListener("astro:after-swap",a);</script>  </div> </div> </div> </header> <!-- 主内容区 --> <main id="main" class="main-container-wide flex-1 pb-16 pt-20">   <div class="reading-progress-container" aria-hidden="true" data-astro-cid-mu6cnre2> <div class="reading-progress-bar" id="reading-progress" data-astro-cid-mu6cnre2></div> </div> <script type="module">function a(){const e=document.getElementById("reading-progress"),n=document.querySelector("article");if(!e||!n)return;function o(){const r=n.getBoundingClientRect(),s=r.top+window.scrollY,l=r.height,i=window.innerHeight,d=window.scrollY,c=s-i/2,g=s+l-i/2,u=Math.min(Math.max((d-c)/(g-c),0),1);e.style.transform=`scaleX(${u})`}let t=!1;window.addEventListener("scroll",()=>{t||(requestAnimationFrame(()=>{o(),t=!1}),t=!0)}),o()}a();document.addEventListener("astro:after-swap",a);</script>   <div class="relative lg:grid lg:grid-cols-[1fr_220px] lg:gap-8 xl:grid-cols-[1fr_260px]"> <article class="animate-fade-in min-w-0"> <!-- 文章头部 --> <header class="mb-8"> <!-- 返回链接 --> <a href="/posts/" class="
+            group mb-6 inline-flex items-center gap-2
+            text-sm font-medium text-text-secondary
+            transition-colors hover:text-accent
+          "> <svg width="1em" height="1em" class="transition-transform group-hover:-translate-x-1" style="width: 1rem; height: 1rem;" data-icon="lucide:arrow-left">   <symbol id="ai:lucide:arrow-left" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m12 19l-7-7l7-7m7 7H5"/></symbol><use href="#ai:lucide:arrow-left"></use>  </svg> <span>返回文章列表</span> </a> <!-- 元信息 --> <div class="mb-4 flex flex-wrap items-center gap-4 text-sm text-text-secondary"> <!-- 发布日期 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:calendar">   <symbol id="ai:lucide:calendar" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M8 2v4m8-4v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></g></symbol><use href="#ai:lucide:calendar"></use>  </svg> <time datetime="2024-03-15T00:00:00.000Z"> 2024年3月15日 </time> </div> <!-- 阅读时间 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:clock">   <symbol id="ai:lucide:clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="10"/></g></symbol><use href="#ai:lucide:clock"></use>  </svg> <span>8 min read</span> </div> <!-- 更新日期 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:refresh-cw">   <symbol id="ai:lucide:refresh-cw" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9a9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5m5 4a9 9 0 0 1-9 9a9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></g></symbol><use href="#ai:lucide:refresh-cw"></use>  </svg> <span>更新于 2026年3月6日</span> </div> </div> <div class="mb-4 flex flex-wrap items-center gap-2 font-mono text-xs"> <a href="/series/VSCode%20%E6%89%A9%E5%B1%95/" class="
+                  inline-flex items-center gap-1 rounded px-2 py-1
+                  bg-[var(--color-accent)]/10 text-[var(--color-accent)]
+                  transition-colors hover:bg-[var(--color-accent)]/15
+                "> <svg width="1em" height="1em" class style="width: 0.75rem; height: 0.75rem;" data-icon="lucide:folder">   <symbol id="ai:lucide:folder" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol><use href="#ai:lucide:folder"></use>  </svg> <span>我不知道的 VSCode 扩展</span> </a> </div> <!-- 标题 --> <h1 class="text-3xl font-bold leading-tight text-text-primary sm:text-4xl"> 我不知道的 VSCode 扩展（03）— Webview 与 Output Channel </h1> <!-- 描述 --> <p class="mt-4 text-lg leading-relaxed text-text-secondary"> 上一篇介绍的菜单和树视图能覆盖大部分交互场景，但它们有一个共同的限制——只能展示 VSCode 预定义的 UI 组件。如果需要一个表单、一个图表、一个富文本编辑器，TreeView 就无能为力了。 </p> <!-- 标签 --> <div class="mt-6 flex flex-wrap gap-2 font-mono text-xs" aria-label="标签"> <a href="/tags/VSCode~20~E6~89~A9~E5~B1~95/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"VSCode 扩展"</span> </a><a href="/tags/~E6~88~91~E4~B8~8D~E7~9F~A5~E9~81~93~E7~9A~84/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"我不知道的"</span> </a><a href="/tags/Webview/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"Webview"</span> </a><a href="/tags/Output~20Channel/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"Output Channel"</span> </a><a href="/tags/CSP/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"CSP"</span> </a><a href="/tags/~E6~B6~88~E6~81~AF~E9~80~9A~E4~BF~A1/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"消息通信"</span> </a> </div> </header> <!-- 封面图 -->  <!-- 文章内容 --> <div class="
+          prose prose-lg
+          prose-headings:font-bold
+          prose-a:text-accent prose-a:no-underline hover:prose-a:underline
+          prose-img:rounded prose-img:shadow-lg
+          prose-code:before:content-none prose-code:after:content-none
+          max-w-none
+        "> <h1 id="我不知道的-vscode-扩展03-webview-与-output-channel"><a href="#我不知道的-vscode-扩展03-webview-与-output-channel">我不知道的 VSCode 扩展（03）— Webview 与 Output Channel</a></h1>
+<h2 id="一当-treeview-不够用的时候"><a href="#一当-treeview-不够用的时候">一、当 TreeView 不够用的时候</a></h2>
+<p>上一篇介绍的菜单和树视图能覆盖大部分交互场景，但它们有一个共同的限制——<strong>只能展示 VSCode 预定义的 UI 组件</strong>。如果需要一个表单、一个图表、一个富文本编辑器，TreeView 就无能为力了。</p>
+<p>这时候就需要 Webview——<strong>在 VSCode 内部嵌入一个完整的网页</strong>。Settings Sync、GitLens 的欢迎页面、Copilot Chat 的交互界面，底层都是 Webview。</p>
+<p>而 Output Channel 则是另一端：不需要复杂 UI，只是想输出日志和状态信息。</p>
+<h2 id="二webview在编辑器里跑一个网页"><a href="#二webview在编辑器里跑一个网页">二、Webview：在编辑器里跑一个网页</a></h2>
+<h3 id="创建-webview"><a href="#创建-webview">创建 Webview</a></h3>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="typescript"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> *</span><span style="color:#D73A49;--shiki-dark:#F97583"> as</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> vscode </span><span style="color:#D73A49;--shiki-dark:#F97583">from</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> &#39;vscode&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">export</span><span style="color:#D73A49;--shiki-dark:#F97583"> function</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> activate</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#E36209;--shiki-dark:#FFAB70">context</span><span style="color:#D73A49;--shiki-dark:#F97583">:</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> vscode</span><span style="color:#24292E;--shiki-dark:#E1E4E8">.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">ExtensionContext</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  let</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> disposable </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> vscode.commands.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">registerCommand</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;my-ext.openPanel&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, () </span><span style="color:#D73A49;--shiki-dark:#F97583">=&gt;</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> panel</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> vscode.window.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">createWebviewPanel</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      &#39;myPanel&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      &#39;My Panel&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">      vscode.ViewColumn.One,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">      {</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        enableScripts: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">        retainContextWhenHidden: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">      }</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    );</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    panel.webview.html </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> getHtml</span><span style="color:#24292E;--shiki-dark:#E1E4E8">();</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  });</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  context.subscriptions.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">push</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(disposable);</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">function</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> getHtml</span><span style="color:#24292E;--shiki-dark:#E1E4E8">()</span><span style="color:#D73A49;--shiki-dark:#F97583">:</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> string</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  return</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> `&lt;!DOCTYPE html&gt;</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">&lt;html lang=&quot;zh&quot;&gt;</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">&lt;head&gt;</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  &lt;meta charset=&quot;UTF-8&quot;&gt;</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  &lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot;&gt;</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  &lt;title&gt;My Panel&lt;/title&gt;</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">&lt;/head&gt;</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">&lt;body&gt;</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  &lt;h1&gt;Hello from Webview&lt;/h1&gt;</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  &lt;button id=&quot;btn&quot;&gt;Send to Extension&lt;/button&gt;</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  &lt;script&gt;</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">    const vscode = acquireVsCodeApi();</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">    document.getElementById(&#39;btn&#39;).addEventListener(&#39;click&#39;, () =&gt; {</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      vscode.postMessage({ type: &#39;clicked&#39;, value: 42 });</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">    });</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  &lt;/script&gt;</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">&lt;/body&gt;</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">&lt;/html&gt;`</span><span style="color:#24292E;--shiki-dark:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<p><code>createWebviewPanel</code> 的参数：</p>
+<p><strong><code>viewType</code></strong>（第一个参数）— Webview 的类型标识，用于序列化/反序列化。</p>
+<p><strong><code>title</code></strong> — 面板标题栏显示的文字。</p>
+<p><strong><code>showOptions</code></strong> — 面板显示位置。<code>ViewColumn.One</code> 是第一列，<code>ViewColumn.Beside</code> 在当前编辑器旁边打开。</p>
+<p><strong><code>options</code></strong> 对象中有两个重要开关：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>选项</th><th>默认值</th><th>作用</th></tr></thead><tbody><tr><td><code>enableScripts</code></td><td><code>false</code></td><td>是否允许运行 JavaScript</td></tr><tr><td><code>retainContextWhenHidden</code></td><td><code>false</code></td><td>面板切换到后台时是否保持状态</td></tr></tbody></table>
+<p>这里有一个很多人会忽略的细节——<strong><code>retainContextWhenHidden</code> 为 <code>false</code> 时，Webview 切到后台就会被销毁，切回来时重新创建</strong>。如果 Webview 里有用户填写的表单数据，不设 <code>true</code> 的话切个标签就丢了。但设为 <code>true</code> 会增加内存占用，所以只在确实需要时才开启。</p>
+<h3 id="webview-与扩展的双向通信"><a href="#webview-与扩展的双向通信">Webview 与扩展的双向通信</a></h3>
+<p>Webview 运行在一个隔离的 iframe 中，和扩展代码在不同的执行环境里。两者之间只能通过消息传递通信，很像 <code>window.postMessage</code> 的模式。</p>
+<p><strong>Webview → 扩展：</strong></p>
+<p>Webview 端调用 <code>acquireVsCodeApi()</code> 获取通信对象，然后用 <code>vscode.postMessage()</code> 发消息：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="javascript"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> vscode</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> acquireVsCodeApi</span><span style="color:#24292E;--shiki-dark:#E1E4E8">();</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">vscode.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">postMessage</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({ type: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;save&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, data: formData });</span></span></code></pre>
+<p>扩展端监听：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="typescript"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">panel.webview.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">onDidReceiveMessage</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  (</span><span style="color:#E36209;--shiki-dark:#FFAB70">message</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) </span><span style="color:#D73A49;--shiki-dark:#F97583">=&gt;</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    if</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> (message.type </span><span style="color:#D73A49;--shiki-dark:#F97583">===</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> &#39;save&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">      // 处理保存逻辑</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    }</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  },</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  undefined</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  context.subscriptions</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span></code></pre>
+<p><strong>扩展 → Webview：</strong></p>
+<p>扩展端用 <code>panel.webview.postMessage()</code> 发消息：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="typescript"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">panel.webview.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">postMessage</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({ type: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;update&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, data: newData });</span></span></code></pre>
+<p>Webview 端监听：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="javascript"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">window.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">addEventListener</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;message&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, (</span><span style="color:#E36209;--shiki-dark:#FFAB70">event</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) </span><span style="color:#D73A49;--shiki-dark:#F97583">=&gt;</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> message</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> event.data;</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  if</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> (message.type </span><span style="color:#D73A49;--shiki-dark:#F97583">===</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> &#39;update&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">    renderData</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(message.data);</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">});</span></span></code></pre>
+<p>换句话说，双方的通信模型是完全对称的——都是 <code>postMessage</code> + 事件监听。消息内容必须是可序列化的 JSON 对象。</p>
+<h3 id="安全性csp-和-localresourceroots"><a href="#安全性csp-和-localresourceroots">安全性：CSP 和 localResourceRoots</a></h3>
+<p>Webview 默认禁止加载外部资源和执行内联脚本（即使 <code>enableScripts</code> 为 <code>true</code>）。这是通过 Content Security Policy（CSP）实现的。</p>
+<p>如果需要加载本地的 CSS、JS 文件（比如打包好的 React 应用），需要两步：</p>
+<p><strong>（1）配置 <code>localResourceRoots</code></strong>，告诉 VSCode 允许从哪些目录加载资源：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="typescript"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> panel</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> vscode.window.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">createWebviewPanel</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  &#39;myPanel&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  &#39;My Panel&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  vscode.ViewColumn.One,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  {</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    enableScripts: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    localResourceRoots: [</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">      vscode.Uri.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">joinPath</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(context.extensionUri, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;media&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">),</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    ],</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span></code></pre>
+<p><strong>（2）使用 <code>asWebviewUri</code> 转换路径</strong>。本地文件路径不能直接在 Webview 中使用，需要转成 Webview 专用的 URI：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="typescript"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> scriptUri</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> panel.webview.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">asWebviewUri</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  vscode.Uri.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">joinPath</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(context.extensionUri, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;media&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;main.js&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">)</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">panel.webview.html </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> `&lt;!DOCTYPE html&gt;</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">&lt;html&gt;</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">&lt;head&gt;</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  &lt;meta http-equiv=&quot;Content-Security-Policy&quot;</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">    content=&quot;default-src &#39;none&#39;; script-src ${</span><span style="color:#24292E;--shiki-dark:#E1E4E8">panel</span><span style="color:#032F62;--shiki-dark:#9ECBFF">.</span><span style="color:#24292E;--shiki-dark:#E1E4E8">webview</span><span style="color:#032F62;--shiki-dark:#9ECBFF">.</span><span style="color:#24292E;--shiki-dark:#E1E4E8">cspSource</span><span style="color:#032F62;--shiki-dark:#9ECBFF">};&quot;&gt;</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">&lt;/head&gt;</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">&lt;body&gt;</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  &lt;script src=&quot;${</span><span style="color:#24292E;--shiki-dark:#E1E4E8">scriptUri</span><span style="color:#032F62;--shiki-dark:#9ECBFF">}&quot;&gt;&lt;/script&gt;</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">&lt;/body&gt;</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">&lt;/html&gt;`</span><span style="color:#24292E;--shiki-dark:#E1E4E8">;</span></span></code></pre>
+<p><code>cspSource</code> 属性返回 Webview 的 CSP 源标识，用在 <code>Content-Security-Policy</code> 头中，确保只有来自合法源的脚本能执行。</p>
+<p><strong>不配置 CSP 也能跑，但等于没有安全防护。</strong> 一旦 Webview 加载了不可信的内容（比如渲染用户提供的 HTML），就可能被 XSS 攻击。</p>
+<h2 id="三output-channel轻量的日志输出"><a href="#三output-channel轻量的日志输出">三、Output Channel：轻量的日志输出</a></h2>
+<p>不是所有信息都值得用 Webview 展示。对于日志、状态信息、调试输出，Output Channel 是更合适的选择——就是 VSCode 底部”输出”面板中的那些通道。</p>
+<h3 id="基本用法"><a href="#基本用法">基本用法</a></h3>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="typescript"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">export</span><span style="color:#D73A49;--shiki-dark:#F97583"> function</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> activate</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#E36209;--shiki-dark:#FFAB70">context</span><span style="color:#D73A49;--shiki-dark:#F97583">:</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> vscode</span><span style="color:#24292E;--shiki-dark:#E1E4E8">.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">ExtensionContext</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> output</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> vscode.window.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">createOutputChannel</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;My Extension&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  output.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">appendLine</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;Extension activated&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  output.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">appendLine</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">`Workspace: ${</span><span style="color:#24292E;--shiki-dark:#E1E4E8">vscode</span><span style="color:#032F62;--shiki-dark:#9ECBFF">.</span><span style="color:#24292E;--shiki-dark:#E1E4E8">workspace</span><span style="color:#032F62;--shiki-dark:#9ECBFF">.</span><span style="color:#24292E;--shiki-dark:#E1E4E8">rootPath</span><span style="color:#032F62;--shiki-dark:#9ECBFF">}`</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">  // 需要时显示输出面板</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  output.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">show</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  context.subscriptions.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">push</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(output);</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<p><code>createOutputChannel</code> 创建一个命名的输出通道，用户可以在”输出”面板的下拉菜单中切换不同的通道。</p>
+<p>核心方法只有几个：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>方法</th><th>作用</th></tr></thead><tbody><tr><td><code>append(text)</code></td><td>追加文本，不换行</td></tr><tr><td><code>appendLine(text)</code></td><td>追加文本并换行</td></tr><tr><td><code>clear()</code></td><td>清空通道内容</td></tr><tr><td><code>show(preserveFocus?)</code></td><td>显示输出面板。<code>true</code> = 焦点留在编辑器</td></tr><tr><td><code>dispose()</code></td><td>销毁通道</td></tr></tbody></table>
+<h3 id="logoutputchannel带日志级别的输出通道"><a href="#logoutputchannel带日志级别的输出通道">LogOutputChannel：带日志级别的输出通道</a></h3>
+<p>从 VSCode 1.74 开始，<code>createOutputChannel</code> 支持第二个参数传入 <code>{ log: true }</code>，创建一个 <code>LogOutputChannel</code>：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="typescript"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> logger</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> vscode.window.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">createOutputChannel</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;My Extension&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, { log: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">true</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> });</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">logger.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">info</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;Extension started&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">logger.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">warn</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;Config not found, using defaults&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">logger.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">error</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;Failed to connect&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">logger.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">debug</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;Request payload: ...&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span></code></pre>
+<p><code>LogOutputChannel</code> 和普通 <code>OutputChannel</code> 的区别在于：每条日志自动带<strong>时间戳和级别标签</strong>，用户可以在输出面板中按级别过滤。</p>
+<p>说白了，<code>OutputChannel</code> 是 <code>console.log</code> 的升级版，<code>LogOutputChannel</code> 是 <code>winston</code> / <code>pino</code> 的轻量替代。对于扩展开发来说，大多数场景用 <code>LogOutputChannel</code> 就够了。</p>
+<h2 id="四webview-vs-output-channel怎么选"><a href="#四webview-vs-output-channel怎么选">四、Webview vs Output Channel：怎么选</a></h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>场景</th><th>推荐</th><th>原因</th></tr></thead><tbody><tr><td>展示复杂 UI（表单、图表、预览）</td><td>Webview</td><td>需要自定义渲染</td></tr><tr><td>输出日志和调试信息</td><td>Output Channel</td><td>轻量、原生集成</td></tr><tr><td>实时展示构建/编译状态</td><td>Output Channel</td><td>流式追加，无需刷新</td></tr><tr><td>可视化配置编辑器</td><td>Webview</td><td>需要表单交互</td></tr><tr><td>扩展运行状态监控</td><td>状态栏 + Output Channel</td><td>状态栏显示摘要，Output Channel 显示详情</td></tr></tbody></table>
+<p>问题的关键在于——<strong>Webview 的成本远高于 Output Channel</strong>。每个 Webview 本质上是一个独立的 Chromium 渲染进程，内存开销在 30-100MB 级别。如果只是输出文本信息，用 Webview 就是杀鸡用牛刀。</p>
+<hr/>
+<p><strong>本系列其他文章：</strong></p>
+<ul>
+<li>上一篇：<a href="/posts/vscode-extension-02/">菜单、视图与状态栏</a></li>
+<li>下一篇：<a href="/posts/vscode-extension-04/">API 全景与实战技巧</a></li>
+</ul>
+<p><strong>延伸阅读：</strong></p>
+<ul>
+<li><a href="https://code.visualstudio.com/api/extension-guides/webview">Webview API 指南</a></li>
+<li><a href="https://github.com/microsoft/vscode-webview-ui-toolkit">vscode-webview-ui-toolkit</a>（微软官方 Webview UI 组件库）</li>
+</ul> </div> <!-- 文章底部 --> <footer class="mt-12 border-t border-border pt-8"> <!-- 分享提示 --> <div class="code-window"> <div class="code-window-titlebar"> <span class="flex-1 text-center font-mono text-xs text-[var(--color-text-secondary)]">share.ts</span> </div> <div class="p-4 font-mono text-sm"> <p class="syntax-comment">// 觉得这篇文章有帮助？</p> <p class="syntax-comment">// 欢迎分享给更多人</p> <p class="mt-4"> <span class="syntax-keyword">export const</span> <span class="syntax-variable">&nbsp;subscribe</span> <span class="text-[var(--color-text-primary)]">&nbsp;=&nbsp;</span> <a href="/rss.xml" class="syntax-string hover:underline">"/rss.xml"</a> <span class="text-[var(--color-text-primary)]">;</span> </p> </div> </div> </footer> </article> <!-- TOC 侧边栏 - 仅在大屏幕显示 --> <aside class="hidden lg:block"> <nav class="toc-container" aria-label="文章目录" data-astro-cid-xvrfupwn><div class="toc-header" data-astro-cid-xvrfupwn><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-xvrfupwn><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7" data-astro-cid-xvrfupwn></path></svg><span data-astro-cid-xvrfupwn>目录</span></div><ul class="toc-list" data-astro-cid-xvrfupwn><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#一当-treeview-不够用的时候" class="toc-link" data-slug="一当-treeview-不够用的时候" data-astro-cid-xvrfupwn>一、当 TreeView 不够用的时候</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#二webview在编辑器里跑一个网页" class="toc-link" data-slug="二webview在编辑器里跑一个网页" data-astro-cid-xvrfupwn>二、Webview：在编辑器里跑一个网页</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#创建-webview" class="toc-link" data-slug="创建-webview" data-astro-cid-xvrfupwn>创建 Webview</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#webview-与扩展的双向通信" class="toc-link" data-slug="webview-与扩展的双向通信" data-astro-cid-xvrfupwn>Webview 与扩展的双向通信</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#安全性csp-和-localresourceroots" class="toc-link" data-slug="安全性csp-和-localresourceroots" data-astro-cid-xvrfupwn>安全性：CSP 和 localResourceRoots</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#三output-channel轻量的日志输出" class="toc-link" data-slug="三output-channel轻量的日志输出" data-astro-cid-xvrfupwn>三、Output Channel：轻量的日志输出</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#基本用法" class="toc-link" data-slug="基本用法" data-astro-cid-xvrfupwn>基本用法</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#logoutputchannel带日志级别的输出通道" class="toc-link" data-slug="logoutputchannel带日志级别的输出通道" data-astro-cid-xvrfupwn>LogOutputChannel：带日志级别的输出通道</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#四webview-vs-output-channel怎么选" class="toc-link" data-slug="四webview-vs-output-channel怎么选" data-astro-cid-xvrfupwn>四、Webview vs Output Channel：怎么选</a></li></ul></nav><script type="module">function s(){const n=document.querySelectorAll(".toc-link"),c=document.querySelectorAll("article h2[id], article h3[id]");if(n.length===0||c.length===0)return;const i=new IntersectionObserver(t=>{t.forEach(o=>{if(o.isIntersecting){const r=o.target.getAttribute("id");n.forEach(e=>{e.classList.toggle("active",e.getAttribute("data-slug")===r)})}})},{rootMargin:"-80px 0px -80% 0px",threshold:0});c.forEach(t=>i.observe(t)),n.forEach(t=>{t.addEventListener("click",o=>{o.preventDefault();const r=t.getAttribute("data-slug"),e=document.getElementById(r||"");if(e){const a=e.getBoundingClientRect().top+window.scrollY-100;window.scrollTo({top:a,behavior:"smooth"})}})})}s();document.addEventListener("astro:after-swap",s);</script> </aside> </div>  <script type="module">function i(){document.querySelectorAll("pre:has(code)").forEach(t=>{if(t.querySelector(".code-header"))return;const s=t.querySelector("code");if(!s)return;const r=Array.from(s.classList).find(a=>a.startsWith("language-")),d=r?r.replace("language-",""):"text",c=document.createElement("div");c.className="code-header";const n=document.createElement("span");n.className="code-lang",n.textContent=d.toUpperCase();const e=document.createElement("button");e.className="code-copy-btn",e.setAttribute("aria-label","复制代码"),e.innerHTML=`
+        <svg class="copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </svg>
+        <svg class="check-icon hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      `,e.addEventListener("click",async()=>{const a=s.textContent||"";try{await navigator.clipboard.writeText(a),e.classList.add("copied"),e.querySelector(".copy-icon")?.classList.add("hidden"),e.querySelector(".check-icon")?.classList.remove("hidden"),setTimeout(()=>{e.classList.remove("copied"),e.querySelector(".copy-icon")?.classList.remove("hidden"),e.querySelector(".check-icon")?.classList.add("hidden")},2e3)}catch(l){console.error("复制失败:",l)}}),c.appendChild(n),c.appendChild(e);const o=document.createElement("div");o.className="code-block-wrapper",t.parentNode?.insertBefore(o,t),o.appendChild(c),o.appendChild(t)})}i();document.addEventListener("astro:after-swap",i);</script>   <button id="back-to-top" class="back-to-top" aria-label="返回顶部" title="返回顶部" data-astro-cid-wlspcwf4> <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-wlspcwf4> <path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" data-astro-cid-wlspcwf4></path> </svg> </button> <script type="module">function o(){const e=document.getElementById("back-to-top");if(!e)return;function i(){window.scrollY>400?e.classList.add("visible"):e.classList.remove("visible")}e.addEventListener("click",()=>{window.scrollTo({top:0,behavior:"smooth"})});let t=!1;window.addEventListener("scroll",()=>{t||(requestAnimationFrame(()=>{i(),t=!1}),t=!0)}),i()}o();document.addEventListener("astro:after-swap",o);</script>   </main> <!-- 页脚 - VSCode 状态栏风格 --> <footer class="
+        border-t border-[var(--color-border)]
+        bg-[var(--color-surface)]
+        py-6
+        text-xs font-mono text-[var(--color-text-secondary)]
+      "> <div class="main-container"> <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"> <!-- 版权信息 --> <p class="text-center sm:text-left"> <span class="syntax-comment">// </span> <span class="syntax-keyword">const</span> <span class="syntax-variable"> copyright</span> <span> = </span> <span class="syntax-string">"2026 NorthSeacoder"</span> </p> <!-- 链接 --> <div class="flex items-center justify-center gap-4 sm:justify-end"> <a href="/rss.xml" class="
+                flex items-center gap-1.5
+                transition-colors
+                hover:text-[var(--color-accent)]
+              " aria-label="RSS 订阅"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:rss">   <symbol id="ai:lucide:rss" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></g></symbol><use href="#ai:lucide:rss"></use>  </svg> <span>RSS</span> </a> <a href="https://github.com/NorthSeacoder" target="_blank" rel="noopener noreferrer" class="
+                flex items-center gap-1.5
+                transition-colors
+                hover:text-[var(--color-accent)]
+              " aria-label="GitHub"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:github">   <symbol id="ai:lucide:github" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5c.08-1.25-.27-2.48-1-3.5c.28-1.15.28-2.35 0-3.5c0 0-1 0-3 1.5c-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.4 5.4 0 0 0 4 9c0 3.5 3 5.5 6 5.5c-.39.49-.68 1.05-.85 1.65S8.93 17.38 9 18v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></g></symbol><use href="#ai:lucide:github"></use>  </svg> <span>GitHub</span> </a> </div> </div> </div> </footer> </body></html>

@@ -1,0 +1,196 @@
+---
+title: 我不知道的 V8（09）— 词法作用域与执行上下文：静态与动态的协作
+description: >-
+  "作用域"和"执行上下文"这两个概念，很多 JavaScript 开发者混用。它们不是同一个东西，但联系很紧密。更少有人知道的是，这两个概念在 V8
+  内部有具体的数据结构对应——理解这些结构，才能真正解释闭包的行为，以及变量查找为什么是这个顺序。
+subtitle: 词法作用域与执行上下文：静态与动态的协作
+pubDate: '2024-03-06'
+updatedDate: '2026-03-04'
+tags:
+  - V8
+  - 词法作用域
+  - 执行上下文
+  - ScopeInfo
+  - 闭包
+  - 作用域链
+lang: zh-CN
+keywords:
+  - V8
+  - 词法作用域
+  - 执行上下文
+  - ScopeInfo
+  - 闭包
+  - 作用域链
+topic: V8
+category: V8
+type: post
+series: V8
+seriesOrder: 9
+slug: v8-09
+model: claude-4.6-opus-high-thinking
+optimized_from: '012.我不知道的 V8:词法作用域的查找顺序与底层秘密.mdx + 014.我不知道的 V8:作用域与执行上下文的微妙关系.mdx'
+optimization_type: 合并
+style_version: 2026-03-03T00:00:00.000Z
+diagnosis:
+  style_conformity: 3
+  content_depth: 浅
+  topic_structure: 合并（012+014 主题相同，各自偏短）
+---
+# 我不知道的 V8（09）— 词法作用域与执行上下文：静态与动态的协作
+
+"作用域"和"执行上下文"这两个概念，很多 JavaScript 开发者混用。它们不是同一个东西，但联系很紧密。更少有人知道的是，这两个概念在 V8 内部有具体的数据结构对应——理解这些结构，才能真正解释闭包的行为，以及变量查找为什么是这个顺序。
+
+## 一、作用域：代码编写时就确定了
+
+很多人以为作用域和"函数在哪里被调用"有关，但实际上——JavaScript 使用的是**词法作用域（Lexical Scoping）**，变量的可见范围在代码写下来的那一刻就确定了，和调用位置没有任何关系。
+
+下面这段代码，你能说出 `inner` 会打印什么吗？
+
+```javascript
+const x = "global";
+
+function outer() {
+  const x = "outer";
+  function inner() {
+    console.log(x);
+  }
+  inner();
+}
+
+outer();
+```
+
+答案是 `"outer"`。`inner` 定义在 `outer` 内部，查找 `x` 时会先找到 `outer` 里的那个，而不是全局的 `"global"`。
+
+如果你只记住一句话：**变量归属在代码解析阶段就确定了，不受调用栈影响**。这和 Bash、早期 Perl 等"动态作用域"语言完全不同。
+
+## 二、执行上下文：运行时动态创建
+
+作用域是静态的，但代码终归要跑起来。每次函数被调用，V8 都会创建一个新的执行上下文，压入调用栈（Call Stack）。
+
+说白了，执行上下文就是函数运行时的"现场"——它里面有一份环境记录（Environment Record），存放该函数的局部变量（`let`/`const`/`var`）；有一个 `this` 绑定，记录当前 `this` 指向哪里；还有一条作用域链，指向外层词法环境的引用。
+
+这个"现场"是动态的：函数每次调用都创建新的，调用结束就销毁——除非有闭包把它拽住。
+
+## 三、两者的关系：静态蓝图 + 动态实例
+
+换句话说，作用域和执行上下文的关系，就像 TypeScript 的类型声明和运行时的对象实例——类型在编译期就定死了，描述"这段代码能访问哪些变量"；但真正的变量值，只有在运行时创建执行上下文以后才存在。
+
+这个区分在闭包场景下最明显。看下面这段代码：
+
+```javascript
+function outer() {
+  let count = 0;      // outer 的词法环境中有 count
+
+  function inner() {
+    count++;           // inner 在词法上是 outer 的内部，可以访问 count
+    return count;
+  }
+
+  return inner;
+}
+
+const increment = outer(); // outer 执行完毕，其执行上下文理论上应该销毁
+increment();  // 1
+increment();  // 2
+```
+
+`outer` 执行结束后，通常它的执行上下文会销毁。但 `inner` 还持有对 `outer` 词法环境的引用（这就是闭包）。V8 会保留 `count` 所在的词法环境，不销毁它。
+
+## 四、V8 的底层实现：LexicalEnvironment 和 ScopeInfo
+
+V8 用两个数据结构分别对应这两个概念。
+
+**（1）LexicalEnvironment（词法环境）**，在函数每次被调用时创建。它包含一个 `VariableMap`（变量名到存储位置的映射）和一个 `outer` 引用（指向外层词法环境）。
+
+```
+// outer 函数的词法环境结构
+OuterEnv: {
+  variables: { count: slot 0 },
+  outer: GlobalEnv
+}
+
+// inner 函数的词法环境
+InnerEnv: {
+  variables: {},
+  outer: OuterEnv      ← 引用 outer 的词法环境
+}
+```
+
+**（2）ScopeInfo（作用域信息）**，在编译阶段生成，是只读的静态描述。它记录了作用域类型、变量名和访问规则，和字节码存储在一起。如果说 LexicalEnvironment 是运行时的实例，那 ScopeInfo 就是 V8 解析作用域链时参照的"地图"——编译一次，反复使用。
+
+## 五、变量查找的完整路径
+
+当 V8 在某个上下文里访问一个变量时，查找路径如下：
+
+1. 先在当前函数的环境记录里找
+2. 找不到，沿 `outer` 引用去外层词法环境找
+3. 继续向外，直到全局环境
+4. 还找不到：运行时抛出 `ReferenceError`
+
+字节码层面，V8 用 `LdaContextSlot` 指令沿着上下文链读取变量。如果函数被频繁调用，TurboFan 会优化这些查找，减少运行时开销。
+
+## 六、一个容易混淆的场景
+
+这里有一个很多人会忽略的细节——词法作用域和调用位置无关，哪怕创建函数的那个上下文已经从栈上消失了。
+
+下面这段代码，`greet` 被调用时会打印哪个 `greeting`？
+
+```javascript
+const greeting = "Hello from global";
+
+function makeGreeter() {
+  const greeting = "Hello from makeGreeter";
+  return function greet() {
+    console.log(greeting);
+  };
+}
+
+const greet = makeGreeter();
+greet();
+```
+
+答案是 `"Hello from makeGreeter"`。调用 `greet()` 的时候，调用栈里只有全局上下文和 `greet` 自己的执行上下文，`makeGreeter` 早已不在栈上。但 `greet` 的词法环境仍然指向 `makeGreeter` 的那个词法环境，所以 V8 沿着作用域链找到的是那里的 `greeting`。
+
+说白了，闭包就是"词法作用域 + 函数作为一等公民"的必然结果，不是什么神奇机制，而是词法作用域的直接推论。
+
+## 七、模块中的词法作用域
+
+ES Modules 的设计天然依赖词法作用域的静态性。每个模块有自己独立的顶层作用域，`import` 拿到的是对源模块词法环境中变量的引用，不是复制值。
+
+下面这个例子可以验证这一点：
+
+```javascript
+// module1.js
+export const x = 1;
+export function fn() {
+  console.log(x); // 这里的 x，永远是 module1.js 里的 x
+}
+
+// module2.js
+import { fn } from "./module1.js";
+const x = 2;
+fn(); // 输出 1，不是 2
+```
+
+`fn` 的词法环境在 `module1.js` 中定义，无论在哪里被调用，它的 `x` 都指向 `module1.js` 里的那个。换句话说，模块边界天然强化了词法作用域的隔离——这也是为什么 ES Modules 能做 tree-shaking，而 CommonJS 不行。
+
+## 八、总结
+
+| 概念 | 确定时机 | 作用 | V8 数据结构 |
+|------|---------|------|------------|
+| 词法作用域 | 代码编译时（静态） | 确定变量可见范围 | `ScopeInfo`（编译时）+ `LexicalEnvironment`（调用时实例化） |
+| 执行上下文 | 函数调用时（动态） | 存储变量值、管理 this | 调用栈上的 Context 对象 |
+
+作用域是"在哪里可以找到变量"的静态规则，执行上下文是"运行时真正去哪里找"的动态过程。闭包存在，是因为执行上下文销毁了，但词法环境（作用域）还被引用着。
+
+分清这两个概念之后，很多问题就有了解释框架。`this` 绑定为什么是动态的？因为它属于执行上下文，不属于作用域。箭头函数为什么没有自己的 `this`？因为它不创建独立的 `this` 绑定，而是直接继承外层词法环境中的 `this`。
+
+---
+
+**本系列其他文章：**
+- 上一篇：[1 + "2" 的计算过程与底层解析](/posts/v8-10/)
+- 下一篇：[惰性解析与闭包：V8 的按需编译策略](/posts/v8-11/)
+
+**相关主题：**
+- 函数调用与调用栈：[函数是如何变得可调用的](/posts/v8-02/)

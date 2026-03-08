@@ -1,0 +1,208 @@
+---
+title: 我不知道的 React（04）— 生命周期演进与 Render 触发机制
+description: >-
+  React 的类组件生命周期曾经是面试高频题，很多人能背出从 componentWillMount 到 componentWillUnmount
+  的完整流程。但从 React 16.3 开始，三个 Will* 系列方法被标记为 UNSAFE_，到 React 18 已经不建议使…
+subtitle: 生命周期演进与 Render 触发机制
+pubDate: '2022-05-20'
+updatedDate: '2026-03-06'
+tags:
+  - React
+  - 生命周期
+  - render
+  - Hooks
+  - useEffect
+  - 性能优化
+  - 我不知道的
+lang: zh-CN
+keywords:
+  - React
+  - 生命周期
+  - render
+  - Hooks
+  - useEffect
+  - 性能优化
+  - 我不知道的
+topic: React
+category: React
+type: post
+series: React
+seriesOrder: 4
+slug: react-04
+model: claude-4.6-opus
+---
+# 我不知道的 React（04）— 生命周期演进与 Render 触发机制
+
+React 的类组件生命周期曾经是面试高频题，很多人能背出从 `componentWillMount` 到 `componentWillUnmount` 的完整流程。但从 React 16.3 开始，三个 `Will*` 系列方法被标记为 `UNSAFE_`，到 React 18 已经不建议使用。
+
+为什么要废弃它们？标准答案是"不安全"，但具体不安全在哪里，和 Fiber 架构到底有什么关系，很多人说不清楚。另一个更普遍的误区是把 `render` 等同于 DOM 更新——这个认知偏差直接影响性能优化的方向。
+
+## 一、那些被废弃的生命周期
+
+被废弃的主要是三个方法：`componentWillMount`、`componentWillUpdate`、`componentWillReceiveProps`。
+
+它们有一个共同特征：都带 `Will`，都在某件事"即将发生"之前执行。在 React 15 的同步渲染时代，这没什么问题——渲染是线性的，`Will` 之后必然跟着 `Did`，一一对应。
+
+**但 Fiber 打破了这个假设。**
+
+很多人以为 `componentWillMount` 是发请求的好时机——毕竟名字叫"组件将要挂载"，提前发请求不是能更快拿到数据吗？但实际上，在 Fiber 架构下，这个方法可能被调用多次，也可能被调用后又不执行对应的 `componentDidMount`。在这里发请求，可能产生重复请求、状态不一致、甚至内存泄漏。
+
+## 二、Fiber 与生命周期的矛盾
+
+问题的关键在于 Fiber 引入的**两阶段渲染模型**。
+
+React 的更新过程分成两个截然不同的阶段：Render Phase 和 Commit Phase。Render Phase 负责计算变化（调用组件函数、Diff 虚拟 DOM），Commit Phase 负责把变化应用到真实 DOM。
+
+在 React 15 中，整个过程是同步的，一旦开始就必须走完。但 Fiber 让 Render Phase 变成了**可中断的**。浏览器需要处理用户输入？Render Phase 暂停，让出主线程。用户交互处理完了？Render Phase 从断点恢复，或者干脆从头再来。
+
+说白了，Render Phase 的执行不再是"有且仅有一次"。
+
+那些 `Will*` 方法恰好都在 Render Phase 执行。当渲染被中断并重新开始时，它们就会被再次调用。下面这个例子展示了这个问题：
+
+```jsx
+class UserProfile extends React.Component {
+  componentWillMount() {
+    // 危险：Fiber 下可能触发多次
+    fetchUserData(this.props.userId);
+  }
+
+  componentDidMount() {
+    // 安全：Commit Phase 只执行一次
+    fetchUserData(this.props.userId);
+  }
+}
+```
+
+`componentWillMount` 里的请求可能发出两次甚至更多次，而 `componentDidMount` 只会在 DOM 真正挂载后执行一次。很多人会忽略的细节是：即便在 React 15 中，`componentWillMount` 里发请求也没有性能优势——请求是异步的，不可能在 `render` 之前拿到数据。所以把请求放在 `componentDidMount` 才是正确选择，这与 Fiber 无关。
+
+同样的道理适用于 `componentWillReceiveProps`。它经常被用来"根据新 Props 派生 State"，但在 Fiber 下也面临多次调用的风险。更重要的是，这种"收到 Props 就更新 State"的模式本身就容易导致状态来源混乱。
+
+## 三、现代替代方案
+
+React 提供了三种机制来替代被废弃的方法，但它们不是简单的"改了个名字"。
+
+**`static getDerivedStateFromProps`** 替代了 `componentWillReceiveProps` 的派生状态场景。它是一个静态方法，拿不到 `this`，只能根据传入的 `props` 和 `state` 返回新的状态对象或 `null`。这个设计是刻意的——强制开发者把派生状态写成纯函数，不允许产生副作用。
+
+```jsx
+class SearchResults extends React.Component {
+  static getDerivedStateFromProps(props, state) {
+    if (props.query !== state.prevQuery) {
+      return { prevQuery: props.query, results: null };
+    }
+    return null;
+  }
+}
+```
+
+这段代码做的事情很简单：当搜索词变了，清空旧结果。因为它是纯函数，Render Phase 调用多少次都不会有副作用。
+
+**`getSnapshotBeforeUpdate`** 替代了 `componentWillUpdate` 中读取 DOM 信息的场景。它在 DOM 更新前被调用（但属于 Commit Phase），返回值会传给 `componentDidUpdate`，常见用途是记录滚动位置。
+
+**`useEffect`** 是函数组件中处理副作用的核心手段。但必须说清楚一点：**`useEffect` 不是 `componentDidMount` 的翻版**。
+
+换句话说，`componentDidMount` 在 DOM 挂载后同步执行，而 `useEffect` 是在浏览器完成绘制之后异步执行的。这意味着 `useEffect` 不会阻塞页面渲染，但也意味着它执行的时机更晚。对于大多数副作用来说，这个差异无关紧要；但如果需要在绘制前同步读取或修改 DOM（比如测量布局），应该用 `useLayoutEffect`。
+
+```jsx
+function UserProfile({ userId }) {
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchUser(userId).then(data => {
+      if (!cancelled) setUser(data);
+    });
+    return () => { cancelled = true; };
+  }, [userId]);
+}
+```
+
+这段代码展示了 `useEffect` 的关键特征：通过依赖数组 `[userId]` 声明"何时重新执行"，通过返回的清理函数避免过期请求更新状态。这和类组件生命周期的思维方式完全不同——不再是"挂载时做什么、更新时做什么"，而是"这个副作用依赖什么数据"。
+
+## 四、Render 的本质：不是 DOM 更新，而是 UI 描述
+
+这是一个很容易搞混的概念。很多人以为组件 `render` 了，DOM 就更新了。
+
+**但 render 只是生成一棵新的虚拟 DOM 树，描述界面"应该长什么样"。真正的 DOM 操作发生在后面的 Commit Phase。**
+
+无论是类组件的 `render()` 方法还是函数组件的函数体本身，它们的职责都是同一个：接收 `props` 和 `state`，返回 React 元素（本质上是普通的 JavaScript 对象）。这个过程纯粹是计算，不涉及任何 DOM 操作。
+
+React 拿到这棵新树后，会和上一次的树做 Diff，找出最小差异，然后在 Commit Phase 只更新那些真正变了的 DOM 节点。
+
+如果你只记住一句话：**render 的成本是 JavaScript 计算，不是 DOM 操作。** 不必要的 render 浪费的是 CPU 时间（虚拟 DOM 创建和 Diff），不是 DOM 重绘时间。当然，当组件树很大时，这个计算开销也不容小觑。
+
+## 五、什么会触发 re-render
+
+一个组件会在以下五种情况下重新渲染。
+
+**第一，首次挂载。** 组件第一次出现在组件树中，必然需要一次完整的 render。
+
+**第二，自身状态变更。** 调用 `setState` 或 `useState` 的更新函数后，React 会安排一次 re-render。
+
+**第三，Props 变化。** 当父组件传入的 props 发生变化（引用不同），子组件会 re-render。
+
+**第四，Context 变化。** 如果组件消费了某个 Context，当该 Context 的值更新时，所有消费它的组件都会 re-render，不管它们是否真正用到了变化的那部分数据。
+
+**第五，也是最容易被低估的：父组件重渲染。**
+
+很多人以为子组件只有在 props 变了的时候才会 re-render。但实际上，**只要父组件 re-render，它的所有子组件默认都会 re-render，即使 props 完全没变**。
+
+下面这个例子能直观地说明问题：
+
+```jsx
+function Parent() {
+  const [count, setCount] = useState(0);
+  console.log('Parent render');
+  return (
+    <div>
+      <button onClick={() => setCount(c => c + 1)}>+1</button>
+      <Child name="固定值" />
+    </div>
+  );
+}
+
+function Child({ name }) {
+  console.log('Child render');
+  return <span>{name}</span>;
+}
+```
+
+每次点击按钮，`Parent` 的 `count` 变化导致 re-render。虽然传给 `Child` 的 `name` 始终是 `"固定值"`，但控制台会同时打印 `Parent render` 和 `Child render`。
+
+这就是 React 的默认行为：**父组件 re-render 时，React 不会检查子组件的 props 是否变化，而是直接递归渲染整棵子树。** React 团队认为，对于大多数应用来说，虚拟 DOM 的 Diff 成本足够低，不值得在每个组件上都做 props 比较。
+
+## 六、这意味着什么
+
+理解了 render 的触发机制，性能优化的方向就清楚了：**减少不必要的 render 次数，或者降低单次 render 的计算量。**
+
+`React.memo` 可以包裹函数组件，让它在 props 没有变化（浅比较）时跳过 re-render：
+
+```jsx
+const Child = React.memo(function Child({ name }) {
+  console.log('Child render');
+  return <span>{name}</span>;
+});
+```
+
+加上 `React.memo` 后，上面例子中的 `Child` 在 `name` 不变时就不会重渲染了。
+
+但这里有个陷阱。如果父组件每次 render 都创建新的对象或函数作为 props，浅比较永远返回 `false`，`React.memo` 就形同虚设。这时候需要 `useMemo` 和 `useCallback` 来稳定引用。
+
+关于 `useMemo`、`useCallback` 的具体用法和常见误区，本系列第 06 篇会详细展开，这里不赘述。只需要记住一个判断标准：**先用 React DevTools Profiler 确认性能瓶颈在哪里，再决定是否需要优化。** 过早优化往往增加代码复杂度却没有实际收益。
+
+## 七、总结
+
+React 的生命周期演进不是随意的 API 改名，而是 Fiber 架构引起的必然调整。Render Phase 可中断这一特性，直接宣判了 `Will*` 方法的死刑。
+
+现代 React 的副作用管理从"在特定时间点执行"转变为"声明依赖关系，让 React 决定何时执行"。`useEffect` 代表的不只是一个新 API，而是一种新的思维模型。
+
+render 本身只是 UI 描述的生成过程，不等于 DOM 更新。父组件 re-render 默认触发所有子组件 re-render，这是 React 的设计选择而非 bug。
+
+---
+
+**本系列其他文章：**
+- 上一篇：[从 JSX 到 DOM — 渲染流程与 Diff 算法](/posts/react-03/)
+- 下一篇：[useState — 批量更新与 Hook 底层机制](/posts/react-05/)
+
+**相关主题：**
+- Fiber 架构详解：[可中断渲染与优先级调度](/posts/react-02/)
+- useEffect 等核心 Hooks：[核心 Hooks 详解](/posts/react-06/)

@@ -3,34 +3,19 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import PostCard from '../../components/PostCard.astro';
 import CodeWindow from '../../components/CodeWindow.astro';
 import Sidebar from '../../components/Sidebar.astro';
-import Icon from '../../components/Icon.astro';
 import { getCollection } from 'astro:content';
-import { filterDrafts, sortPosts } from '../../lib/utils';
+import {
+  filterContentPosts,
+  filterDrafts,
+  getSeriesName,
+  groupSeriesPosts,
+  sortPosts,
+} from '../../lib/utils';
 
-const posts = sortPosts(filterDrafts(await getCollection('blog')));
-
-// 按系列分组
-const seriesMap = new Map<string, typeof posts>();
-const standalonePosts: typeof posts = [];
-
-posts.forEach((post) => {
-  let seriesName = post.data.series;
-  if (!seriesName) {
-    const match = post.data.title.match(/^我不知道的\s*(.+?)\s*[-–—]/);
-    if (match) seriesName = match[1];
-  }
-
-  if (seriesName) {
-    const existing = seriesMap.get(seriesName) || [];
-    existing.push(post);
-    seriesMap.set(seriesName, existing);
-  } else {
-    standalonePosts.push(post);
-  }
-});
-
-// 系列按文章数量排序
-const seriesEntries = Array.from(seriesMap.entries()).sort((a, b) => b[1].length - a[1].length);
+const allPosts = sortPosts(filterDrafts(await getCollection('blog')));
+const posts = filterContentPosts(allPosts);
+const standalonePosts = posts.filter((post) => !getSeriesName(post));
+const seriesEntries = groupSeriesPosts(allPosts);
 ---
 
 <BaseLayout title="文章" description="所有文章列表" wide>
@@ -48,17 +33,17 @@ const seriesEntries = Array.from(seriesMap.entries()).sort((a, b) => b[1].length
       </div>
 
       <!-- 系列文章 -->
-      {seriesEntries.map(([seriesName, seriesPosts]) => (
+      {seriesEntries.map((group) => (
         <section class="mb-8">
           <div class="flex items-center justify-between mb-3">
             <h2 class="font-mono text-xs text-[var(--color-text-secondary)]">
               <span class="syntax-comment">// </span>
               <span class="syntax-keyword">我不知道的</span>
-              <span class="syntax-type"> {seriesName}</span>
-              <span class="text-[var(--color-text-muted)]"> ({seriesPosts.length})</span>
+              <span class="syntax-type"> {group.name}</span>
+              <span class="text-[var(--color-text-muted)]"> ({group.posts.length})</span>
             </h2>
             <a
-              href={`/series/${encodeURIComponent(seriesName)}/`}
+              href={`/series/${encodeURIComponent(group.name)}/`}
               class="
                 text-xs font-mono
                 text-[var(--color-accent)]
@@ -69,15 +54,34 @@ const seriesEntries = Array.from(seriesMap.entries()).sort((a, b) => b[1].length
             </a>
           </div>
 
+          {
+            group.indexPost && (
+              <a
+                href={`/posts/${group.indexPost.slug}/`}
+                class="
+                  mb-3 block rounded border border-[var(--color-border)]
+                  bg-[var(--color-surface-elevated)] p-3
+                  text-sm text-[var(--color-text-secondary)]
+                  hover:border-[var(--color-accent)]
+                "
+              >
+                <span class="font-mono text-xs text-[var(--color-accent)]">系列导读</span>
+                <p class="mt-1 font-medium text-[var(--color-text-primary)]">
+                  {group.indexPost.data.title}
+                </p>
+              </a>
+            )
+          }
+
           <div class="space-y-3">
-            {seriesPosts.slice(0, 3).map((post, index) => (
+            {group.posts.slice(0, 3).map((post, index) => (
               <PostCard post={post} index={index} showSeries={false} />
             ))}
           </div>
 
-          {seriesPosts.length > 3 && (
+          {group.posts.length > 3 && (
             <a
-              href={`/series/${encodeURIComponent(seriesName)}/`}
+              href={`/series/${encodeURIComponent(group.name)}/`}
               class="
                 mt-3 inline-flex items-center gap-1
                 font-mono text-xs
@@ -85,7 +89,7 @@ const seriesEntries = Array.from(seriesMap.entries()).sort((a, b) => b[1].length
                 hover:text-[var(--color-accent)]
               "
             >
-              <span>还有 {seriesPosts.length - 3} 篇...</span>
+              <span>还有 {group.posts.length - 3} 篇...</span>
             </a>
           )}
         </section>

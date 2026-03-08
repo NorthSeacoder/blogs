@@ -1,0 +1,258 @@
+<!DOCTYPE html><html lang="zh-CN" class="min-h-full"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Astro v5.16.5"><!-- 防闪烁脚本：在 DOM 解析前执行 --><script>
+      (function () {
+        const STORAGE_KEY = 'theme';
+        const stored = localStorage.getItem(STORAGE_KEY);
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        // 根据存储值或系统偏好设置主题
+        if (stored === 'dark' || (stored === 'system' && prefersDark) || (!stored && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      })();
+    </script><!-- 字体预加载 --><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"><title>我不知道的 V8（10）— 1 + &quot;2&quot; 为什么等于 &quot;12&quot;：类型转换的底层逻辑 | ?.log</title><meta name="description" content="1 + &#34;2&#34; 的结果是 &#34;12&#34; 而不是 3——大多数开发者知道这个结果，背后的理由通常是&#34;JavaScript 会把数字转成字符串&#34;。但这个说法不够精确。为什么是数字转成字符串，而不是字符串转成数字？+ 运算符究竟在什么时候做字符串拼接，什么时候做数字加法？ECMAScri…"><meta name="keywords" content="V8, 类型转换, ToPrimitive, 加法运算, 字节码, ECMAScript, 我不知道的"><link rel="canonical" href="https://example.com/posts/v8-10/"><link rel="alternate" type="application/rss+xml" title="RSS" href="/rss.xml"><meta property="og:title" content="我不知道的 V8（10）— 1 + &#34;2&#34; 为什么等于 &#34;12&#34;：类型转换的底层逻辑 | ?.log"><meta property="og:description" content="1 + &#34;2&#34; 的结果是 &#34;12&#34; 而不是 3——大多数开发者知道这个结果，背后的理由通常是&#34;JavaScript 会把数字转成字符串&#34;。但这个说法不够精确。为什么是数字转成字符串，而不是字符串转成数字？+ 运算符究竟在什么时候做字符串拼接，什么时候做数字加法？ECMAScri…"><meta property="og:type" content="article"><meta property="og:url" content="https://example.com/posts/v8-10/"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="我不知道的 V8（10）— 1 + &#34;2&#34; 为什么等于 &#34;12&#34;：类型转换的底层逻辑 | ?.log"><meta name="twitter:description" content="1 + &#34;2&#34; 的结果是 &#34;12&#34; 而不是 3——大多数开发者知道这个结果，背后的理由通常是&#34;JavaScript 会把数字转成字符串&#34;。但这个说法不够精确。为什么是数字转成字符串，而不是字符串转成数字？+ 运算符究竟在什么时候做字符串拼接，什么时候做数字加法？ECMAScri…"><script type="application/ld+json">{JSON.stringify(jsonLd)}</script><link rel="stylesheet" href="/_astro/index.sfjfXeKE.css">
+<link rel="stylesheet" href="/_astro/_slug_.KigR83JL.css"></head> <body class="flex min-h-screen flex-col"> <!-- 跳过链接 --> <a href="#main" class="skip-link">跳到主要内容</a> <!-- 导航栏 - VSCode 标签页风格 --> <header class="
+        fixed inset-x-0 top-0 z-50
+        bg-[var(--color-titlebar)]
+        border-b border-[var(--color-border)]
+        transition-colors duration-200
+      "> <div class="main-container flex h-12 items-center justify-between"> <!-- Logo - 终端风格 --> <a href="/" class="
+            flex items-center gap-2
+            font-mono text-sm font-medium
+            text-[var(--color-text-primary)]
+            transition-opacity hover:opacity-80
+          "> <span class="text-[var(--color-accent)]">~/</span> <span>?.log</span> <span class="text-[var(--color-comment)]">$</span> </a> <!-- 导航标签页 --> <div class="flex items-center"> <nav aria-label="主导航" class="flex items-center"> <a href="/" class="tab font-mono text-xs"> 首页 </a><a href="/posts/" class="tab font-mono text-xs active" aria-current="page"> 文章 </a><a href="/series/" class="tab font-mono text-xs"> 系列 </a><a href="/tags/" class="tab font-mono text-xs"> 标签 </a><a href="/archives/" class="tab font-mono text-xs"> 归档 </a><a href="/about/" class="tab font-mono text-xs"> 关于 </a> </nav> <!-- 工具栏按钮组 --> <div class="flex items-center gap-1 ml-2"> <!-- 搜索按钮 --> <a href="/search/" class="
+                flex items-center justify-center
+                h-7 w-7 rounded
+                text-[var(--color-text-secondary)]
+                bg-[var(--color-surface)]
+                border border-[var(--color-border)]
+                transition-colors
+                hover:bg-[var(--color-surface-hover)]
+                hover:text-[var(--color-text-primary)]
+              " aria-label="搜索" title="搜索 (⌘K)"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:search">   <symbol id="ai:lucide:search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m21 21l-4.34-4.34"/><circle cx="11" cy="11" r="8"/></g></symbol><use href="#ai:lucide:search"></use>  </svg> </a> <!-- 主题切换 --> <button id="theme-toggle" type="button" aria-label="切换主题" class="
+    relative flex h-7 w-7 items-center justify-center
+    rounded
+    bg-[var(--color-surface)]
+    border border-[var(--color-border)]
+    text-[var(--color-text-secondary)]
+    transition-colors
+    hover:bg-[var(--color-surface-hover)]
+    hover:text-[var(--color-text-primary)]
+    focus:outline-none
+  " data-astro-cid-x3pjskd3> <!-- 太阳图标 (亮色模式) --> <svg id="icon-sun" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" data-astro-cid-x3pjskd3></path> </svg> <!-- 月亮图标 (暗色模式) --> <svg id="icon-moon" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" data-astro-cid-x3pjskd3></path> </svg> <!-- 系统图标 (跟随系统) --> <svg id="icon-system" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" data-astro-cid-x3pjskd3></path> </svg> </button> <script type="module">const m="theme",s=["light","dark","system"];function r(){if(typeof localStorage>"u")return"system";const e=localStorage.getItem(m);return s.includes(e)?e:"system"}function l(){return typeof window>"u"?"light":window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}function u(e){return e==="system"?l():e}function d(e){const n=u(e),t=document.documentElement;n==="dark"?t.classList.add("dark"):t.classList.remove("dark"),f(e)}function f(e){const n=document.getElementById("icon-sun"),t=document.getElementById("icon-moon"),o=document.getElementById("icon-system");if(!n||!t||!o)return;[n,t,o].forEach(i=>{i.style.opacity="0",i.style.transform="scale(0.5) rotate(-180deg)"});let c;switch(e){case"light":c=n;break;case"dark":c=t;break;default:c=o}requestAnimationFrame(()=>{c.style.opacity="1",c.style.transform="scale(1) rotate(0deg)"})}function g(){const e=r(),t=(s.indexOf(e)+1)%s.length,o=s[t];localStorage.setItem(m,o),d(o)}function a(){const e=r();d(e),document.getElementById("theme-toggle")?.addEventListener("click",g),window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{r()==="system"&&d("system")})}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",a):a();document.addEventListener("astro:after-swap",a);</script>  </div> </div> </div> </header> <!-- 主内容区 --> <main id="main" class="main-container-wide flex-1 pb-16 pt-20">   <div class="reading-progress-container" aria-hidden="true" data-astro-cid-mu6cnre2> <div class="reading-progress-bar" id="reading-progress" data-astro-cid-mu6cnre2></div> </div> <script type="module">function a(){const e=document.getElementById("reading-progress"),n=document.querySelector("article");if(!e||!n)return;function o(){const r=n.getBoundingClientRect(),s=r.top+window.scrollY,l=r.height,i=window.innerHeight,d=window.scrollY,c=s-i/2,g=s+l-i/2,u=Math.min(Math.max((d-c)/(g-c),0),1);e.style.transform=`scaleX(${u})`}let t=!1;window.addEventListener("scroll",()=>{t||(requestAnimationFrame(()=>{o(),t=!1}),t=!0)}),o()}a();document.addEventListener("astro:after-swap",a);</script>   <div class="relative lg:grid lg:grid-cols-[1fr_220px] lg:gap-8 xl:grid-cols-[1fr_260px]"> <article class="animate-fade-in min-w-0"> <!-- 文章头部 --> <header class="mb-8"> <!-- 返回链接 --> <a href="/posts/" class="
+            group mb-6 inline-flex items-center gap-2
+            text-sm font-medium text-text-secondary
+            transition-colors hover:text-accent
+          "> <svg width="1em" height="1em" class="transition-transform group-hover:-translate-x-1" style="width: 1rem; height: 1rem;" data-icon="lucide:arrow-left">   <symbol id="ai:lucide:arrow-left" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m12 19l-7-7l7-7m7 7H5"/></symbol><use href="#ai:lucide:arrow-left"></use>  </svg> <span>返回文章列表</span> </a> <!-- 元信息 --> <div class="mb-4 flex flex-wrap items-center gap-4 text-sm text-text-secondary"> <!-- 发布日期 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:calendar">   <symbol id="ai:lucide:calendar" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M8 2v4m8-4v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></g></symbol><use href="#ai:lucide:calendar"></use>  </svg> <time datetime="2024-03-07T00:00:00.000Z"> 2024年3月7日 </time> </div> <!-- 阅读时间 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:clock">   <symbol id="ai:lucide:clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="10"/></g></symbol><use href="#ai:lucide:clock"></use>  </svg> <span>8 min read</span> </div> <!-- 更新日期 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:refresh-cw">   <symbol id="ai:lucide:refresh-cw" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9a9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5m5 4a9 9 0 0 1-9 9a9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></g></symbol><use href="#ai:lucide:refresh-cw"></use>  </svg> <span>更新于 2026年3月4日</span> </div> </div> <div class="mb-4 flex flex-wrap items-center gap-2 font-mono text-xs"> <a href="/series/V8/" class="
+                  inline-flex items-center gap-1 rounded px-2 py-1
+                  bg-[var(--color-accent)]/10 text-[var(--color-accent)]
+                  transition-colors hover:bg-[var(--color-accent)]/15
+                "> <svg width="1em" height="1em" class style="width: 0.75rem; height: 0.75rem;" data-icon="lucide:folder">   <symbol id="ai:lucide:folder" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol><use href="#ai:lucide:folder"></use>  </svg> <span>我不知道的 V8</span> </a> </div> <!-- 标题 --> <h1 class="text-3xl font-bold leading-tight text-text-primary sm:text-4xl"> 我不知道的 V8（10）— 1 + &quot;2&quot; 为什么等于 &quot;12&quot;：类型转换的底层逻辑 </h1> <!-- 描述 --> <p class="mt-4 text-lg leading-relaxed text-text-secondary"> 1 + &quot;2&quot; 的结果是 &quot;12&quot; 而不是 3——大多数开发者知道这个结果，背后的理由通常是&quot;JavaScript 会把数字转成字符串&quot;。但这个说法不够精确。为什么是数字转成字符串，而不是字符串转成数字？+ 运算符究竟在什么时候做字符串拼接，什么时候做数字加法？ECMAScri… </p> <!-- 标签 --> <div class="mt-6 flex flex-wrap gap-2 font-mono text-xs" aria-label="标签"> <a href="/tags/V8/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"V8"</span> </a><a href="/tags/~E7~B1~BB~E5~9E~8B~E8~BD~AC~E6~8D~A2/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"类型转换"</span> </a><a href="/tags/ToPrimitive/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"ToPrimitive"</span> </a><a href="/tags/~E5~8A~A0~E6~B3~95~E8~BF~90~E7~AE~97/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"加法运算"</span> </a><a href="/tags/~E5~AD~97~E8~8A~82~E7~A0~81/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"字节码"</span> </a><a href="/tags/ECMAScript/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"ECMAScript"</span> </a><a href="/tags/~E6~88~91~E4~B8~8D~E7~9F~A5~E9~81~93~E7~9A~84/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"我不知道的"</span> </a> </div> </header> <!-- 封面图 -->  <!-- 文章内容 --> <div class="
+          prose prose-lg
+          prose-headings:font-bold
+          prose-a:text-accent prose-a:no-underline hover:prose-a:underline
+          prose-img:rounded prose-img:shadow-lg
+          prose-code:before:content-none prose-code:after:content-none
+          max-w-none
+        "> <h1 id="我不知道的-v810-1--2-为什么等于-12类型转换的底层逻辑"><a href="#我不知道的-v810-1--2-为什么等于-12类型转换的底层逻辑">我不知道的 V8（10）— 1 + “2” 为什么等于 “12”：类型转换的底层逻辑</a></h1>
+<p><code>1 + &quot;2&quot;</code> 的结果是 <code>&quot;12&quot;</code> 而不是 <code>3</code>——大多数开发者知道这个结果，背后的理由通常是”JavaScript 会把数字转成字符串”。但这个说法不够精确。为什么是数字转成字符串，而不是字符串转成数字？<code>+</code> 运算符究竟在什么时候做字符串拼接，什么时候做数字加法？ECMAScript 规范对这套逻辑有明确的定义，V8 的字节码忠实实现了它。</p>
+<h2 id="一加法运算符的特殊性"><a href="#一加法运算符的特殊性">一、加法运算符的特殊性</a></h2>
+<p><code>+</code> 是 JavaScript 里唯一一个”重载”的运算符——它既能做数字加法，也能做字符串拼接。这和其他算术运算符不同：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="javascript"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">console.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">log</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span><span style="color:#D73A49;--shiki-dark:#F97583"> *</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> &quot;2&quot;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);  </span><span style="color:#6A737D;--shiki-dark:#6A737D">// 2，乘法只做数值运算，&quot;2&quot; 被转为数字</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">console.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">log</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span><span style="color:#D73A49;--shiki-dark:#F97583"> -</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> &quot;2&quot;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);  </span><span style="color:#6A737D;--shiki-dark:#6A737D">// -1，减法同上</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">console.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">log</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span><span style="color:#D73A49;--shiki-dark:#F97583"> +</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> &quot;2&quot;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);  </span><span style="color:#6A737D;--shiki-dark:#6A737D">// &quot;12&quot;，加法有字符串拼接模式</span></span></code></pre>
+<p>为什么加法如此特殊？历史原因：早期 JavaScript 用 <code>+</code> 承担字符串拼接的职责（那时还没有模板字符串），这个行为被固定进了规范。</p>
+<h2 id="二ecmascript-规范加法的决策树"><a href="#二ecmascript-规范加法的决策树">二、ECMAScript 规范：加法的决策树</a></h2>
+<p>ECMAScript 规范（Section 13.15.3，Abstract Relational Comparison 以外的 <code>+</code>）定义了加法的执行顺序。V8 严格按这套逻辑实现：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="plaintext"><code><span class="line"><span>步骤一：对两个操作数分别调用 ToPrimitive()</span></span>
+<span class="line"><span>  → 数字、字符串、布尔值、null、undefined 直接通过</span></span>
+<span class="line"><span>  → 对象需要转换（见下一节）</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>步骤二：判断是否有字符串</span></span>
+<span class="line"><span>  → 如果 lprim 或 rprim 中有字符串</span></span>
+<span class="line"><span>      对两者都调用 ToString()，然后做字符串拼接</span></span>
+<span class="line"><span>  → 如果都没有字符串</span></span>
+<span class="line"><span>      对两者都调用 ToNumber()，然后做数值加法</span></span></code></pre>
+<p>用这个规则解析几个例子：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="javascript"><code><span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span><span style="color:#D73A49;--shiki-dark:#F97583"> +</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> &quot;2&quot;</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// ToPrimitive(1) = 1, ToPrimitive(&quot;2&quot;) = &quot;2&quot;</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 右操作数是字符串 → 字符串拼接模式</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// ToString(1) = &quot;1&quot;, ToString(&quot;2&quot;) = &quot;2&quot;</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 结果：&quot;12&quot;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span><span style="color:#D73A49;--shiki-dark:#F97583"> +</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> true</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// ToPrimitive(1) = 1, ToPrimitive(true) = true</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 没有字符串 → 数值加法模式</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// ToNumber(1) = 1, ToNumber(true) = 1</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 结果：2</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">null</span><span style="color:#D73A49;--shiki-dark:#F97583"> +</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> undefined</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// ToPrimitive(null) = null, ToPrimitive(undefined) = undefined</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 没有字符串 → 数值加法模式</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// ToNumber(null) = 0, ToNumber(undefined) = NaN</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 结果：NaN</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">&quot;&quot;</span><span style="color:#D73A49;--shiki-dark:#F97583"> +</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> null</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// ToPrimitive(&quot;&quot;) = &quot;&quot;, ToPrimitive(null) = null</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 左操作数是字符串 → 字符串拼接模式</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// ToString(&quot;&quot;) = &quot;&quot;, ToString(null) = &quot;null&quot;</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 结果：&quot;null&quot;</span></span></code></pre>
+<h2 id="三对象的-toprimitivevalueof-优先"><a href="#三对象的-toprimitivevalueof-优先">三、对象的 ToPrimitive：valueOf 优先</a></h2>
+<p>当操作数是对象时，<code>ToPrimitive</code> 会按顺序尝试两个方法：</p>
+<ol>
+<li>调用 <code>valueOf()</code>，如果返回原始值（非对象），使用它</li>
+<li>否则调用 <code>toString()</code></li>
+</ol>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="javascript"><code><span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 自定义 valueOf 的对象</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> obj1</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> { </span><span style="color:#6F42C1;--shiki-dark:#B392F0">valueOf</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: () </span><span style="color:#D73A49;--shiki-dark:#F97583">=&gt;</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 3</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#6F42C1;--shiki-dark:#B392F0">toString</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: () </span><span style="color:#D73A49;--shiki-dark:#F97583">=&gt;</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> &quot;obj&quot;</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> };</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">console.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">log</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(obj1 </span><span style="color:#D73A49;--shiki-dark:#F97583">+</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> &quot;2&quot;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">); </span><span style="color:#6A737D;--shiki-dark:#6A737D">// &quot;32&quot;</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// ToPrimitive(obj1) = 3（valueOf 返回数字 3，是原始值）</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 然后：ToPrimitive 结果是 3，有字符串 → 字符串拼接</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// ToString(3) = &quot;3&quot;, ToString(&quot;2&quot;) = &quot;2&quot; → &quot;32&quot;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 没有 valueOf 的对象</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> obj2</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> { </span><span style="color:#6F42C1;--shiki-dark:#B392F0">toString</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: () </span><span style="color:#D73A49;--shiki-dark:#F97583">=&gt;</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> &quot;hello&quot;</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> };</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">console.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">log</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(obj2 </span><span style="color:#D73A49;--shiki-dark:#F97583">+</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> &quot; world&quot;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">); </span><span style="color:#6A737D;--shiki-dark:#6A737D">// &quot;hello world&quot;</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// ToPrimitive(obj2)：valueOf 返回 obj2 本身（非原始值） → 调用 toString → &quot;hello&quot;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 普通对象（默认 toString 返回 &quot;[object Object]&quot;）</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">console.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">log</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({} </span><span style="color:#D73A49;--shiki-dark:#F97583">+</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> &quot;2&quot;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">); </span><span style="color:#6A737D;--shiki-dark:#6A737D">// &quot;[object Object]2&quot;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 数组的 toString 会把元素用逗号连接</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">console.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">log</span><span style="color:#24292E;--shiki-dark:#E1E4E8">([</span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2</span><span style="color:#24292E;--shiki-dark:#E1E4E8">] </span><span style="color:#D73A49;--shiki-dark:#F97583">+</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> &quot;2&quot;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">); </span><span style="color:#6A737D;--shiki-dark:#6A737D">// &quot;1,22&quot;</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// ToPrimitive([1, 2])：valueOf 返回数组本身（非原始值） → toString → &quot;1,2&quot;</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// &quot;1,2&quot; + &quot;2&quot; → &quot;1,22&quot;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">console.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">log</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span><span style="color:#D73A49;--shiki-dark:#F97583"> +</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> [</span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]); </span><span style="color:#6A737D;--shiki-dark:#6A737D">// &quot;11,2&quot;</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// ToPrimitive(1) = 1, ToPrimitive([1, 2]) = &quot;1,2&quot;</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 右操作数经转换后是字符串 → 字符串拼接</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// ToString(1) = &quot;1&quot; → &quot;1&quot; + &quot;1,2&quot; → &quot;11,2&quot;</span></span></code></pre>
+<h2 id="四v8-的字节码实现"><a href="#四v8-的字节码实现">四、V8 的字节码实现</a></h2>
+<p>V8 的 Ignition 解释器把上述规则转换成字节码。以 <code>1 + &quot;2&quot;</code> 为例：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="plaintext"><code><span class="line"><span>; function add() { return 1 + &quot;2&quot;; }</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>LdaSmi [1]          ; 加载小整数 1（Smi = Small Integer，V8 的优化表示）</span></span>
+<span class="line"><span>ToString            ; 检测到有字符串操作数，先把 1 转为 &quot;1&quot;</span></span>
+<span class="line"><span>LdaConstant [&quot;2&quot;]   ; 加载常量字符串 &quot;2&quot;</span></span>
+<span class="line"><span>Add                 ; 字符串拼接，结果 &quot;12&quot;</span></span>
+<span class="line"><span>Return</span></span></code></pre>
+<p>对比 <code>1 + true</code>（数值加法路径）：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="plaintext"><code><span class="line"><span>; function add() { return 1 + true; }</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>LdaSmi [1]</span></span>
+<span class="line"><span>LdaTrue</span></span>
+<span class="line"><span>ToNumber            ; 把 true 转为 1</span></span>
+<span class="line"><span>Add                 ; 数值加法，结果 2</span></span>
+<span class="line"><span>Return</span></span></code></pre>
+<p>对比含对象的加法：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="plaintext"><code><span class="line"><span>; function add(obj) { return obj + &quot;2&quot;; }</span></span>
+<span class="line"><span>; 其中 obj = { valueOf: () =&gt; 3 }</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>LdaNamedProperty [obj]</span></span>
+<span class="line"><span>CallProperty0 [valueOf]   ; 调用 valueOf()，返回 3</span></span>
+<span class="line"><span>ToString                  ; 3 转为 &quot;3&quot;</span></span>
+<span class="line"><span>LdaConstant [&quot;2&quot;]</span></span>
+<span class="line"><span>Add                       ; &quot;3&quot; + &quot;2&quot; = &quot;32&quot;</span></span>
+<span class="line"><span>Return</span></span></code></pre>
+<p>用实际命令查看字节码：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">node</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --print-bytecode</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> --print-bytecode-filter=add</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> script.js</span></span></code></pre>
+<h2 id="五性能影响"><a href="#五性能影响">五、性能影响</a></h2>
+<p>类型转换本身不是性能热点，但不一致的类型使用会影响 TurboFan 的优化：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="javascript"><code><span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// Bad Case：同一个函数分别传数字和字符串</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">function</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> combine</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#E36209;--shiki-dark:#FFAB70">a</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#E36209;--shiki-dark:#FFAB70">b</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  return</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> a </span><span style="color:#D73A49;--shiki-dark:#F97583">+</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> b;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">combine</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);        </span><span style="color:#6A737D;--shiki-dark:#6A737D">// 数值加法路径</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">combine</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&quot;hello&quot;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&quot; world&quot;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">); </span><span style="color:#6A737D;--shiki-dark:#6A737D">// 字符串拼接路径</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 两种类型 → 函数进入多态状态，TurboFan 难以优化</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// Better：用专用函数处理不同类型</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">function</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> addNumbers</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#E36209;--shiki-dark:#FFAB70">a</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#E36209;--shiki-dark:#FFAB70">b</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) { </span><span style="color:#D73A49;--shiki-dark:#F97583">return</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> a </span><span style="color:#D73A49;--shiki-dark:#F97583">+</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> b; }</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">function</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> concatStrings</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#E36209;--shiki-dark:#FFAB70">a</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#E36209;--shiki-dark:#FFAB70">b</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) { </span><span style="color:#D73A49;--shiki-dark:#F97583">return</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> a </span><span style="color:#D73A49;--shiki-dark:#F97583">+</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> b; }</span></span></code></pre>
+<p>避免意外类型转换的常见建议：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="javascript"><code><span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 不推荐：隐式转换，意图不明确</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> result</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> someValue </span><span style="color:#D73A49;--shiki-dark:#F97583">+</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> &quot;&quot;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">;  </span><span style="color:#6A737D;--shiki-dark:#6A737D">// 把某个值转成字符串</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 推荐：显式转换，意图清晰，也更利于 TurboFan 优化</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> result</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> String</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(someValue);</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 或</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> result</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> `${</span><span style="color:#24292E;--shiki-dark:#E1E4E8">someValue</span><span style="color:#032F62;--shiki-dark:#9ECBFF">}`</span><span style="color:#24292E;--shiki-dark:#E1E4E8">;</span></span></code></pre>
+<h2 id="六总结"><a href="#六总结">六、总结</a></h2>
+<p><code>1 + &quot;2&quot;</code> 等于 <code>&quot;12&quot;</code> 的完整逻辑：</p>
+<ol>
+<li>ECMAScript 规范：对两个操作数调用 <code>ToPrimitive</code>，<strong>只要有一个是字符串，就走字符串拼接路径</strong>——不是”数字转字符串”，而是规范要求”任何非字符串操作数都要先用 <code>ToString()</code> 转换”</li>
+<li>V8 实现：Ignition 字节码中用 <code>ToString</code> 指令处理转换，然后执行字符串拼接</li>
+<li>对象的处理：先调 <code>valueOf()</code>，返回非对象才使用；否则调 <code>toString()</code></li>
+</ol>
+<p><code>+</code> 运算符字符串优先的设计，是历史遗留。现代 JavaScript 开发里，明确的类型转换（<code>String()</code>、<code>Number()</code>、模板字符串）比依赖隐式转换更可靠。</p>
+<hr/>
+<p><strong>本系列其他文章：</strong></p>
+<ul>
+<li>上一篇：<a href="/posts/v8-09/">词法作用域与执行上下文</a></li>
+<li>下一篇：<a href="/posts/v8-11/">惰性解析与闭包：V8 的按需编译策略</a></li>
+</ul> </div> <!-- 文章底部 --> <footer class="mt-12 border-t border-border pt-8"> <!-- 分享提示 --> <div class="code-window"> <div class="code-window-titlebar"> <span class="flex-1 text-center font-mono text-xs text-[var(--color-text-secondary)]">share.ts</span> </div> <div class="p-4 font-mono text-sm"> <p class="syntax-comment">// 觉得这篇文章有帮助？</p> <p class="syntax-comment">// 欢迎分享给更多人</p> <p class="mt-4"> <span class="syntax-keyword">export const</span> <span class="syntax-variable">&nbsp;subscribe</span> <span class="text-[var(--color-text-primary)]">&nbsp;=&nbsp;</span> <a href="/rss.xml" class="syntax-string hover:underline">"/rss.xml"</a> <span class="text-[var(--color-text-primary)]">;</span> </p> </div> </div> </footer> </article> <!-- TOC 侧边栏 - 仅在大屏幕显示 --> <aside class="hidden lg:block"> <nav class="toc-container" aria-label="文章目录" data-astro-cid-xvrfupwn><div class="toc-header" data-astro-cid-xvrfupwn><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-xvrfupwn><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7" data-astro-cid-xvrfupwn></path></svg><span data-astro-cid-xvrfupwn>目录</span></div><ul class="toc-list" data-astro-cid-xvrfupwn><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#一加法运算符的特殊性" class="toc-link" data-slug="一加法运算符的特殊性" data-astro-cid-xvrfupwn>一、加法运算符的特殊性</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#二ecmascript-规范加法的决策树" class="toc-link" data-slug="二ecmascript-规范加法的决策树" data-astro-cid-xvrfupwn>二、ECMAScript 规范：加法的决策树</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#三对象的-toprimitivevalueof-优先" class="toc-link" data-slug="三对象的-toprimitivevalueof-优先" data-astro-cid-xvrfupwn>三、对象的 ToPrimitive：valueOf 优先</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#四v8-的字节码实现" class="toc-link" data-slug="四v8-的字节码实现" data-astro-cid-xvrfupwn>四、V8 的字节码实现</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#五性能影响" class="toc-link" data-slug="五性能影响" data-astro-cid-xvrfupwn>五、性能影响</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#六总结" class="toc-link" data-slug="六总结" data-astro-cid-xvrfupwn>六、总结</a></li></ul></nav><script type="module">function s(){const n=document.querySelectorAll(".toc-link"),c=document.querySelectorAll("article h2[id], article h3[id]");if(n.length===0||c.length===0)return;const i=new IntersectionObserver(t=>{t.forEach(o=>{if(o.isIntersecting){const r=o.target.getAttribute("id");n.forEach(e=>{e.classList.toggle("active",e.getAttribute("data-slug")===r)})}})},{rootMargin:"-80px 0px -80% 0px",threshold:0});c.forEach(t=>i.observe(t)),n.forEach(t=>{t.addEventListener("click",o=>{o.preventDefault();const r=t.getAttribute("data-slug"),e=document.getElementById(r||"");if(e){const a=e.getBoundingClientRect().top+window.scrollY-100;window.scrollTo({top:a,behavior:"smooth"})}})})}s();document.addEventListener("astro:after-swap",s);</script> </aside> </div>  <script type="module">function i(){document.querySelectorAll("pre:has(code)").forEach(t=>{if(t.querySelector(".code-header"))return;const s=t.querySelector("code");if(!s)return;const r=Array.from(s.classList).find(a=>a.startsWith("language-")),d=r?r.replace("language-",""):"text",c=document.createElement("div");c.className="code-header";const n=document.createElement("span");n.className="code-lang",n.textContent=d.toUpperCase();const e=document.createElement("button");e.className="code-copy-btn",e.setAttribute("aria-label","复制代码"),e.innerHTML=`
+        <svg class="copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </svg>
+        <svg class="check-icon hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      `,e.addEventListener("click",async()=>{const a=s.textContent||"";try{await navigator.clipboard.writeText(a),e.classList.add("copied"),e.querySelector(".copy-icon")?.classList.add("hidden"),e.querySelector(".check-icon")?.classList.remove("hidden"),setTimeout(()=>{e.classList.remove("copied"),e.querySelector(".copy-icon")?.classList.remove("hidden"),e.querySelector(".check-icon")?.classList.add("hidden")},2e3)}catch(l){console.error("复制失败:",l)}}),c.appendChild(n),c.appendChild(e);const o=document.createElement("div");o.className="code-block-wrapper",t.parentNode?.insertBefore(o,t),o.appendChild(c),o.appendChild(t)})}i();document.addEventListener("astro:after-swap",i);</script>   <button id="back-to-top" class="back-to-top" aria-label="返回顶部" title="返回顶部" data-astro-cid-wlspcwf4> <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-wlspcwf4> <path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" data-astro-cid-wlspcwf4></path> </svg> </button> <script type="module">function o(){const e=document.getElementById("back-to-top");if(!e)return;function i(){window.scrollY>400?e.classList.add("visible"):e.classList.remove("visible")}e.addEventListener("click",()=>{window.scrollTo({top:0,behavior:"smooth"})});let t=!1;window.addEventListener("scroll",()=>{t||(requestAnimationFrame(()=>{i(),t=!1}),t=!0)}),i()}o();document.addEventListener("astro:after-swap",o);</script>   </main> <!-- 页脚 - VSCode 状态栏风格 --> <footer class="
+        border-t border-[var(--color-border)]
+        bg-[var(--color-surface)]
+        py-6
+        text-xs font-mono text-[var(--color-text-secondary)]
+      "> <div class="main-container"> <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"> <!-- 版权信息 --> <p class="text-center sm:text-left"> <span class="syntax-comment">// </span> <span class="syntax-keyword">const</span> <span class="syntax-variable"> copyright</span> <span> = </span> <span class="syntax-string">"2026 NorthSeacoder"</span> </p> <!-- 链接 --> <div class="flex items-center justify-center gap-4 sm:justify-end"> <a href="/rss.xml" class="
+                flex items-center gap-1.5
+                transition-colors
+                hover:text-[var(--color-accent)]
+              " aria-label="RSS 订阅"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:rss">   <symbol id="ai:lucide:rss" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></g></symbol><use href="#ai:lucide:rss"></use>  </svg> <span>RSS</span> </a> <a href="https://github.com/NorthSeacoder" target="_blank" rel="noopener noreferrer" class="
+                flex items-center gap-1.5
+                transition-colors
+                hover:text-[var(--color-accent)]
+              " aria-label="GitHub"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:github">   <symbol id="ai:lucide:github" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5c.08-1.25-.27-2.48-1-3.5c.28-1.15.28-2.35 0-3.5c0 0-1 0-3 1.5c-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.4 5.4 0 0 0 4 9c0 3.5 3 5.5 6 5.5c-.39.49-.68 1.05-.85 1.65S8.93 17.38 9 18v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></g></symbol><use href="#ai:lucide:github"></use>  </svg> <span>GitHub</span> </a> </div> </div> </div> </footer> </body></html>

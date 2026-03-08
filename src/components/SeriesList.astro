@@ -4,7 +4,7 @@
  */
 import type { CollectionEntry } from 'astro:content';
 import CodeWindow from './CodeWindow.astro';
-import Icon from './Icon.astro';
+import { groupSeriesPosts } from '../lib/utils';
 
 interface Props {
   posts: CollectionEntry<'blog'>[];
@@ -12,27 +12,7 @@ interface Props {
 }
 
 const { posts, limit = 5 } = Astro.props;
-
-// 统计系列
-const seriesMap = new Map<string, number>();
-posts.forEach((post) => {
-  let seriesName = post.data.series;
-
-  // 如果没有 series 字段，从标题解析
-  if (!seriesName) {
-    const match = post.data.title.match(/^我不知道的\s*(.+?)\s*[-–—]/);
-    if (match) seriesName = match[1];
-  }
-
-  if (seriesName) {
-    seriesMap.set(seriesName, (seriesMap.get(seriesName) || 0) + 1);
-  }
-});
-
-// 按数量排序
-const series = Array.from(seriesMap.entries())
-  .sort((a, b) => b[1] - a[1])
-  .slice(0, limit);
+const series = groupSeriesPosts(posts).slice(0, limit);
 ---
 
 {series.length > 0 && (
@@ -45,9 +25,9 @@ const series = Array.from(seriesMap.entries())
         <span class="text-[var(--color-text-primary)]"> = {'{'}</span>
       </p>
 
-      {series.map(([name, count]) => (
+      {series.map((group) => (
         <a
-          href={`/series/${encodeURIComponent(name)}/`}
+          href={`/series/${encodeURIComponent(group.name)}/`}
           class="
             block pl-4 py-1
             transition-colors
@@ -55,9 +35,9 @@ const series = Array.from(seriesMap.entries())
             rounded
           "
         >
-          <span class="syntax-string">"我不知道的 {name}"</span>
+          <span class="syntax-string">"我不知道的 {group.name}"</span>
           <span class="text-[var(--color-text-primary)]">: </span>
-          <span class="syntax-number">{count}</span>
+          <span class="syntax-number">{group.posts.length}</span>
           <span class="text-[var(--color-text-primary)]">,</span>
         </a>
       ))}

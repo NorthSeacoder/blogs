@@ -1,0 +1,274 @@
+---
+title: 我不知道的 VSCode 扩展（03）— Webview 与 Output Channel
+description: >-
+  上一篇介绍的菜单和树视图能覆盖大部分交互场景，但它们有一个共同的限制——只能展示 VSCode 预定义的 UI
+  组件。如果需要一个表单、一个图表、一个富文本编辑器，TreeView 就无能为力了。
+subtitle: Webview 与 Output Channel
+pubDate: '2024-03-15'
+updatedDate: '2026-03-06'
+tags:
+  - VSCode 扩展
+  - 我不知道的
+  - Webview
+  - Output Channel
+  - CSP
+  - 消息通信
+lang: zh-CN
+keywords:
+  - VSCode 扩展
+  - 我不知道的
+  - Webview
+  - Output Channel
+  - CSP
+  - 消息通信
+topic: VSCode 扩展
+category: VSCode
+type: post
+series: VSCode 扩展
+seriesOrder: 3
+slug: vscode-extension-03
+optimized_from: '03.我不知道的 VSCode 扩展:交互面板的无限可能.mdx'
+optimization_type: 深度升级
+style_version: 2026-03-03T00:00:00.000Z
+diagnosis:
+  style_conformity: 2
+  content_depth: 中
+  topic_structure: 保留
+---
+# 我不知道的 VSCode 扩展（03）— Webview 与 Output Channel
+
+## 一、当 TreeView 不够用的时候
+
+上一篇介绍的菜单和树视图能覆盖大部分交互场景，但它们有一个共同的限制——**只能展示 VSCode 预定义的 UI 组件**。如果需要一个表单、一个图表、一个富文本编辑器，TreeView 就无能为力了。
+
+这时候就需要 Webview——**在 VSCode 内部嵌入一个完整的网页**。Settings Sync、GitLens 的欢迎页面、Copilot Chat 的交互界面，底层都是 Webview。
+
+而 Output Channel 则是另一端：不需要复杂 UI，只是想输出日志和状态信息。
+
+## 二、Webview：在编辑器里跑一个网页
+
+### 创建 Webview
+
+```typescript
+import * as vscode from 'vscode';
+
+export function activate(context: vscode.ExtensionContext) {
+  let disposable = vscode.commands.registerCommand('my-ext.openPanel', () => {
+    const panel = vscode.window.createWebviewPanel(
+      'myPanel',
+      'My Panel',
+      vscode.ViewColumn.One,
+      {
+        enableScripts: true,
+        retainContextWhenHidden: true,
+      }
+    );
+
+    panel.webview.html = getHtml();
+  });
+
+  context.subscriptions.push(disposable);
+}
+
+function getHtml(): string {
+  return `<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Panel</title>
+</head>
+<body>
+  <h1>Hello from Webview</h1>
+  <button id="btn">Send to Extension</button>
+  <script>
+    const vscode = acquireVsCodeApi();
+    document.getElementById('btn').addEventListener('click', () => {
+      vscode.postMessage({ type: 'clicked', value: 42 });
+    });
+  </script>
+</body>
+</html>`;
+}
+```
+
+`createWebviewPanel` 的参数：
+
+**`viewType`**（第一个参数）— Webview 的类型标识，用于序列化/反序列化。
+
+**`title`** — 面板标题栏显示的文字。
+
+**`showOptions`** — 面板显示位置。`ViewColumn.One` 是第一列，`ViewColumn.Beside` 在当前编辑器旁边打开。
+
+**`options`** 对象中有两个重要开关：
+
+| 选项 | 默认值 | 作用 |
+|------|-------|------|
+| `enableScripts` | `false` | 是否允许运行 JavaScript |
+| `retainContextWhenHidden` | `false` | 面板切换到后台时是否保持状态 |
+
+这里有一个很多人会忽略的细节——**`retainContextWhenHidden` 为 `false` 时，Webview 切到后台就会被销毁，切回来时重新创建**。如果 Webview 里有用户填写的表单数据，不设 `true` 的话切个标签就丢了。但设为 `true` 会增加内存占用，所以只在确实需要时才开启。
+
+### Webview 与扩展的双向通信
+
+Webview 运行在一个隔离的 iframe 中，和扩展代码在不同的执行环境里。两者之间只能通过消息传递通信，很像 `window.postMessage` 的模式。
+
+**Webview → 扩展：**
+
+Webview 端调用 `acquireVsCodeApi()` 获取通信对象，然后用 `vscode.postMessage()` 发消息：
+
+```javascript
+const vscode = acquireVsCodeApi();
+vscode.postMessage({ type: 'save', data: formData });
+```
+
+扩展端监听：
+
+```typescript
+panel.webview.onDidReceiveMessage(
+  (message) => {
+    if (message.type === 'save') {
+      // 处理保存逻辑
+    }
+  },
+  undefined,
+  context.subscriptions
+);
+```
+
+**扩展 → Webview：**
+
+扩展端用 `panel.webview.postMessage()` 发消息：
+
+```typescript
+panel.webview.postMessage({ type: 'update', data: newData });
+```
+
+Webview 端监听：
+
+```javascript
+window.addEventListener('message', (event) => {
+  const message = event.data;
+  if (message.type === 'update') {
+    renderData(message.data);
+  }
+});
+```
+
+换句话说，双方的通信模型是完全对称的——都是 `postMessage` + 事件监听。消息内容必须是可序列化的 JSON 对象。
+
+### 安全性：CSP 和 localResourceRoots
+
+Webview 默认禁止加载外部资源和执行内联脚本（即使 `enableScripts` 为 `true`）。这是通过 Content Security Policy（CSP）实现的。
+
+如果需要加载本地的 CSS、JS 文件（比如打包好的 React 应用），需要两步：
+
+**（1）配置 `localResourceRoots`**，告诉 VSCode 允许从哪些目录加载资源：
+
+```typescript
+const panel = vscode.window.createWebviewPanel(
+  'myPanel',
+  'My Panel',
+  vscode.ViewColumn.One,
+  {
+    enableScripts: true,
+    localResourceRoots: [
+      vscode.Uri.joinPath(context.extensionUri, 'media'),
+    ],
+  }
+);
+```
+
+**（2）使用 `asWebviewUri` 转换路径**。本地文件路径不能直接在 Webview 中使用，需要转成 Webview 专用的 URI：
+
+```typescript
+const scriptUri = panel.webview.asWebviewUri(
+  vscode.Uri.joinPath(context.extensionUri, 'media', 'main.js')
+);
+
+panel.webview.html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'none'; script-src ${panel.webview.cspSource};">
+</head>
+<body>
+  <script src="${scriptUri}"></script>
+</body>
+</html>`;
+```
+
+`cspSource` 属性返回 Webview 的 CSP 源标识，用在 `Content-Security-Policy` 头中，确保只有来自合法源的脚本能执行。
+
+**不配置 CSP 也能跑，但等于没有安全防护。** 一旦 Webview 加载了不可信的内容（比如渲染用户提供的 HTML），就可能被 XSS 攻击。
+
+## 三、Output Channel：轻量的日志输出
+
+不是所有信息都值得用 Webview 展示。对于日志、状态信息、调试输出，Output Channel 是更合适的选择——就是 VSCode 底部"输出"面板中的那些通道。
+
+### 基本用法
+
+```typescript
+export function activate(context: vscode.ExtensionContext) {
+  const output = vscode.window.createOutputChannel('My Extension');
+
+  output.appendLine('Extension activated');
+  output.appendLine(`Workspace: ${vscode.workspace.rootPath}`);
+
+  // 需要时显示输出面板
+  output.show(true);
+
+  context.subscriptions.push(output);
+}
+```
+
+`createOutputChannel` 创建一个命名的输出通道，用户可以在"输出"面板的下拉菜单中切换不同的通道。
+
+核心方法只有几个：
+
+| 方法 | 作用 |
+|------|------|
+| `append(text)` | 追加文本，不换行 |
+| `appendLine(text)` | 追加文本并换行 |
+| `clear()` | 清空通道内容 |
+| `show(preserveFocus?)` | 显示输出面板。`true` = 焦点留在编辑器 |
+| `dispose()` | 销毁通道 |
+
+### LogOutputChannel：带日志级别的输出通道
+
+从 VSCode 1.74 开始，`createOutputChannel` 支持第二个参数传入 `{ log: true }`，创建一个 `LogOutputChannel`：
+
+```typescript
+const logger = vscode.window.createOutputChannel('My Extension', { log: true });
+
+logger.info('Extension started');
+logger.warn('Config not found, using defaults');
+logger.error('Failed to connect');
+logger.debug('Request payload: ...');
+```
+
+`LogOutputChannel` 和普通 `OutputChannel` 的区别在于：每条日志自动带**时间戳和级别标签**，用户可以在输出面板中按级别过滤。
+
+说白了，`OutputChannel` 是 `console.log` 的升级版，`LogOutputChannel` 是 `winston` / `pino` 的轻量替代。对于扩展开发来说，大多数场景用 `LogOutputChannel` 就够了。
+
+## 四、Webview vs Output Channel：怎么选
+
+| 场景 | 推荐 | 原因 |
+|------|------|------|
+| 展示复杂 UI（表单、图表、预览） | Webview | 需要自定义渲染 |
+| 输出日志和调试信息 | Output Channel | 轻量、原生集成 |
+| 实时展示构建/编译状态 | Output Channel | 流式追加，无需刷新 |
+| 可视化配置编辑器 | Webview | 需要表单交互 |
+| 扩展运行状态监控 | 状态栏 + Output Channel | 状态栏显示摘要，Output Channel 显示详情 |
+
+问题的关键在于——**Webview 的成本远高于 Output Channel**。每个 Webview 本质上是一个独立的 Chromium 渲染进程，内存开销在 30-100MB 级别。如果只是输出文本信息，用 Webview 就是杀鸡用牛刀。
+
+---
+
+**本系列其他文章：**
+- 上一篇：[菜单、视图与状态栏](/posts/vscode-extension-02/)
+- 下一篇：[API 全景与实战技巧](/posts/vscode-extension-04/)
+
+**延伸阅读：**
+- [Webview API 指南](https://code.visualstudio.com/api/extension-guides/webview)
+- [vscode-webview-ui-toolkit](https://github.com/microsoft/vscode-webview-ui-toolkit)（微软官方 Webview UI 组件库）

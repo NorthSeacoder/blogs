@@ -1,0 +1,194 @@
+---
+title: 我不知道的 VSCode 扩展（01）— 从 Hello World 到核心概念
+description: 一、很多人用 VSCode，但不知道扩展是怎么"插"进去的
+subtitle: 从 Hello World 到核心概念
+pubDate: '2024-03-01'
+updatedDate: '2026-03-06'
+tags:
+  - VSCode 扩展
+  - 我不知道的
+  - 扩展开发
+  - Contribution Points
+  - package.json
+lang: zh-CN
+keywords:
+  - VSCode 扩展
+  - 我不知道的
+  - 扩展开发
+  - Contribution Points
+  - package.json
+topic: VSCode 扩展
+category: VSCode
+type: post
+series: VSCode 扩展
+seriesOrder: 1
+slug: vscode-extension-01
+optimized_from: '01.我不知道的 VSCode 扩展:从零开始的奇妙之旅.mdx'
+optimization_type: 重写
+style_version: 2026-03-03T00:00:00.000Z
+diagnosis:
+  style_conformity: 2
+  content_depth: 浅
+  topic_structure: 保留
+---
+# 我不知道的 VSCode 扩展（01）— 从 Hello World 到核心概念
+
+## 一、很多人用 VSCode，但不知道扩展是怎么"插"进去的
+
+VSCode 之所以能从"轻量编辑器"变成主力开发工具，几乎完全靠扩展生态撑起来。ESLint、Prettier、GitLens、Copilot——这些工具能无缝嵌入 VSCode，靠的不是什么黑魔法，而是一套设计精巧的扩展机制。
+
+这里有一个很多人会忽略的细节——**VSCode 扩展本质上就是一个 Node.js 模块**，通过 `package.json` 中的声明式配置告诉 VSCode"我能做什么"，再通过 `activate()` 函数在合适的时机启动执行逻辑。
+
+说白了，写一个 VSCode 扩展，就是写一个遵循特定接口约定的 npm 包。
+
+## 二、环境搭建：三件套
+
+开发 VSCode 扩展需要三样东西：
+
+**（1）Node.js（>= 20.x）**
+
+VSCode 扩展运行在 Node.js 环境中。从 [Node.js 官网](https://nodejs.org/) 安装后，终端运行 `node -v` 确认版本。
+
+**（2）Yeoman + generator-code**
+
+这是 VSCode 官方提供的脚手架工具，用一条命令就能生成项目骨架：
+
+```bash
+npm install -g yo generator-code
+```
+
+**（3）VSCode**
+
+编辑器本身。后面调试扩展时会用到 Extension Development Host 功能，这是 VSCode 内置的。
+
+## 三、生成项目并跑起来
+
+在终端运行 `yo code`，脚手架会交互式地询问几个问题：扩展类型（选 TypeScript）、扩展名称、标识符等。完成后会生成一个标准的项目结构。
+
+打开生成的项目，核心文件只有两个：
+
+**`package.json`** — 扩展的"身份证"，声明了扩展能做什么、何时激活、提供哪些命令。
+
+**`src/extension.ts`** — 扩展的入口代码，包含 `activate()` 和 `deactivate()` 两个生命周期函数。
+
+先看入口代码：
+
+```typescript
+import * as vscode from 'vscode';
+
+export function activate(context: vscode.ExtensionContext) {
+  let disposable = vscode.commands.registerCommand(
+    'my-ext.helloWorld',
+    () => {
+      vscode.window.showInformationMessage('Hello World!');
+    }
+  );
+  context.subscriptions.push(disposable);
+}
+
+export function deactivate() {}
+```
+
+这段代码做了一件事：注册一个名为 `my-ext.helloWorld` 的命令，执行时弹出一条消息。
+
+再看 `package.json` 中的关键配置：
+
+```json
+{
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "my-ext.helloWorld",
+        "title": "Hello World"
+      }
+    ]
+  }
+}
+```
+
+**注意 `activationEvents` 为空数组。** 从 VSCode 1.74 开始，如果扩展在 `contributes.commands` 中声明了命令，VSCode 会自动推断激活时机——不需要手动写 `onCommand:my-ext.helloWorld`。这是一个很多旧教程没有更新的地方。
+
+按 F5 启动调试，VSCode 会打开一个新的 Extension Development Host 窗口。在新窗口中按 `Ctrl+Shift+P`（macOS 为 `Cmd+Shift+P`），输入"Hello World"并执行，右下角会弹出消息框。
+
+## 四、核心概念：扩展是怎么"注册"到 VSCode 里的
+
+很多人以为 VSCode 扩展开发就是"写 JS 代码调 API"，但实际上，扩展有很大一部分能力是**声明式**的——通过 `package.json` 中的 `contributes` 字段静态注册，而不是在代码里动态创建。
+
+这套机制叫 **Contribution Points（贡献点）**，是 VSCode 扩展体系的基石。
+
+### Contribution Points：声明"我能做什么"
+
+`contributes` 字段是 `package.json` 中最核心的部分，它告诉 VSCode 这个扩展提供了哪些能力。常见的贡献点包括：
+
+| 贡献点 | 作用 | 示例场景 |
+|-------|------|---------|
+| `commands` | 注册可执行命令 | 命令面板中出现"Hello World" |
+| `menus` | 注册菜单项 | 右键菜单新增一个操作 |
+| `views` | 注册侧边栏视图 | 在资源管理器区域新增一个面板 |
+| `configuration` | 注册配置项 | 用户设置中出现新的配置选项 |
+| `keybindings` | 注册快捷键 | Ctrl+Shift+H 触发某命令 |
+| `languages` | 注册语言支持 | 新增 `.xyz` 文件的语法高亮 |
+| `snippets` | 注册代码片段 | 输入 `log` 自动补全为 `console.log()` |
+
+换句话说，**一个扩展即使不写一行 TypeScript 代码，仅凭 `package.json` 中的声明就能注册命令、菜单、快捷键、配置项**。代码（`activate()` 函数）只在需要执行动态逻辑时才介入。
+
+这里有一个很多人会忽略的细节——**Contribution Points 是在扩展安装时就被 VSCode 解析的，而不是等扩展激活后才读取。** 这意味着即使扩展还没有被激活，它注册的命令、菜单、配置项已经在 VSCode 中可见了。
+
+这是 VSCode 能在安装数百个扩展的情况下依然保持启动速度的关键设计：**声明式注册 + 延迟激活**。
+
+### Activation Events：声明"我何时被唤醒"
+
+`activationEvents` 字段告诉 VSCode 何时激活这个扩展。常见的激活事件：
+
+| 事件 | 触发时机 |
+|------|---------|
+| `onCommand:xxx` | 执行某个命令时 |
+| `onLanguage:xxx` | 打开某种语言的文件时 |
+| `onView:xxx` | 显示某个视图时 |
+| `onStartupFinished` | VSCode 启动完成后 |
+| `onTerminal` | 终端打开时（2025.7 新增） |
+| `*` | 立即激活（不推荐，影响性能） |
+
+从 VSCode 1.74 开始，很多激活事件可以被**隐式推断**。比如扩展在 `contributes.commands` 中声明了命令，VSCode 会自动在该命令被执行时激活扩展，不需要手动写 `onCommand`。同理，如果扩展在 `contributes.languages` 中注册了语言，也不需要手动写 `onLanguage`。
+
+如果你只记住一句话：**`package.json` 是扩展的声明层，`extension.ts` 是扩展的执行层，VSCode 先读声明再按需加载执行。**
+
+## 五、Monorepo 场景下的调试配置
+
+默认的 F5 调试配置能应付大多数场景，但如果扩展项目在 Monorepo 中（作为某个子包存在），默认配置会找不到正确的扩展路径。
+
+调试配置文件是 `.vscode/launch.json`：
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "extensionHost",
+      "request": "launch",
+      "name": "Launch Extension",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/packages/my-extension"
+      ],
+      "outFiles": ["${workspaceFolder}/packages/my-extension/out/**/*.js"],
+      "preLaunchTask": "npm: watch"
+    }
+  ]
+}
+```
+
+关键是 `--extensionDevelopmentPath` 参数——它告诉 VSCode 到哪个目录去找扩展。在 Monorepo 场景下，把 `${workspaceFolder}` 改成扩展所在的子目录路径即可。
+
+## 六、总结
+
+VSCode 扩展开发的门槛不在于 API 有多复杂，而在于理解它的**声明式架构**。一个扩展的能力分两层：`package.json` 中的 Contribution Points 负责"注册"，`extension.ts` 中的 `activate()` 负责"执行"。VSCode 先在安装时解析声明，再在合适的时机延迟激活代码——这是它能承载数百个扩展还不卡的根本原因。
+
+---
+
+**本系列其他文章：**
+- 下一篇：[菜单、视图与状态栏](/posts/vscode-extension-02/)
+
+**延伸阅读：**
+- [VSCode Extension API 官方文档](https://code.visualstudio.com/api)
+- [Your First Extension 官方教程](https://code.visualstudio.com/api/get-started/your-first-extension)

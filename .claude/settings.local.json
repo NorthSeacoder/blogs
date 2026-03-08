@@ -10,7 +10,19 @@
       "Bash(pnpm build:*)",
       "Bash(pnpm exec astro:*)",
       "Bash(pnpm install:*)",
-      "Bash(./node_modules/.bin/astro build:*)"
+      "Bash(./node_modules/.bin/astro build:*)",
+      "Bash(pnpm dev:*)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm validate:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(python3:*)",
+      "Bash(curl:*)",
+      "WebFetch(domain:resume.mengpeng.tech)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "mcp__nowledge-mem__memory_add",
+      "mcp__nowledge-mem__memory_search",
+      "mcp__nowledge-mem__memory_update"
     ]
   }
 }

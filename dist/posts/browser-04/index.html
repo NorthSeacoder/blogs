@@ -1,0 +1,231 @@
+<!DOCTYPE html><html lang="zh-CN" class="min-h-full"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Astro v5.16.5"><!-- 防闪烁脚本：在 DOM 解析前执行 --><script>
+      (function () {
+        const STORAGE_KEY = 'theme';
+        const stored = localStorage.getItem(STORAGE_KEY);
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        // 根据存储值或系统偏好设置主题
+        if (stored === 'dark' || (stored === 'system' && prefersDark) || (!stored && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      })();
+    </script><!-- 字体预加载 --><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"><title>我不知道的浏览器（04）— 渲染流水线：从 HTML 到屏幕的八个步骤 | ?.log</title><meta name="description" content="很多人以为修改一个 CSS 属性会触发&#34;浏览器重新绘制页面&#34;，但实际上——改 transform 只需要合成线程处理，改 width 要从布局步骤重新计算，改 background-color 跳过布局但仍需重绘。这三种操作的性能开销可以差 10 倍以上。"><meta name="keywords" content="浏览器原理, 渲染流水线, Reflow, Repaint, 合成, 性能优化, Layout, Paint, Compositing, 浏览器, 我不知道的"><link rel="canonical" href="https://example.com/posts/browser-04/"><link rel="alternate" type="application/rss+xml" title="RSS" href="/rss.xml"><meta property="og:title" content="我不知道的浏览器（04）— 渲染流水线：从 HTML 到屏幕的八个步骤 | ?.log"><meta property="og:description" content="很多人以为修改一个 CSS 属性会触发&#34;浏览器重新绘制页面&#34;，但实际上——改 transform 只需要合成线程处理，改 width 要从布局步骤重新计算，改 background-color 跳过布局但仍需重绘。这三种操作的性能开销可以差 10 倍以上。"><meta property="og:type" content="article"><meta property="og:url" content="https://example.com/posts/browser-04/"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="我不知道的浏览器（04）— 渲染流水线：从 HTML 到屏幕的八个步骤 | ?.log"><meta name="twitter:description" content="很多人以为修改一个 CSS 属性会触发&#34;浏览器重新绘制页面&#34;，但实际上——改 transform 只需要合成线程处理，改 width 要从布局步骤重新计算，改 background-color 跳过布局但仍需重绘。这三种操作的性能开销可以差 10 倍以上。"><script type="application/ld+json">{JSON.stringify(jsonLd)}</script><link rel="stylesheet" href="/_astro/index.sfjfXeKE.css">
+<link rel="stylesheet" href="/_astro/_slug_.KigR83JL.css"></head> <body class="flex min-h-screen flex-col"> <!-- 跳过链接 --> <a href="#main" class="skip-link">跳到主要内容</a> <!-- 导航栏 - VSCode 标签页风格 --> <header class="
+        fixed inset-x-0 top-0 z-50
+        bg-[var(--color-titlebar)]
+        border-b border-[var(--color-border)]
+        transition-colors duration-200
+      "> <div class="main-container flex h-12 items-center justify-between"> <!-- Logo - 终端风格 --> <a href="/" class="
+            flex items-center gap-2
+            font-mono text-sm font-medium
+            text-[var(--color-text-primary)]
+            transition-opacity hover:opacity-80
+          "> <span class="text-[var(--color-accent)]">~/</span> <span>?.log</span> <span class="text-[var(--color-comment)]">$</span> </a> <!-- 导航标签页 --> <div class="flex items-center"> <nav aria-label="主导航" class="flex items-center"> <a href="/" class="tab font-mono text-xs"> 首页 </a><a href="/posts/" class="tab font-mono text-xs active" aria-current="page"> 文章 </a><a href="/series/" class="tab font-mono text-xs"> 系列 </a><a href="/tags/" class="tab font-mono text-xs"> 标签 </a><a href="/archives/" class="tab font-mono text-xs"> 归档 </a><a href="/about/" class="tab font-mono text-xs"> 关于 </a> </nav> <!-- 工具栏按钮组 --> <div class="flex items-center gap-1 ml-2"> <!-- 搜索按钮 --> <a href="/search/" class="
+                flex items-center justify-center
+                h-7 w-7 rounded
+                text-[var(--color-text-secondary)]
+                bg-[var(--color-surface)]
+                border border-[var(--color-border)]
+                transition-colors
+                hover:bg-[var(--color-surface-hover)]
+                hover:text-[var(--color-text-primary)]
+              " aria-label="搜索" title="搜索 (⌘K)"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:search">   <symbol id="ai:lucide:search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m21 21l-4.34-4.34"/><circle cx="11" cy="11" r="8"/></g></symbol><use href="#ai:lucide:search"></use>  </svg> </a> <!-- 主题切换 --> <button id="theme-toggle" type="button" aria-label="切换主题" class="
+    relative flex h-7 w-7 items-center justify-center
+    rounded
+    bg-[var(--color-surface)]
+    border border-[var(--color-border)]
+    text-[var(--color-text-secondary)]
+    transition-colors
+    hover:bg-[var(--color-surface-hover)]
+    hover:text-[var(--color-text-primary)]
+    focus:outline-none
+  " data-astro-cid-x3pjskd3> <!-- 太阳图标 (亮色模式) --> <svg id="icon-sun" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" data-astro-cid-x3pjskd3></path> </svg> <!-- 月亮图标 (暗色模式) --> <svg id="icon-moon" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" data-astro-cid-x3pjskd3></path> </svg> <!-- 系统图标 (跟随系统) --> <svg id="icon-system" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" data-astro-cid-x3pjskd3></path> </svg> </button> <script type="module">const m="theme",s=["light","dark","system"];function r(){if(typeof localStorage>"u")return"system";const e=localStorage.getItem(m);return s.includes(e)?e:"system"}function l(){return typeof window>"u"?"light":window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}function u(e){return e==="system"?l():e}function d(e){const n=u(e),t=document.documentElement;n==="dark"?t.classList.add("dark"):t.classList.remove("dark"),f(e)}function f(e){const n=document.getElementById("icon-sun"),t=document.getElementById("icon-moon"),o=document.getElementById("icon-system");if(!n||!t||!o)return;[n,t,o].forEach(i=>{i.style.opacity="0",i.style.transform="scale(0.5) rotate(-180deg)"});let c;switch(e){case"light":c=n;break;case"dark":c=t;break;default:c=o}requestAnimationFrame(()=>{c.style.opacity="1",c.style.transform="scale(1) rotate(0deg)"})}function g(){const e=r(),t=(s.indexOf(e)+1)%s.length,o=s[t];localStorage.setItem(m,o),d(o)}function a(){const e=r();d(e),document.getElementById("theme-toggle")?.addEventListener("click",g),window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{r()==="system"&&d("system")})}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",a):a();document.addEventListener("astro:after-swap",a);</script>  </div> </div> </div> </header> <!-- 主内容区 --> <main id="main" class="main-container-wide flex-1 pb-16 pt-20">   <div class="reading-progress-container" aria-hidden="true" data-astro-cid-mu6cnre2> <div class="reading-progress-bar" id="reading-progress" data-astro-cid-mu6cnre2></div> </div> <script type="module">function a(){const e=document.getElementById("reading-progress"),n=document.querySelector("article");if(!e||!n)return;function o(){const r=n.getBoundingClientRect(),s=r.top+window.scrollY,l=r.height,i=window.innerHeight,d=window.scrollY,c=s-i/2,g=s+l-i/2,u=Math.min(Math.max((d-c)/(g-c),0),1);e.style.transform=`scaleX(${u})`}let t=!1;window.addEventListener("scroll",()=>{t||(requestAnimationFrame(()=>{o(),t=!1}),t=!0)}),o()}a();document.addEventListener("astro:after-swap",a);</script>   <div class="relative lg:grid lg:grid-cols-[1fr_220px] lg:gap-8 xl:grid-cols-[1fr_260px]"> <article class="animate-fade-in min-w-0"> <!-- 文章头部 --> <header class="mb-8"> <!-- 返回链接 --> <a href="/posts/" class="
+            group mb-6 inline-flex items-center gap-2
+            text-sm font-medium text-text-secondary
+            transition-colors hover:text-accent
+          "> <svg width="1em" height="1em" class="transition-transform group-hover:-translate-x-1" style="width: 1rem; height: 1rem;" data-icon="lucide:arrow-left">   <symbol id="ai:lucide:arrow-left" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m12 19l-7-7l7-7m7 7H5"/></symbol><use href="#ai:lucide:arrow-left"></use>  </svg> <span>返回文章列表</span> </a> <!-- 元信息 --> <div class="mb-4 flex flex-wrap items-center gap-4 text-sm text-text-secondary"> <!-- 发布日期 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:calendar">   <symbol id="ai:lucide:calendar" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M8 2v4m8-4v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></g></symbol><use href="#ai:lucide:calendar"></use>  </svg> <time datetime="2024-09-09T00:00:00.000Z"> 2024年9月9日 </time> </div> <!-- 阅读时间 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:clock">   <symbol id="ai:lucide:clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="10"/></g></symbol><use href="#ai:lucide:clock"></use>  </svg> <span>10 min read</span> </div> <!-- 更新日期 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:refresh-cw">   <symbol id="ai:lucide:refresh-cw" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9a9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5m5 4a9 9 0 0 1-9 9a9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></g></symbol><use href="#ai:lucide:refresh-cw"></use>  </svg> <span>更新于 2026年3月5日</span> </div> </div> <div class="mb-4 flex flex-wrap items-center gap-2 font-mono text-xs"> <a href="/series/%E6%B5%8F%E8%A7%88%E5%99%A8/" class="
+                  inline-flex items-center gap-1 rounded px-2 py-1
+                  bg-[var(--color-accent)]/10 text-[var(--color-accent)]
+                  transition-colors hover:bg-[var(--color-accent)]/15
+                "> <svg width="1em" height="1em" class style="width: 0.75rem; height: 0.75rem;" data-icon="lucide:folder">   <symbol id="ai:lucide:folder" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol><use href="#ai:lucide:folder"></use>  </svg> <span>我不知道的 浏览器</span> </a> </div> <!-- 标题 --> <h1 class="text-3xl font-bold leading-tight text-text-primary sm:text-4xl"> 我不知道的浏览器（04）— 渲染流水线：从 HTML 到屏幕的八个步骤 </h1> <!-- 描述 --> <p class="mt-4 text-lg leading-relaxed text-text-secondary"> 很多人以为修改一个 CSS 属性会触发&quot;浏览器重新绘制页面&quot;，但实际上——改 transform 只需要合成线程处理，改 width 要从布局步骤重新计算，改 background-color 跳过布局但仍需重绘。这三种操作的性能开销可以差 10 倍以上。 </p> <!-- 标签 --> <div class="mt-6 flex flex-wrap gap-2 font-mono text-xs" aria-label="标签"> <a href="/tags/~E6~B5~8F~E8~A7~88~E5~99~A8~E5~8E~9F~E7~90~86/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"浏览器原理"</span> </a><a href="/tags/~E6~B8~B2~E6~9F~93~E6~B5~81~E6~B0~B4~E7~BA~BF/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"渲染流水线"</span> </a><a href="/tags/Reflow/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"Reflow"</span> </a><a href="/tags/Repaint/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"Repaint"</span> </a><a href="/tags/~E5~90~88~E6~88~90/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"合成"</span> </a><a href="/tags/~E6~80~A7~E8~83~BD~E4~BC~98~E5~8C~96/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"性能优化"</span> </a><a href="/tags/Layout/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"Layout"</span> </a><a href="/tags/Paint/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"Paint"</span> </a><a href="/tags/Compositing/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"Compositing"</span> </a><a href="/tags/~E6~B5~8F~E8~A7~88~E5~99~A8/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"浏览器"</span> </a><a href="/tags/~E6~88~91~E4~B8~8D~E7~9F~A5~E9~81~93~E7~9A~84/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"我不知道的"</span> </a> </div> </header> <!-- 封面图 -->  <!-- 文章内容 --> <div class="
+          prose prose-lg
+          prose-headings:font-bold
+          prose-a:text-accent prose-a:no-underline hover:prose-a:underline
+          prose-img:rounded prose-img:shadow-lg
+          prose-code:before:content-none prose-code:after:content-none
+          max-w-none
+        "> <h1 id="我不知道的浏览器04-渲染流水线从-html-到屏幕的八个步骤"><a href="#我不知道的浏览器04-渲染流水线从-html-到屏幕的八个步骤">我不知道的浏览器（04）— 渲染流水线：从 HTML 到屏幕的八个步骤</a></h1>
+<p>很多人以为修改一个 CSS 属性会触发”浏览器重新绘制页面”，但实际上——改 <code>transform</code> 只需要合成线程处理，改 <code>width</code> 要从布局步骤重新计算，改 <code>background-color</code> 跳过布局但仍需重绘。这三种操作的性能开销可以差 10 倍以上。</p>
+<p>理解渲染流水线的每个步骤，才能准确判断某个 CSS 或 JS 操作会触发哪条性能路径。</p>
+<h2 id="一流水线全貌"><a href="#一流水线全貌">一、流水线全貌</a></h2>
+<p>渲染进程把 HTML、CSS、JS 转换成屏幕上的像素，要经过八个步骤，分别由主线程和合成线程负责不同阶段：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="plaintext"><code><span class="line"><span>主线程：</span></span>
+<span class="line"><span>  解析 HTML → 样式计算 → 布局 → 分层 → 绘制指令</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>合成线程 + GPU 进程：</span></span>
+<span class="line"><span>  分块 → 光栅化 → 合成显示</span></span></code></pre>
+<p><strong>步骤 1-5 在主线程执行，步骤 6-8 在合成线程和 GPU 进程执行。</strong> 这个分工意味着，如果操作只影响步骤 6-8，就不需要”打扰”主线程。</p>
+<h2 id="二主线程的五个步骤"><a href="#二主线程的五个步骤">二、主线程的五个步骤</a></h2>
+<p><strong>步骤 1：解析 HTML，构建 DOM 树</strong></p>
+<p>主线程把 HTML 字节流解析成 DOM 树。这个过程中有一个很多人会忽略的细节——<strong><code>&lt;script&gt;</code> 标签（非 async/defer）会暂停 HTML 解析</strong>。原因是 JS 可以修改 DOM，浏览器无法在 JS 执行之前”预判”后续 DOM 结构，所以只能停下来等。</p>
+<p>浏览器通过”预解析线程”缓解这个问题：主线程解析 HTML 的同时，另一个线程会扫描后续 HTML，提前发起 CSS、JS、图片等外部资源的下载请求。</p>
+<p><strong>步骤 2：样式计算，构建 CSSOM</strong></p>
+<p>主线程解析所有 CSS（外部样式表、<code>&lt;style&gt;</code> 标签、内联样式），构建 CSSOM 树，然后遍历 DOM 树计算每个节点的最终 computed style——处理继承、层叠、单位换算。</p>
+<p>一个常见误解：<strong>CSS 不阻塞 DOM 解析，但阻塞渲染。</strong> DOM 树和 CSSOM 树的构建可以并行进行，但合并成渲染树（步骤 3）必须等 CSSOM 就绪。这就是 CSS 要放 <code>&lt;head&gt;</code> 的原因——越早加载，越早解除渲染阻塞。</p>
+<p><strong>步骤 3：布局（Layout / Reflow）</strong></p>
+<p>有了 DOM 和 computed style，主线程计算每个节点的精确位置和尺寸，输出布局树（Layout Tree）。</p>
+<p>布局树和 DOM 树不完全对应：<code>display: none</code> 的节点不进入布局树；<code>::before</code>、<code>::after</code> 伪元素虽然不在 DOM 里，但会出现在布局树中。</p>
+<p><strong>布局是最昂贵的步骤之一。</strong> 修改任何影响位置或尺寸的属性（<code>width</code>、<code>height</code>、<code>padding</code>、<code>margin</code>、<code>font-size</code> 等），都会触发从步骤 3 重新计算。</p>
+<p><strong>步骤 4：分层（Layer Tree Update）</strong></p>
+<p>主线程遍历布局树，识别出需要独立绘制的区域，把它们提升为单独的图层（Layer）。常见的图层提升条件：</p>
+<ul>
+<li><code>position: fixed</code> 或 <code>position: sticky</code></li>
+<li><code>transform</code> 不为 <code>none</code></li>
+<li><code>opacity</code> 小于 1</li>
+<li><code>filter</code> 不为 <code>none</code></li>
+<li><code>will-change</code> 明确指定的属性</li>
+</ul>
+<p>图层提升的代价是额外的内存占用，并非越多越好。</p>
+<p><strong>步骤 5：绘制（Paint）</strong></p>
+<p>主线程为每个图层生成绘制指令列表——“在坐标 (x, y) 画背景色 #fff，宽 100px 高 50px”等。这些指令不是直接输出像素，而是记录”怎么画”的操作序列。</p>
+<p>绘制复杂度取决于样式：<code>border-radius</code>、<code>box-shadow</code>、<code>filter</code> 等会增加绘制指令数量。</p>
+<h2 id="三合成线程接管步骤-6-8"><a href="#三合成线程接管步骤-6-8">三、合成线程接管：步骤 6-8</a></h2>
+<p><strong>步骤 5 完成后，主线程的工作告一段落，接下来由合成线程负责。</strong></p>
+<p><strong>步骤 6：分块（Tiling）</strong></p>
+<p>合成线程把每个图层切分成 256×256 或 512×512 像素大小的图块（Tiles）。这样做是为了后续并行光栅化，并优先处理视口（viewport）附近的图块——滚动时，先渲染用户能看到的部分。</p>
+<p><strong>步骤 7：光栅化（Rasterization）</strong></p>
+<p>合成线程把图块信息（包含绘制指令）发给 GPU 进程，GPU 的光栅化线程把绘制指令转换为实际的位图像素。GPU 的并行计算能力在这里发挥作用，速度远快于 CPU 单线程光栅化。</p>
+<p><strong>步骤 8：合成与显示（Compositing）</strong></p>
+<p>合成线程收集所有图块的位图，根据图层树结构、视口位置、滚动偏移、<code>transform</code>、<code>opacity</code> 等，计算每个图块在屏幕上的最终位置，生成合成帧（Compositor Frame），提交给操作系统显示。</p>
+<p><strong>这是 <code>transform</code> 和 <code>opacity</code> 性能优的根本原因</strong>——它们在步骤 8 由合成线程直接处理，完全绕过了主线程的布局（步骤 3）和绘制（步骤 5）。改变 <code>transform</code> 不需要重新计算布局，不需要重新生成绘制指令，只需要合成线程用新的变换矩阵重新生成合成帧。</p>
+<h2 id="四三种性能路径回流重绘合成"><a href="#四三种性能路径回流重绘合成">四、三种性能路径：回流、重绘、合成</a></h2>
+<p>不同的样式修改会触发不同的流水线起点：</p>
+<p><strong>路径 1：回流（Reflow）</strong>，触发步骤 3 重新执行，步骤 3-8 全部重来。代价最高。</p>
+<p>修改几何属性会触发：<code>width</code>、<code>height</code>、<code>padding</code>、<code>margin</code>、<code>border-width</code>、<code>font-size</code>、<code>line-height</code>、<code>position</code>、<code>display</code>，以及 JS 读取 <code>offsetTop</code>、<code>getBoundingClientRect()</code> 等触发<strong>强制同步布局</strong>的 API。</p>
+<p><strong>路径 2：重绘（Repaint）</strong>，跳过步骤 3（布局不变），从步骤 5 重新绘制。代价中等。</p>
+<p>只改视觉样式时触发：<code>background-color</code>、<code>color</code>、<code>border-color</code>、<code>visibility</code>、<code>text-decoration</code> 等。</p>
+<p><strong>路径 3：合成（Compositing）</strong>，跳过主线程步骤 3-5，只在合成线程处理。代价最低。</p>
+<p>只有 <code>transform</code> 和 <code>opacity</code>（作用在合成层上时）走这条路径。这是 CSS 动画性能优化的核心原则——<strong>把需要高频更新的属性动画限制在 <code>transform</code> 和 <code>opacity</code>。</strong></p>
+<h2 id="五布局抖动最容易被忽视的性能陷阱"><a href="#五布局抖动最容易被忽视的性能陷阱">五、布局抖动：最容易被忽视的性能陷阱</a></h2>
+<p>下面这段代码，能看出它的性能问题在哪吗？</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="javascript"><code><span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 有性能问题的写法</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> boxes</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> document.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">querySelectorAll</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;.box&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">for</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> (</span><span style="color:#D73A49;--shiki-dark:#F97583">let</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> i </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 0</span><span style="color:#24292E;--shiki-dark:#E1E4E8">; i </span><span style="color:#D73A49;--shiki-dark:#F97583">&lt;</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> boxes.</span><span style="color:#005CC5;--shiki-dark:#79B8FF">length</span><span style="color:#24292E;--shiki-dark:#E1E4E8">; i</span><span style="color:#D73A49;--shiki-dark:#F97583">++</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">  // 写：触发布局标记为&quot;脏&quot;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  boxes[i].style.width </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> boxes[i].offsetWidth </span><span style="color:#D73A49;--shiki-dark:#F97583">+</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 10</span><span style="color:#D73A49;--shiki-dark:#F97583"> +</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> &#39;px&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">  // 读 offsetWidth：浏览器必须立即重新布局才能返回准确值</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">  // 下次循环再写，再强制布局……</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<p>这段代码在每次循环里先修改 <code>width</code>（标记布局为”脏”），再读取 <code>offsetWidth</code>（强制浏览器立即同步执行布局以返回最新值）。循环 100 次，就触发了 100 次强制同步布局（Forced Synchronous Layout），俗称”布局抖动（Layout Thrashing）”。</p>
+<p>正确写法是把读操作和写操作分离：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="javascript"><code><span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 正确写法：先批量读，再批量写</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> boxes</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> document.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">querySelectorAll</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;.box&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> widths</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> Array.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">from</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(boxes).</span><span style="color:#6F42C1;--shiki-dark:#B392F0">map</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#E36209;--shiki-dark:#FFAB70">box</span><span style="color:#D73A49;--shiki-dark:#F97583"> =&gt;</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> box.offsetWidth); </span><span style="color:#6A737D;--shiki-dark:#6A737D">// 一次性读取</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">for</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> (</span><span style="color:#D73A49;--shiki-dark:#F97583">let</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> i </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 0</span><span style="color:#24292E;--shiki-dark:#E1E4E8">; i </span><span style="color:#D73A49;--shiki-dark:#F97583">&lt;</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> boxes.</span><span style="color:#005CC5;--shiki-dark:#79B8FF">length</span><span style="color:#24292E;--shiki-dark:#E1E4E8">; i</span><span style="color:#D73A49;--shiki-dark:#F97583">++</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  boxes[i].style.width </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> widths[i] </span><span style="color:#D73A49;--shiki-dark:#F97583">+</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 10</span><span style="color:#D73A49;--shiki-dark:#F97583"> +</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> &#39;px&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">; </span><span style="color:#6A737D;--shiki-dark:#6A737D">// 批量写，不再触发强制布局</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<p>说白了，<strong>强制同步布局的本质是”在浏览器还没来得及批处理布局时，强行要求它立即给出布局结果”</strong>——这打断了浏览器的异步批处理优化。</p>
+<h2 id="六总结"><a href="#六总结">六、总结</a></h2>
+<p>渲染流水线的八个步骤分两段：主线程负责从 HTML 到绘制指令的生成（步骤 1-5），合成线程和 GPU 负责把指令转换为屏幕像素（步骤 6-8）。</p>
+<p><strong>性能优化的核心逻辑是尽量减少触发流水线的入口步骤</strong>：回流 &gt; 重绘 &gt; 合成，开销从高到低。用 <code>transform</code> 替代 <code>top/left</code> 做位移动画，用 <code>opacity</code> 替代 <code>visibility</code> 做淡出效果，把动画限制在合成层——这些不是”经验技巧”，是对渲染流水线工作机制的直接应用。</p>
+<hr/>
+<p><strong>本系列其他文章：</strong></p>
+<ul>
+<li>上一篇：<a href="/posts/browser-03/">事件循环：浏览器如何协调 JS 与渲染</a></li>
+</ul>
+<p><strong>相关主题：</strong></p>
+<ul>
+<li>合成层分层的底层实现可参考：<a href="/posts/browser-02/">渲染线程为什么是单线程的</a></li>
+<li>CSS <code>transform</code> 触发的内联缓存机制：<a href="/posts/v8-12/">内联缓存：属性访问如何变成 O(1) 直接读</a></li>
+</ul> </div> <!-- 文章底部 --> <footer class="mt-12 border-t border-border pt-8"> <!-- 分享提示 --> <div class="code-window"> <div class="code-window-titlebar"> <span class="flex-1 text-center font-mono text-xs text-[var(--color-text-secondary)]">share.ts</span> </div> <div class="p-4 font-mono text-sm"> <p class="syntax-comment">// 觉得这篇文章有帮助？</p> <p class="syntax-comment">// 欢迎分享给更多人</p> <p class="mt-4"> <span class="syntax-keyword">export const</span> <span class="syntax-variable">&nbsp;subscribe</span> <span class="text-[var(--color-text-primary)]">&nbsp;=&nbsp;</span> <a href="/rss.xml" class="syntax-string hover:underline">"/rss.xml"</a> <span class="text-[var(--color-text-primary)]">;</span> </p> </div> </div> </footer> </article> <!-- TOC 侧边栏 - 仅在大屏幕显示 --> <aside class="hidden lg:block"> <nav class="toc-container" aria-label="文章目录" data-astro-cid-xvrfupwn><div class="toc-header" data-astro-cid-xvrfupwn><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-xvrfupwn><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7" data-astro-cid-xvrfupwn></path></svg><span data-astro-cid-xvrfupwn>目录</span></div><ul class="toc-list" data-astro-cid-xvrfupwn><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#一流水线全貌" class="toc-link" data-slug="一流水线全貌" data-astro-cid-xvrfupwn>一、流水线全貌</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#二主线程的五个步骤" class="toc-link" data-slug="二主线程的五个步骤" data-astro-cid-xvrfupwn>二、主线程的五个步骤</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#三合成线程接管步骤-6-8" class="toc-link" data-slug="三合成线程接管步骤-6-8" data-astro-cid-xvrfupwn>三、合成线程接管：步骤 6-8</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#四三种性能路径回流重绘合成" class="toc-link" data-slug="四三种性能路径回流重绘合成" data-astro-cid-xvrfupwn>四、三种性能路径：回流、重绘、合成</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#五布局抖动最容易被忽视的性能陷阱" class="toc-link" data-slug="五布局抖动最容易被忽视的性能陷阱" data-astro-cid-xvrfupwn>五、布局抖动：最容易被忽视的性能陷阱</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#六总结" class="toc-link" data-slug="六总结" data-astro-cid-xvrfupwn>六、总结</a></li></ul></nav><script type="module">function s(){const n=document.querySelectorAll(".toc-link"),c=document.querySelectorAll("article h2[id], article h3[id]");if(n.length===0||c.length===0)return;const i=new IntersectionObserver(t=>{t.forEach(o=>{if(o.isIntersecting){const r=o.target.getAttribute("id");n.forEach(e=>{e.classList.toggle("active",e.getAttribute("data-slug")===r)})}})},{rootMargin:"-80px 0px -80% 0px",threshold:0});c.forEach(t=>i.observe(t)),n.forEach(t=>{t.addEventListener("click",o=>{o.preventDefault();const r=t.getAttribute("data-slug"),e=document.getElementById(r||"");if(e){const a=e.getBoundingClientRect().top+window.scrollY-100;window.scrollTo({top:a,behavior:"smooth"})}})})}s();document.addEventListener("astro:after-swap",s);</script> </aside> </div>  <script type="module">function i(){document.querySelectorAll("pre:has(code)").forEach(t=>{if(t.querySelector(".code-header"))return;const s=t.querySelector("code");if(!s)return;const r=Array.from(s.classList).find(a=>a.startsWith("language-")),d=r?r.replace("language-",""):"text",c=document.createElement("div");c.className="code-header";const n=document.createElement("span");n.className="code-lang",n.textContent=d.toUpperCase();const e=document.createElement("button");e.className="code-copy-btn",e.setAttribute("aria-label","复制代码"),e.innerHTML=`
+        <svg class="copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </svg>
+        <svg class="check-icon hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      `,e.addEventListener("click",async()=>{const a=s.textContent||"";try{await navigator.clipboard.writeText(a),e.classList.add("copied"),e.querySelector(".copy-icon")?.classList.add("hidden"),e.querySelector(".check-icon")?.classList.remove("hidden"),setTimeout(()=>{e.classList.remove("copied"),e.querySelector(".copy-icon")?.classList.remove("hidden"),e.querySelector(".check-icon")?.classList.add("hidden")},2e3)}catch(l){console.error("复制失败:",l)}}),c.appendChild(n),c.appendChild(e);const o=document.createElement("div");o.className="code-block-wrapper",t.parentNode?.insertBefore(o,t),o.appendChild(c),o.appendChild(t)})}i();document.addEventListener("astro:after-swap",i);</script>   <button id="back-to-top" class="back-to-top" aria-label="返回顶部" title="返回顶部" data-astro-cid-wlspcwf4> <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-wlspcwf4> <path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" data-astro-cid-wlspcwf4></path> </svg> </button> <script type="module">function o(){const e=document.getElementById("back-to-top");if(!e)return;function i(){window.scrollY>400?e.classList.add("visible"):e.classList.remove("visible")}e.addEventListener("click",()=>{window.scrollTo({top:0,behavior:"smooth"})});let t=!1;window.addEventListener("scroll",()=>{t||(requestAnimationFrame(()=>{i(),t=!1}),t=!0)}),i()}o();document.addEventListener("astro:after-swap",o);</script>   </main> <!-- 页脚 - VSCode 状态栏风格 --> <footer class="
+        border-t border-[var(--color-border)]
+        bg-[var(--color-surface)]
+        py-6
+        text-xs font-mono text-[var(--color-text-secondary)]
+      "> <div class="main-container"> <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"> <!-- 版权信息 --> <p class="text-center sm:text-left"> <span class="syntax-comment">// </span> <span class="syntax-keyword">const</span> <span class="syntax-variable"> copyright</span> <span> = </span> <span class="syntax-string">"2026 NorthSeacoder"</span> </p> <!-- 链接 --> <div class="flex items-center justify-center gap-4 sm:justify-end"> <a href="/rss.xml" class="
+                flex items-center gap-1.5
+                transition-colors
+                hover:text-[var(--color-accent)]
+              " aria-label="RSS 订阅"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:rss">   <symbol id="ai:lucide:rss" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></g></symbol><use href="#ai:lucide:rss"></use>  </svg> <span>RSS</span> </a> <a href="https://github.com/NorthSeacoder" target="_blank" rel="noopener noreferrer" class="
+                flex items-center gap-1.5
+                transition-colors
+                hover:text-[var(--color-accent)]
+              " aria-label="GitHub"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:github">   <symbol id="ai:lucide:github" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5c.08-1.25-.27-2.48-1-3.5c.28-1.15.28-2.35 0-3.5c0 0-1 0-3 1.5c-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.4 5.4 0 0 0 4 9c0 3.5 3 5.5 6 5.5c-.39.49-.68 1.05-.85 1.65S8.93 17.38 9 18v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></g></symbol><use href="#ai:lucide:github"></use>  </svg> <span>GitHub</span> </a> </div> </div> </div> </footer> </body></html>

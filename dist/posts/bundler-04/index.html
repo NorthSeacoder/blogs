@@ -1,0 +1,209 @@
+<!DOCTYPE html><html lang="zh-CN" class="min-h-full"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Astro v5.16.5"><!-- 防闪烁脚本：在 DOM 解析前执行 --><script>
+      (function () {
+        const STORAGE_KEY = 'theme';
+        const stored = localStorage.getItem(STORAGE_KEY);
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        // 根据存储值或系统偏好设置主题
+        if (stored === 'dark' || (stored === 'system' && prefersDark) || (!stored && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      })();
+    </script><!-- 字体预加载 --><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"><title>我不知道的打包工具（04）— Father：组件库构建工具的设计与实践 | ?.log</title><meta name="description" content="用 Webpack 打包一个组件库试试——光处理 ESM、CJS、UMD 三种格式输出，加上 TypeScript 编译、样式文件抽离、外部依赖 externals 配置，webpack.config.js 轻松写到 200 行，还没算上样式隔离和按需加载。"><meta name="keywords" content="打包工具, Father, 组件库, Bundless, Bundle, CSS Modules, 我不知道的"><link rel="canonical" href="https://example.com/posts/bundler-04/"><link rel="alternate" type="application/rss+xml" title="RSS" href="/rss.xml"><meta property="og:title" content="我不知道的打包工具（04）— Father：组件库构建工具的设计与实践 | ?.log"><meta property="og:description" content="用 Webpack 打包一个组件库试试——光处理 ESM、CJS、UMD 三种格式输出，加上 TypeScript 编译、样式文件抽离、外部依赖 externals 配置，webpack.config.js 轻松写到 200 行，还没算上样式隔离和按需加载。"><meta property="og:type" content="article"><meta property="og:url" content="https://example.com/posts/bundler-04/"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="我不知道的打包工具（04）— Father：组件库构建工具的设计与实践 | ?.log"><meta name="twitter:description" content="用 Webpack 打包一个组件库试试——光处理 ESM、CJS、UMD 三种格式输出，加上 TypeScript 编译、样式文件抽离、外部依赖 externals 配置，webpack.config.js 轻松写到 200 行，还没算上样式隔离和按需加载。"><script type="application/ld+json">{JSON.stringify(jsonLd)}</script><link rel="stylesheet" href="/_astro/index.sfjfXeKE.css">
+<link rel="stylesheet" href="/_astro/_slug_.KigR83JL.css"></head> <body class="flex min-h-screen flex-col"> <!-- 跳过链接 --> <a href="#main" class="skip-link">跳到主要内容</a> <!-- 导航栏 - VSCode 标签页风格 --> <header class="
+        fixed inset-x-0 top-0 z-50
+        bg-[var(--color-titlebar)]
+        border-b border-[var(--color-border)]
+        transition-colors duration-200
+      "> <div class="main-container flex h-12 items-center justify-between"> <!-- Logo - 终端风格 --> <a href="/" class="
+            flex items-center gap-2
+            font-mono text-sm font-medium
+            text-[var(--color-text-primary)]
+            transition-opacity hover:opacity-80
+          "> <span class="text-[var(--color-accent)]">~/</span> <span>?.log</span> <span class="text-[var(--color-comment)]">$</span> </a> <!-- 导航标签页 --> <div class="flex items-center"> <nav aria-label="主导航" class="flex items-center"> <a href="/" class="tab font-mono text-xs"> 首页 </a><a href="/posts/" class="tab font-mono text-xs active" aria-current="page"> 文章 </a><a href="/series/" class="tab font-mono text-xs"> 系列 </a><a href="/tags/" class="tab font-mono text-xs"> 标签 </a><a href="/archives/" class="tab font-mono text-xs"> 归档 </a><a href="/about/" class="tab font-mono text-xs"> 关于 </a> </nav> <!-- 工具栏按钮组 --> <div class="flex items-center gap-1 ml-2"> <!-- 搜索按钮 --> <a href="/search/" class="
+                flex items-center justify-center
+                h-7 w-7 rounded
+                text-[var(--color-text-secondary)]
+                bg-[var(--color-surface)]
+                border border-[var(--color-border)]
+                transition-colors
+                hover:bg-[var(--color-surface-hover)]
+                hover:text-[var(--color-text-primary)]
+              " aria-label="搜索" title="搜索 (⌘K)"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:search">   <symbol id="ai:lucide:search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m21 21l-4.34-4.34"/><circle cx="11" cy="11" r="8"/></g></symbol><use href="#ai:lucide:search"></use>  </svg> </a> <!-- 主题切换 --> <button id="theme-toggle" type="button" aria-label="切换主题" class="
+    relative flex h-7 w-7 items-center justify-center
+    rounded
+    bg-[var(--color-surface)]
+    border border-[var(--color-border)]
+    text-[var(--color-text-secondary)]
+    transition-colors
+    hover:bg-[var(--color-surface-hover)]
+    hover:text-[var(--color-text-primary)]
+    focus:outline-none
+  " data-astro-cid-x3pjskd3> <!-- 太阳图标 (亮色模式) --> <svg id="icon-sun" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" data-astro-cid-x3pjskd3></path> </svg> <!-- 月亮图标 (暗色模式) --> <svg id="icon-moon" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" data-astro-cid-x3pjskd3></path> </svg> <!-- 系统图标 (跟随系统) --> <svg id="icon-system" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" data-astro-cid-x3pjskd3></path> </svg> </button> <script type="module">const m="theme",s=["light","dark","system"];function r(){if(typeof localStorage>"u")return"system";const e=localStorage.getItem(m);return s.includes(e)?e:"system"}function l(){return typeof window>"u"?"light":window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}function u(e){return e==="system"?l():e}function d(e){const n=u(e),t=document.documentElement;n==="dark"?t.classList.add("dark"):t.classList.remove("dark"),f(e)}function f(e){const n=document.getElementById("icon-sun"),t=document.getElementById("icon-moon"),o=document.getElementById("icon-system");if(!n||!t||!o)return;[n,t,o].forEach(i=>{i.style.opacity="0",i.style.transform="scale(0.5) rotate(-180deg)"});let c;switch(e){case"light":c=n;break;case"dark":c=t;break;default:c=o}requestAnimationFrame(()=>{c.style.opacity="1",c.style.transform="scale(1) rotate(0deg)"})}function g(){const e=r(),t=(s.indexOf(e)+1)%s.length,o=s[t];localStorage.setItem(m,o),d(o)}function a(){const e=r();d(e),document.getElementById("theme-toggle")?.addEventListener("click",g),window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{r()==="system"&&d("system")})}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",a):a();document.addEventListener("astro:after-swap",a);</script>  </div> </div> </div> </header> <!-- 主内容区 --> <main id="main" class="main-container-wide flex-1 pb-16 pt-20">   <div class="reading-progress-container" aria-hidden="true" data-astro-cid-mu6cnre2> <div class="reading-progress-bar" id="reading-progress" data-astro-cid-mu6cnre2></div> </div> <script type="module">function a(){const e=document.getElementById("reading-progress"),n=document.querySelector("article");if(!e||!n)return;function o(){const r=n.getBoundingClientRect(),s=r.top+window.scrollY,l=r.height,i=window.innerHeight,d=window.scrollY,c=s-i/2,g=s+l-i/2,u=Math.min(Math.max((d-c)/(g-c),0),1);e.style.transform=`scaleX(${u})`}let t=!1;window.addEventListener("scroll",()=>{t||(requestAnimationFrame(()=>{o(),t=!1}),t=!0)}),o()}a();document.addEventListener("astro:after-swap",a);</script>   <div class="relative lg:grid lg:grid-cols-[1fr_220px] lg:gap-8 xl:grid-cols-[1fr_260px]"> <article class="animate-fade-in min-w-0"> <!-- 文章头部 --> <header class="mb-8"> <!-- 返回链接 --> <a href="/posts/" class="
+            group mb-6 inline-flex items-center gap-2
+            text-sm font-medium text-text-secondary
+            transition-colors hover:text-accent
+          "> <svg width="1em" height="1em" class="transition-transform group-hover:-translate-x-1" style="width: 1rem; height: 1rem;" data-icon="lucide:arrow-left">   <symbol id="ai:lucide:arrow-left" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m12 19l-7-7l7-7m7 7H5"/></symbol><use href="#ai:lucide:arrow-left"></use>  </svg> <span>返回文章列表</span> </a> <!-- 元信息 --> <div class="mb-4 flex flex-wrap items-center gap-4 text-sm text-text-secondary"> <!-- 发布日期 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:calendar">   <symbol id="ai:lucide:calendar" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M8 2v4m8-4v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></g></symbol><use href="#ai:lucide:calendar"></use>  </svg> <time datetime="2025-01-07T00:00:00.000Z"> 2025年1月7日 </time> </div> <!-- 阅读时间 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:clock">   <symbol id="ai:lucide:clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="10"/></g></symbol><use href="#ai:lucide:clock"></use>  </svg> <span>9 min read</span> </div> <!-- 更新日期 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:refresh-cw">   <symbol id="ai:lucide:refresh-cw" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9a9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5m5 4a9 9 0 0 1-9 9a9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></g></symbol><use href="#ai:lucide:refresh-cw"></use>  </svg> <span>更新于 2026年3月6日</span> </div> </div> <div class="mb-4 flex flex-wrap items-center gap-2 font-mono text-xs"> <a href="/series/%E6%89%93%E5%8C%85%E5%B7%A5%E5%85%B7/" class="
+                  inline-flex items-center gap-1 rounded px-2 py-1
+                  bg-[var(--color-accent)]/10 text-[var(--color-accent)]
+                  transition-colors hover:bg-[var(--color-accent)]/15
+                "> <svg width="1em" height="1em" class style="width: 0.75rem; height: 0.75rem;" data-icon="lucide:folder">   <symbol id="ai:lucide:folder" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol><use href="#ai:lucide:folder"></use>  </svg> <span>我不知道的 打包工具</span> </a> </div> <!-- 标题 --> <h1 class="text-3xl font-bold leading-tight text-text-primary sm:text-4xl"> 我不知道的打包工具（04）— Father：组件库构建工具的设计与实践 </h1> <!-- 描述 --> <p class="mt-4 text-lg leading-relaxed text-text-secondary"> 用 Webpack 打包一个组件库试试——光处理 ESM、CJS、UMD 三种格式输出，加上 TypeScript 编译、样式文件抽离、外部依赖 externals 配置，webpack.config.js 轻松写到 200 行，还没算上样式隔离和按需加载。 </p> <!-- 标签 --> <div class="mt-6 flex flex-wrap gap-2 font-mono text-xs" aria-label="标签"> <a href="/tags/~E6~89~93~E5~8C~85~E5~B7~A5~E5~85~B7/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"打包工具"</span> </a><a href="/tags/Father/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"Father"</span> </a><a href="/tags/~E7~BB~84~E4~BB~B6~E5~BA~93/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"组件库"</span> </a><a href="/tags/Bundless/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"Bundless"</span> </a><a href="/tags/Bundle/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"Bundle"</span> </a><a href="/tags/CSS~20Modules/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"CSS Modules"</span> </a><a href="/tags/~E6~88~91~E4~B8~8D~E7~9F~A5~E9~81~93~E7~9A~84/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"我不知道的"</span> </a> </div> </header> <!-- 封面图 -->  <!-- 文章内容 --> <div class="
+          prose prose-lg
+          prose-headings:font-bold
+          prose-a:text-accent prose-a:no-underline hover:prose-a:underline
+          prose-img:rounded prose-img:shadow-lg
+          prose-code:before:content-none prose-code:after:content-none
+          max-w-none
+        "> <h1 id="我不知道的打包工具04-father组件库构建工具的设计与实践"><a href="#我不知道的打包工具04-father组件库构建工具的设计与实践">我不知道的打包工具（04）— Father：组件库构建工具的设计与实践</a></h1>
+<p>用 Webpack 打包一个组件库试试——光处理 ESM、CJS、UMD 三种格式输出，加上 TypeScript 编译、样式文件抽离、外部依赖 externals 配置，<code>webpack.config.js</code> 轻松写到 200 行，还没算上样式隔离和按需加载。</p>
+<p>问题的关键在于——组件库构建和应用构建是两个完全不同的需求。应用只需要一个最终产物，而组件库需要同时满足：保留模块目录结构（让消费端做 Tree Shaking）、打出单文件（给 CDN 和 <code>&lt;script&gt;</code> 标签用）、处理样式隔离（类名不能和消费者的项目冲突）。这就是 Father 存在的理由。</p>
+<h2 id="一father-4x-架构概览"><a href="#一father-4x-架构概览">一、Father 4.x 架构概览</a></h2>
+<p>Father 是蚂蚁集团开源的组件库构建工具，Umi 生态成员之一，Ant Design 等知名组件库的构建都依赖它。</p>
+<p>很多人以为 Father 只是 Rollup 的封装，但那是 1.x/2.x 时代的旧架构。<strong>Father 4.x（当前版本 4.4.4）已经是多引擎架构</strong>，支持四种构建引擎：Babel、esbuild、SWC 和 Webpack。Bundless 模式可选 Babel/esbuild/SWC 作为编译器，Bundle 模式底层使用 Webpack 打包。</p>
+<p>Father 4.x 的设计理念是”约定大于配置”。一个典型的 <code>.fatherrc.ts</code> 只需要几行：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="typescript"><code><span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// .fatherrc.ts</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> { defineConfig } </span><span style="color:#D73A49;--shiki-dark:#F97583">from</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> &#39;father&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">export</span><span style="color:#D73A49;--shiki-dark:#F97583"> default</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> defineConfig</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  esm: {},</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  cjs: {},</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  umd: {</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    name: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;MyLib&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  },</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">});</span></span></code></pre>
+<p>这几行配置就能同时输出 ESM（<code>es/</code> 目录）、CJS（<code>lib/</code> 目录）和 UMD（<code>dist/</code> 目录）三种格式。说白了，Father 把”组件库该怎么构建”这个问题的最佳实践内置了，开发者不用自己拼配置。</p>
+<p>4.x 还新增了持久缓存（二次构建速度大幅提升）、项目健康检查（自动检测 <code>package.json</code> 中的 <code>main</code>/<code>module</code>/<code>types</code> 字段是否正确指向产物）和依赖预打包等能力。</p>
+<h2 id="二bundless-模式保留模块结构的逐文件编译"><a href="#二bundless-模式保留模块结构的逐文件编译">二、Bundless 模式——保留模块结构的逐文件编译</a></h2>
+<p>Bundless 是 Father 的默认输出模式，也是组件库最常用的分发方式。</p>
+<p>它的工作原理很直观：<strong>不做打包，而是逐文件编译。</strong> 每个源文件独立转译为目标格式，目录结构原样保留。假设源码目录如下：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="plaintext"><code><span class="line"><span>src/</span></span>
+<span class="line"><span>├── index.ts</span></span>
+<span class="line"><span>├── Button/</span></span>
+<span class="line"><span>│   ├── index.tsx</span></span>
+<span class="line"><span>│   └── style.less</span></span>
+<span class="line"><span>└── Input/</span></span>
+<span class="line"><span>    ├── index.tsx</span></span>
+<span class="line"><span>    └── style.less</span></span></code></pre>
+<p>运行 <code>father build</code> 后，Bundless 模式输出的 <code>es/</code> 目录与 <code>src/</code> 一一对应：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="plaintext"><code><span class="line"><span>es/</span></span>
+<span class="line"><span>├── index.js</span></span>
+<span class="line"><span>├── Button/</span></span>
+<span class="line"><span>│   ├── index.js</span></span>
+<span class="line"><span>│   └── style.css</span></span>
+<span class="line"><span>└── Input/</span></span>
+<span class="line"><span>    ├── index.js</span></span>
+<span class="line"><span>    └── style.css</span></span></code></pre>
+<p>这个设计的核心价值在于<strong>对消费端的 Tree Shaking 非常友好</strong>。当应用代码只引用了 <code>Button</code> 组件时，Webpack 或 Vite 在打包时可以直接忽略 <code>Input/</code> 目录下的所有文件。如果把整个库打成一个文件（Bundle 模式），打包工具就需要对单文件内部做静态分析来判断哪些导出被使用了，效果和可靠性都会打折扣。</p>
+<p>换句话说，Bundless 的定位是”半成品”——它不是最终运行的代码，而是交给应用构建工具（Vite、Webpack）去做最后一步打包。</p>
+<p>Bundless 的编译器可以在配置中选择：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="typescript"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">export</span><span style="color:#D73A49;--shiki-dark:#F97583"> default</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> defineConfig</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  esm: {</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    transformer: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;esbuild&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#6A737D;--shiki-dark:#6A737D">// 可选 &#39;babel&#39; | &#39;esbuild&#39; | &#39;swc&#39;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  },</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">});</span></span></code></pre>
+<p>esbuild 和 SWC 比 Babel 快很多倍，但不支持部分 Babel 插件的高级转换。对于大多数组件库场景，esbuild 足够用了。</p>
+<h2 id="三bundle-模式面向-cdn-的单文件打包"><a href="#三bundle-模式面向-cdn-的单文件打包">三、Bundle 模式——面向 CDN 的单文件打包</a></h2>
+<p>并非所有消费者都有构建工具。在没有 Webpack/Vite 的传统项目、JSFiddle/CodePen 等在线环境中，用户需要通过 <code>&lt;script&gt;</code> 标签直接引用组件库。</p>
+<p>这就是 Bundle 模式的用途：<strong>将整个库打包为一个 UMD 格式的单文件</strong>，输出到 <code>dist/</code> 目录，挂载全局变量。Father 4.x 的 Bundle 模式底层使用 Webpack，自动处理依赖合并、代码压缩和全局变量导出。配置中的 <code>externals</code> 用来排除不需要打入包内的依赖：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="typescript"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">export</span><span style="color:#D73A49;--shiki-dark:#F97583"> default</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> defineConfig</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  umd: {</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    name: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;MyLib&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    externals: {</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">      react: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;React&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">      &#39;react-dom&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;ReactDOM&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    },</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  },</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">});</span></span></code></pre>
+<p>React 这类宿主环境一定会有的依赖，没必要重复打进包里，通过 externals 排除后，消费者页面只要保证全局有 <code>React</code> 变量即可。</p>
+<p><strong>Bundless 和 Bundle 不是二选一，而是配合使用。</strong> 组件库的 <code>package.json</code> 通常同时声明 <code>module</code>（指向 <code>es/index.js</code>）和 <code>unpkg</code>（指向 <code>dist/index.min.js</code>），让不同场景的消费者各取所需。</p>
+<h2 id="四样式处理为什么组件库比应用复杂得多"><a href="#四样式处理为什么组件库比应用复杂得多">四、样式处理——为什么组件库比应用复杂得多</a></h2>
+<p>这里有一个很多人会忽略的细节——组件库的样式处理比应用开发要复杂得多。</p>
+<p>应用的样式只需要在自己的环境里不冲突就行。但组件库的样式会被安装到成百上千个不同的项目中，它必须保证三件事：类名不会和消费者的类名撞车，Less/Sass 变量不会泄漏到全局，样式能按组件粒度按需加载。</p>
+<p><strong>CSS Modules 是 Father 处理样式隔离的核心方案。</strong> 原理是在编译期将类名替换为包含文件路径和哈希值的唯一标识符。组件代码中这样写：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="tsx"><code><span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// src/Button/index.tsx</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> styles </span><span style="color:#D73A49;--shiki-dark:#F97583">from</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> &#39;./style.module.less&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">export</span><span style="color:#D73A49;--shiki-dark:#F97583"> default</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> () </span><span style="color:#D73A49;--shiki-dark:#F97583">=&gt;</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> (</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">button</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> className</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8">{styles.primary}&gt;Click&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">button</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span></code></pre>
+<p>编译后，<code>.primary</code> 被转换为类似 <code>Button_primary_a3x7k</code> 的唯一类名。消费者项目中即使也定义了 <code>.primary</code>，也不会产生冲突。说白了，CSS Modules 通过类名哈希化把”全局的 CSS”变成了”局部的 CSS”。</p>
+<p>Father 同时内置了 Less 和 Sass 预处理器支持，主题定制可以通过 Less 变量注入实现。比如 Ant Design 的经典做法——定义一组 Less 变量作为设计 token，消费者在自己的项目中覆盖这些变量就能切换主题色，不需要改组件库源码。</p>
+<p>配合 Bundless 模式保留的目录结构，每个组件的样式文件独立输出。消费者只需引入用到的组件的样式，而不是加载整个库的 CSS。这不是 Father 额外实现的功能，而是 Bundless 模式目录结构带来的天然优势——每个组件的 <code>style.css</code> 独立存在，<code>import &#39;my-lib/es/Button/style.css&#39;</code> 就只加载 Button 的样式。</p>
+<h2 id="五总结"><a href="#五总结">五、总结</a></h2>
+<p>Father 解决的核心问题是：<strong>让组件库开发者不用操心构建配置。</strong> Bundless 模式保留模块结构，让消费端高效 Tree Shaking；Bundle 模式打出 UMD 单文件，覆盖 CDN 和 <code>&lt;script&gt;</code> 标签场景；CSS Modules 在编译期做类名隔离，从根源上避免样式冲突。</p>
+<p>如果你只记住一句话：组件库构建和应用构建是两个不同的问题，Father 把前者的最佳实践内置成了零配置方案。</p>
+<hr/>
+<p><strong>本系列其他文章：</strong></p>
+<ul>
+<li>上一篇：<a href="/posts/bundler-03/">CJS、ESM、UMD 与 exports 字段 — 模块格式的那些坑</a></li>
+<li>下一篇：<a href="/posts/bundler-05/">构建工具选型 — 如何根据项目类型选择打包方案</a></li>
+</ul>
+<p><strong>相关主题：</strong></p>
+<ul>
+<li>React 组件库开发中的逻辑复用模式：<a href="/posts/react-08/">逻辑复用的三代进化</a></li>
+</ul> </div> <!-- 文章底部 --> <footer class="mt-12 border-t border-border pt-8"> <!-- 分享提示 --> <div class="code-window"> <div class="code-window-titlebar"> <span class="flex-1 text-center font-mono text-xs text-[var(--color-text-secondary)]">share.ts</span> </div> <div class="p-4 font-mono text-sm"> <p class="syntax-comment">// 觉得这篇文章有帮助？</p> <p class="syntax-comment">// 欢迎分享给更多人</p> <p class="mt-4"> <span class="syntax-keyword">export const</span> <span class="syntax-variable">&nbsp;subscribe</span> <span class="text-[var(--color-text-primary)]">&nbsp;=&nbsp;</span> <a href="/rss.xml" class="syntax-string hover:underline">"/rss.xml"</a> <span class="text-[var(--color-text-primary)]">;</span> </p> </div> </div> </footer> </article> <!-- TOC 侧边栏 - 仅在大屏幕显示 --> <aside class="hidden lg:block"> <nav class="toc-container" aria-label="文章目录" data-astro-cid-xvrfupwn><div class="toc-header" data-astro-cid-xvrfupwn><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-xvrfupwn><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7" data-astro-cid-xvrfupwn></path></svg><span data-astro-cid-xvrfupwn>目录</span></div><ul class="toc-list" data-astro-cid-xvrfupwn><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#一father-4x-架构概览" class="toc-link" data-slug="一father-4x-架构概览" data-astro-cid-xvrfupwn>一、Father 4.x 架构概览</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#二bundless-模式保留模块结构的逐文件编译" class="toc-link" data-slug="二bundless-模式保留模块结构的逐文件编译" data-astro-cid-xvrfupwn>二、Bundless 模式——保留模块结构的逐文件编译</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#三bundle-模式面向-cdn-的单文件打包" class="toc-link" data-slug="三bundle-模式面向-cdn-的单文件打包" data-astro-cid-xvrfupwn>三、Bundle 模式——面向 CDN 的单文件打包</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#四样式处理为什么组件库比应用复杂得多" class="toc-link" data-slug="四样式处理为什么组件库比应用复杂得多" data-astro-cid-xvrfupwn>四、样式处理——为什么组件库比应用复杂得多</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#五总结" class="toc-link" data-slug="五总结" data-astro-cid-xvrfupwn>五、总结</a></li></ul></nav><script type="module">function s(){const n=document.querySelectorAll(".toc-link"),c=document.querySelectorAll("article h2[id], article h3[id]");if(n.length===0||c.length===0)return;const i=new IntersectionObserver(t=>{t.forEach(o=>{if(o.isIntersecting){const r=o.target.getAttribute("id");n.forEach(e=>{e.classList.toggle("active",e.getAttribute("data-slug")===r)})}})},{rootMargin:"-80px 0px -80% 0px",threshold:0});c.forEach(t=>i.observe(t)),n.forEach(t=>{t.addEventListener("click",o=>{o.preventDefault();const r=t.getAttribute("data-slug"),e=document.getElementById(r||"");if(e){const a=e.getBoundingClientRect().top+window.scrollY-100;window.scrollTo({top:a,behavior:"smooth"})}})})}s();document.addEventListener("astro:after-swap",s);</script> </aside> </div>  <script type="module">function i(){document.querySelectorAll("pre:has(code)").forEach(t=>{if(t.querySelector(".code-header"))return;const s=t.querySelector("code");if(!s)return;const r=Array.from(s.classList).find(a=>a.startsWith("language-")),d=r?r.replace("language-",""):"text",c=document.createElement("div");c.className="code-header";const n=document.createElement("span");n.className="code-lang",n.textContent=d.toUpperCase();const e=document.createElement("button");e.className="code-copy-btn",e.setAttribute("aria-label","复制代码"),e.innerHTML=`
+        <svg class="copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </svg>
+        <svg class="check-icon hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      `,e.addEventListener("click",async()=>{const a=s.textContent||"";try{await navigator.clipboard.writeText(a),e.classList.add("copied"),e.querySelector(".copy-icon")?.classList.add("hidden"),e.querySelector(".check-icon")?.classList.remove("hidden"),setTimeout(()=>{e.classList.remove("copied"),e.querySelector(".copy-icon")?.classList.remove("hidden"),e.querySelector(".check-icon")?.classList.add("hidden")},2e3)}catch(l){console.error("复制失败:",l)}}),c.appendChild(n),c.appendChild(e);const o=document.createElement("div");o.className="code-block-wrapper",t.parentNode?.insertBefore(o,t),o.appendChild(c),o.appendChild(t)})}i();document.addEventListener("astro:after-swap",i);</script>   <button id="back-to-top" class="back-to-top" aria-label="返回顶部" title="返回顶部" data-astro-cid-wlspcwf4> <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-wlspcwf4> <path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" data-astro-cid-wlspcwf4></path> </svg> </button> <script type="module">function o(){const e=document.getElementById("back-to-top");if(!e)return;function i(){window.scrollY>400?e.classList.add("visible"):e.classList.remove("visible")}e.addEventListener("click",()=>{window.scrollTo({top:0,behavior:"smooth"})});let t=!1;window.addEventListener("scroll",()=>{t||(requestAnimationFrame(()=>{i(),t=!1}),t=!0)}),i()}o();document.addEventListener("astro:after-swap",o);</script>   </main> <!-- 页脚 - VSCode 状态栏风格 --> <footer class="
+        border-t border-[var(--color-border)]
+        bg-[var(--color-surface)]
+        py-6
+        text-xs font-mono text-[var(--color-text-secondary)]
+      "> <div class="main-container"> <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"> <!-- 版权信息 --> <p class="text-center sm:text-left"> <span class="syntax-comment">// </span> <span class="syntax-keyword">const</span> <span class="syntax-variable"> copyright</span> <span> = </span> <span class="syntax-string">"2026 NorthSeacoder"</span> </p> <!-- 链接 --> <div class="flex items-center justify-center gap-4 sm:justify-end"> <a href="/rss.xml" class="
+                flex items-center gap-1.5
+                transition-colors
+                hover:text-[var(--color-accent)]
+              " aria-label="RSS 订阅"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:rss">   <symbol id="ai:lucide:rss" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></g></symbol><use href="#ai:lucide:rss"></use>  </svg> <span>RSS</span> </a> <a href="https://github.com/NorthSeacoder" target="_blank" rel="noopener noreferrer" class="
+                flex items-center gap-1.5
+                transition-colors
+                hover:text-[var(--color-accent)]
+              " aria-label="GitHub"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:github">   <symbol id="ai:lucide:github" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5c.08-1.25-.27-2.48-1-3.5c.28-1.15.28-2.35 0-3.5c0 0-1 0-3 1.5c-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.4 5.4 0 0 0 4 9c0 3.5 3 5.5 6 5.5c-.39.49-.68 1.05-.85 1.65S8.93 17.38 9 18v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></g></symbol><use href="#ai:lucide:github"></use>  </svg> <span>GitHub</span> </a> </div> </div> </div> </footer> </body></html>

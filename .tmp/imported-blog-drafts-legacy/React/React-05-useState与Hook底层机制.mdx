@@ -1,0 +1,260 @@
+---
+title: 我不知道的 React（05）— useState 与 Hook 底层机制
+description: >-
+  几乎每个 React 初学者都会撞上同一个困惑：调了 setCount，紧接着打印 count，发现值没变。于是搜索引擎告诉你——"useState
+  是异步的"。
+subtitle: useState 与 Hook 底层机制
+pubDate: '2022-05-22'
+updatedDate: '2026-03-06'
+tags:
+  - React
+  - useState
+  - Hook
+  - 批量更新
+  - Fiber
+  - 并发模式
+lang: zh-CN
+keywords:
+  - React
+  - useState
+  - Hook
+  - 批量更新
+  - Fiber
+  - 并发模式
+topic: React
+category: React
+type: post
+series: React
+seriesOrder: 5
+slug: react-05
+model: claude-4.6-opus
+optimized_from: 010.useState.mdx
+optimization_type: 深度升级
+style_version: 2026-03-03T00:00:00.000Z
+diagnosis:
+  style_conformity: 8
+  content_depth: 深
+  topic_structure: 保留
+---
+# 我不知道的 React（05）— useState 与 Hook 底层机制
+
+几乎每个 React 初学者都会撞上同一个困惑：调了 `setCount`，紧接着打印 `count`，发现值没变。于是搜索引擎告诉你——"useState 是异步的"。
+
+这个说法流传极广，但它是错的。
+
+## 一、那个经典的困惑
+
+先看一段几乎所有 React 教程都会出现的代码：
+
+```jsx
+function Counter() {
+  const [count, setCount] = useState(0);
+
+  function handleClick() {
+    setCount(count + 1);
+    console.log(count); // 输出 0，不是 1
+  }
+
+  return <button onClick={handleClick}>{count}</button>;
+}
+```
+
+点击按钮后，控制台打印的是 `0` 而不是 `1`。很多人以为 `setCount` 是一个异步操作，类似 `fetch` 或 `setTimeout`，需要等它"完成"之后值才会更新。
+
+但实际上，`setCount` 不是异步的，它甚至不返回 Promise。你没法 `await` 它，也没有任何回调告诉你"更新完了"。那为什么 `console.log` 拿到的是旧值？
+
+**问题的关键在于 JavaScript 的函数作用域，而不是什么异步机制。**
+
+## 二、不是异步，是闭包
+
+要理解这个现象，得回到最基础的 JavaScript 概念。
+
+每次组件渲染时，`Counter` 函数会重新执行一遍。每次执行都会创建一个新的作用域，这个作用域里的 `count` 是一个固定的值——比如第一次渲染时是 `0`，第二次渲染时是 `1`。
+
+`handleClick` 是在当前这次渲染的作用域里定义的，所以它捕获的 `count` 永远是**这次渲染时的快照**。调用 `setCount(count + 1)` 只是告诉 React"下次渲染时，请把 count 的值设为 1"，它不会修改当前作用域里那个已经定义好的 `count` 变量。
+
+换句话说，`setCount` 不是"异步地修改 count"，而是"安排一次新的渲染，新渲染中的 count 会是新值"。当前这次渲染里的 `count` 在函数执行那一刻就已经确定了，后续的任何操作都改不了它。
+
+用一个纯 JavaScript 的类比可以看得更清楚：
+
+```javascript
+function render(snapshotValue) {
+  const count = snapshotValue;
+
+  function handleClick() {
+    scheduleRerender(count + 1);
+    console.log(count); // 永远是 snapshotValue
+  }
+}
+
+render(0); // 第一次渲染，count = 0
+```
+
+这段代码里没有任何异步操作，但 `console.log(count)` 打出来就是 `0`——因为 `count` 是一个 `const`，它的值在 `render(0)` 执行的那一刻就定死了。React 的 `useState` 本质上做的就是这件事。
+
+**如果你只记住一句话：每次渲染都是一张快照，`useState` 返回的是这次快照里的值，不是一个"会自动更新的引用"。**
+
+## 三、批量更新：为什么连续三次 setCount 只触发一次渲染
+
+理解了闭包之后，还有第二层困惑。看下面这段代码：
+
+```jsx
+function handleClick() {
+  setCount(count + 1);
+  setCount(count + 1);
+  setCount(count + 1);
+  // 最终 count 只加了 1，不是 3
+}
+```
+
+三次 `setCount` 都传了 `count + 1`，但最终 `count` 只从 `0` 变成了 `1`。这又是为什么？
+
+原因有两层。第一层还是闭包：三次调用里的 `count` 都是同一个快照值 `0`，所以三次都是 `setCount(0 + 1)`，等价于连续三次 `setCount(1)`。
+
+第二层是 React 的**批量更新机制**。在事件处理函数内部，React 不会每次 `setState` 都立刻触发一轮渲染，而是把所有状态更新收集起来，等事件处理函数执行完毕后统一处理，只触发一次渲染。
+
+说白了，React 在事件处理开始时打开一个"收集模式"，所有 `setState` 调用都被暂存，事件处理结束后才一次性合并执行。这是一种性能优化——如果每次 `setState` 都立刻渲染，一个事件处理函数里调三次 `setState` 就要渲染三次，绝大多数场景下完全没有必要。
+
+如果确实需要基于前一次的值来更新，应该用函数式更新：
+
+```jsx
+function handleClick() {
+  setCount(prev => prev + 1);
+  setCount(prev => prev + 1);
+  setCount(prev => prev + 1);
+  // 最终 count 加了 3
+}
+```
+
+函数式更新不依赖闭包里的 `count`，而是从上一次更新的结果开始计算。React 会按顺序执行这三个函数：`0 → 1 → 2 → 3`。
+
+## 四、React 18 的自动批量更新
+
+在 React 17 及之前，批量更新只在 React 事件处理函数和生命周期方法中生效。一旦脱离 React 的控制——比如在 `setTimeout`、`Promise.then` 或原生事件监听器里——每次 `setState` 都会立刻触发一次渲染。
+
+```jsx
+// React 17：setTimeout 内不会批量更新
+setTimeout(() => {
+  setCount(c => c + 1); // 触发一次渲染
+  setFlag(f => !f);     // 又触发一次渲染
+}, 1000);
+```
+
+**React 18 改变了这个行为。** 通过 `createRoot` 启用的应用，所有状态更新——无论发生在事件处理、setTimeout、Promise、还是原生事件监听器中——都会自动批量处理。
+
+```jsx
+// React 18：所有场景都自动批量更新
+setTimeout(() => {
+  setCount(c => c + 1);
+  setFlag(f => !f);
+  // 只触发一次渲染
+}, 1000);
+```
+
+很多人会忽略的细节是：这个改变是 `createRoot` 带来的，而不是 React 18 版本号本身。如果你的 React 18 应用仍然使用 `ReactDOM.render`（旧的入口 API），行为和 React 17 完全一样。
+
+那如果在某些场景下确实需要立刻触发渲染呢？React 提供了 `flushSync` 作为逃生舱：
+
+```jsx
+import { flushSync } from 'react-dom';
+
+function handleClick() {
+  flushSync(() => {
+    setCount(c => c + 1);
+  });
+  // 到这里，DOM 已经更新了
+  console.log(document.getElementById('count').textContent);
+}
+```
+
+`flushSync` 会强制 React 同步执行这次状态更新并立刻刷新 DOM。但它的使用场景非常少，官方文档也明确标注为"不常见"——绝大多数时候，自动批量更新就是你想要的行为。
+
+## 五、Hook 的底层秘密：Fiber 上的链表
+
+到这里，"useState 怎么用"的问题基本说清楚了。但另一个更深层的问题是：**React 怎么知道每次渲染时该返回哪个 Hook 的状态？**
+
+组件函数里可能调用了多个 Hook——`useState`、`useEffect`、`useMemo`——React 没有用变量名来区分它们（JavaScript 本身也做不到），那它靠什么来对应？
+
+答案是**调用顺序**。
+
+每个 Fiber 节点（还记得第 02 篇介绍的 Fiber 架构吗？）上有一个 `memoizedState` 字段，指向一条由 Hook 对象组成的单向链表。第一个 Hook 的状态存在链表的第一个节点，第二个 Hook 存在第二个节点，以此类推。
+
+用一个简化的结构来理解：
+
+```javascript
+// 组件代码
+function MyComponent() {
+  const [name, setName] = useState('React');
+  const [count, setCount] = useState(0);
+  useEffect(() => { /* ... */ }, []);
+  return <div>{name}: {count}</div>;
+}
+
+// Fiber 节点上对应的 Hook 链表（简化）
+FiberNode.memoizedState = {
+  state: 'React',       // 第 1 个 useState
+  next: {
+    state: 0,            // 第 2 个 useState
+    next: {
+      effect: { /* ... */ }, // useEffect
+      next: null
+    }
+  }
+};
+```
+
+每次渲染时，React 从链表头开始，按顺序把状态分配给每一次 Hook 调用。**第一次调用 `useState` 拿到链表第一个节点的状态，第二次调用拿到第二个节点的状态——纯粹靠位置匹配。**
+
+这个设计极其简洁，不需要任何命名机制或注册表，一条链表加一个游标就解决了多 Hook 状态管理的问题。但它有一个代价：**Hook 的调用顺序必须在每次渲染中保持一致。**
+
+## 六、Hook 规则为什么如此严格
+
+React 官方有两条硬性规则：Hook 只能在函数组件的顶层调用，不能放在条件语句、循环或嵌套函数里。
+
+很多人以为这只是"代码规范"或"最佳实践"，但实际上这是链表机制决定的硬约束。一旦违反，状态就会错乱。
+
+下面这个对比实验能直观说明问题：
+
+```jsx
+// 正常情况：每次渲染 Hook 顺序一致
+function Good() {
+  const [name, setName] = useState('React');  // 链表位置 0
+  const [count, setCount] = useState(0);       // 链表位置 1
+  return <div>{name}: {count}</div>;
+}
+
+// 危险情况：条件调用导致顺序错位
+function Bad({ showName }) {
+  if (showName) {
+    const [name, setName] = useState('React'); // 有时位置 0，有时不存在
+  }
+  const [count, setCount] = useState(0);        // 有时位置 1，有时位置 0
+  return <div>{count}</div>;
+}
+```
+
+当 `showName` 为 `true` 时，链表有两个节点：位置 0 存 `name`，位置 1 存 `count`。当 `showName` 变为 `false` 时，第一个 `useState` 被跳过了，`count` 的调用变成了链表的位置 0。React 不知道你跳过了一个 Hook，它只会机械地把位置 0 的状态（`'React'`）返回给 `count`。
+
+**结果就是 `count` 拿到了 `name` 的值，整个状态系统彻底错乱。**
+
+说白了，React 没有办法通过"名字"去查找某个 Hook 的状态，它只能数数——"这是第几个 Hook 调用，就返回链表第几个节点的值"。一旦调用顺序发生变化，数数就数错了，状态就对不上号了。
+
+这就是为什么 ESLint 的 `eslint-plugin-react-hooks` 规则被设置为 `error` 级别而不是 `warn`——这不是风格偏好，是会导致运行时 bug 的硬伤。
+
+## 七、总结
+
+`useState` 的"异步"是 React 社区流传最广的误解之一。它不是异步的，不涉及 Promise，也不涉及事件循环。`setCount` 之后拿到旧值，是因为函数组件的每次渲染都是一个独立的闭包快照，当前作用域里的 `count` 在渲染那一刻就固定了。
+
+批量更新是 React 的性能优化策略：在一个执行上下文中收集所有状态更新，统一触发一次渲染。React 18 通过 `createRoot` 把这个机制从"仅限事件处理函数"扩展到了所有场景。
+
+Hook 的底层靠 Fiber 节点上的链表实现，通过调用顺序而非变量名来匹配状态。这个设计简洁高效，但代价是 Hook 的调用顺序必须在每次渲染中保持一致——这不是编码规范，而是数据结构层面的硬性约束。
+
+---
+
+**本系列其他文章：**
+- 上一篇：[生命周期演进与 Render 触发机制](/posts/react-04/)
+- 下一篇：[核心 Hooks 详解 — useMemo、useCallback 与 useRef](/posts/react-06/)
+
+**相关主题：**
+- Fiber 架构详解：[可中断渲染与优先级调度](/posts/react-02/)
+- 从 JSX 到 DOM：[渲染流程与 Diff 算法](/posts/react-03/)

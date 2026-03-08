@@ -1,0 +1,152 @@
+---
+title: 我不知道的HTTP（02）— Cookie到底是怎么工作的
+description: >-
+  很多人以为 Cookie 就是"在浏览器里存个值"，需要的时候取出来用。但实际上，Cookie 和 localStorage 有一个本质区别：Cookie
+  会在每一次 HTTP 请求中被自动携带发送到服务器。
+subtitle: Cookie到底是怎么工作的
+pubDate: '2024-10-09'
+updatedDate: '2026-03-06'
+tags:
+  - HTTP
+  - Cookie
+  - SameSite
+  - 安全
+  - 我不知道的
+lang: zh-CN
+keywords:
+  - HTTP
+  - Cookie
+  - SameSite
+  - 安全
+  - 我不知道的
+topic: HTTP
+category: HTTP
+type: post
+series: HTTP
+seriesOrder: 2
+slug: http-02
+model: claude-4.6-opus
+---
+# 我不知道的HTTP（02）— Cookie到底是怎么工作的
+
+## 一、问题引入
+
+很多人以为 Cookie 就是"在浏览器里存个值"，需要的时候取出来用。但实际上，Cookie 和 localStorage 有一个本质区别：**Cookie 会在每一次 HTTP 请求中被自动携带发送到服务器**。
+
+这意味着什么？每多设置一个 Cookie，每个请求的体积就会增大。一个域名下如果积累了 4KB 的 Cookie，那这个域名下的每一个请求——包括每张图片、每个 CSS 文件——都会多带上 4KB 的请求头。Cookie 不仅仅是存储机制，它更是一个请求级别的状态传输通道。
+
+## 二、表面认知：大多数人停在这里
+
+大多数开发者对 Cookie 的理解停留在这个层面：服务端在响应头里设置 `Set-Cookie`，浏览器自动保存下来，后续请求自动通过 `Cookie` 头带回去。
+
+```
+HTTP/1.1 200 OK
+Set-Cookie: session_id=abc123; Path=/; HttpOnly
+```
+
+后续同域请求会自动携带：
+
+```
+GET /api/user HTTP/1.1
+Cookie: session_id=abc123
+```
+
+这个基本模型没错。但"自动"两个字背后，有一套复杂的规则在决定：哪些请求会带、哪些不会带、带给谁、不带给谁。理解这套规则，才算真正搞懂 Cookie。
+
+## 三、往下挖：Cookie 的规则引擎
+
+### 3.1 Domain 属性：Cookie 到底发给谁
+
+设置 Cookie 时，`Domain` 属性决定了哪些域名可以收到这个 Cookie。
+
+这里有一个很多人会忽略的细节——**如果不显式设置 `Domain`，Cookie 只会精确匹配当前域名，不包含子域名**。但如果显式设置了 `Domain=example.com`，那 `a.example.com`、`b.example.com` 甚至 `x.y.example.com` 都能收到这个 Cookie。
+
+换句话说，"不设置"和"设置为当前域"的行为是不同的。不设置更严格，设置了反而更宽泛。
+
+这在多子域架构中尤其重要。假设 `login.example.com` 负责登录，设置了 `Domain=example.com` 的 session Cookie，那 `api.example.com`、`admin.example.com` 都能读到这个 Cookie。这是单点登录的常见实现方式，但同时也意味着——**任何子域名被攻破，都能拿到这个 Cookie**。一个被遗忘的测试子域 `test.example.com` 如果存在 XSS 漏洞，就能直接窃取主站的 session。
+
+### 3.2 SameSite 属性：跨站请求带不带 Cookie
+
+SameSite 是 Cookie 最重要的安全属性之一，也是最容易搞混的。它控制的是：当请求是从其他站点发起的（比如从 `evil.com` 向 `bank.com` 发请求），Cookie 要不要跟着一起发。
+
+问题的关键在于——SameSite 有三个值，每个值在不同场景下的行为完全不同。用列表罗列很难记住，用场景更直观。
+
+**场景一：用户在 `evil.com` 上点击了一个链接，跳转到 `bank.com`。**
+
+这是一个顶级导航（top-level navigation），属于"安全"的跨站请求。`SameSite=Lax` 会携带 Cookie，`SameSite=Strict` 不会。Strict 的意思是：除非请求是从 `bank.com` 自己发起的，否则一律不带。所以如果把 session Cookie 设成 Strict，用户从搜索引擎点击链接进来，就会发现自己是未登录状态——因为 Cookie 没有跟过来。
+
+**场景二：`evil.com` 页面中嵌了一个隐藏表单，自动向 `bank.com/transfer` 发 POST 请求。**
+
+这是经典的 CSRF 攻击。POST 请求不是顶级导航，`SameSite=Lax` 和 `SameSite=Strict` 都不会携带 Cookie。攻击失败。这就是为什么 Chrome 在 2020 年把 SameSite 的默认值从 `None` 改成了 `Lax`——**仅这一个默认值的修改，就让大量 CSRF 攻击自动失效了**。
+
+**场景三：`a.com` 页面中用 `<iframe>` 嵌入了 `b.com`，或者用 `fetch` 跨站请求 `b.com` 的 API。**
+
+这两种情况下，只有 `SameSite=None` 的 Cookie 才会被发送——而且必须同时设置 `Secure` 标记（只能通过 HTTPS 传输）。这就是第三方 Cookie 的工作方式。
+
+下面这段代码演示了三种 SameSite 值的设置方式，可以在 Express 服务中直接运行：
+
+```javascript
+const express = require('express');
+const app = express();
+
+app.get('/set-cookies', (req, res) => {
+  res.setHeader('Set-Cookie', [
+    'strict_cookie=1; SameSite=Strict; Path=/',
+    'lax_cookie=1; SameSite=Lax; Path=/',
+    'none_cookie=1; SameSite=None; Secure; Path=/',
+  ]);
+  res.send('Cookies set');
+});
+
+app.listen(3000);
+```
+
+设置后，从其他站点发起不同类型的请求，在 DevTools 的 Network 面板中观察 Cookie 头，就能清楚看到三者的差异：跨站链接跳转只带 `lax_cookie`，跨站 POST 一个都不带，跨站 iframe/fetch 只带 `none_cookie`。
+
+### 3.3 HttpOnly 和 Secure：两道经常被忽视的防线
+
+`HttpOnly` 禁止 JavaScript 通过 `document.cookie` 读取该 Cookie。说白了，HttpOnly 就是专门防 XSS 的——即使攻击者在页面中注入了恶意脚本，也无法通过 JS 把 session Cookie 偷走。
+
+`Secure` 标记要求 Cookie 只能通过 HTTPS 传输。如果用户不小心通过 HTTP 访问了页面，Secure Cookie 不会被发出去，避免在明文传输中被截获。
+
+如果你只记住一句话，记住这个：**session 类 Cookie 应该同时设置 `HttpOnly`、`Secure` 和 `SameSite=Lax`（或 Strict），三者缺一不可。**
+
+### 3.4 Expires 和 Max-Age：Cookie 什么时候消失
+
+不设置过期时间的 Cookie 是会话级的——关闭浏览器（注意是关闭整个浏览器，不是关闭标签页）就会被清除。设置了 `Expires`（绝对时间）或 `Max-Age`（相对秒数）的 Cookie 是持久化的，到期自动删除。
+
+这里有一个很多人会忽略的细节——当 `Expires` 和 `Max-Age` 同时存在时，`Max-Age` 优先。而 IE 8 及更早版本不支持 `Max-Age`，只认 `Expires`。现在已经不需要为 IE 8 操心了，**推荐统一使用 `Max-Age`**，因为它不依赖客户端的时钟是否准确。
+
+### 3.5 大小限制与性能影响
+
+每个 Cookie 的大小上限通常是 4KB，单个域名下最多约 50 个 Cookie（不同浏览器略有差异）。
+
+说白了，Cookie 的性能问题不在于"读写慢"，而在于"每次请求都带"。如果一个域名下有 3KB 的 Cookie，该域名下的 100 个资源请求就会多传输 300KB 的请求头数据。这也是为什么很多大型网站会把静态资源（图片、CSS、JS）放到独立的域名（比如 `static.example.com`）——那个域名下没有 Cookie，请求头干干净净。
+
+## 四、这意味着什么：第三方 Cookie 的现状
+
+关于第三方 Cookie 的未来，这几年的变化非常大，很多文章还停留在旧信息上。
+
+**（1）** Google 在 2020 年宣布计划淘汰 Chrome 中的第三方 Cookie，并推出 Privacy Sandbox 作为替代方案。其中最知名的提案 FLoC（Federated Learning of Cohorts）因为隐私争议在 2022 年被废弃，替代方案 Topics API 上线后也未获得广泛采用。
+
+**（2）** 2025 年 4 月，**Google 正式宣布放弃在 Chrome 中淘汰第三方 Cookie 的计划**。2025 年 10 月，Privacy Sandbox 项目正式关闭。Chrome 继续保留第三方 Cookie。
+
+**（3）** 但 Safari 和 Firefox 没有放弃。Safari 的 ITP（Intelligent Tracking Prevention）从 2017 年开始就在持续收紧第三方 Cookie 的限制，目前默认完全阻止第三方 Cookie。Firefox 的 TCP（Total Cookie Protection）为每个站点创建独立的 Cookie 存储，使第三方 Cookie 无法跨站跟踪。
+
+换句话说，第三方 Cookie 和"被淘汰"的根本区别在于：它没有被统一淘汰，而是进入了一个"浏览器各自为政"的分裂状态。Chrome 保留，Safari/Firefox 限制，开发者需要面对的是差异化行为。
+
+值得关注的新方向包括：**CHIPS（Cookies Having Independent Partitioned State）**——允许第三方 Cookie 存在，但按顶级站点分区，使其无法跨站跟踪；以及 **DBSC（Device Bound Session Credentials）**——将 session 绑定到设备的硬件密钥上，即使 Cookie 被窃取也无法在其他设备上使用。
+
+## 五、总结
+
+Cookie 不是一个存储 API，而是一个请求级的状态传输协议。它的每一个属性——Domain、SameSite、HttpOnly、Secure——都在回答同一个问题：**这个值该发给谁、在什么条件下发、怎么防止被偷走。**
+
+---
+
+**本系列其他文章：**
+- 上一篇：[从输入URL到页面呈现](/posts/http-01/)
+- 下一篇：[浏览器缓存：强缓存、协商缓存与整条链路](/posts/http-03/)
+
+**相关主题：**
+- HTTPS 如何保证 Cookie 在传输中不被窃取？见本系列第 04 篇：[HTTPS握手：TLS到底做了什么](/posts/http-04/)
+- 浏览器的进程模型如何影响 Cookie 的隔离？可以看浏览器系列：[进程、线程与多进程架构](/posts/browser-01/)

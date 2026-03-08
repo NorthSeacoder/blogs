@@ -1,0 +1,320 @@
+<!DOCTYPE html><html lang="zh-CN" class="min-h-full"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Astro v5.16.5"><!-- 防闪烁脚本：在 DOM 解析前执行 --><script>
+      (function () {
+        const STORAGE_KEY = 'theme';
+        const stored = localStorage.getItem(STORAGE_KEY);
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        // 根据存储值或系统偏好设置主题
+        if (stored === 'dark' || (stored === 'system' && prefersDark) || (!stored && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      })();
+    </script><!-- 字体预加载 --><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"><title>我不知道的 VSCode 扩展（09）— 架构、进程模型与源码导读 | ?.log</title><meta name="description" content="很多人以为 VSCode 是一个单进程应用，但实际上，VSCode 在运行时可以有十几个甚至几十个进程。打开系统的进程管理器，搜索 &#34;Code&#34;，会看到一长串进程列表。"><meta name="keywords" content="VSCode 扩展, 我不知道的, 架构, 进程模型, Extension Host, IPC, 沙箱, 源码"><link rel="canonical" href="https://example.com/posts/vscode-extension-09/"><link rel="alternate" type="application/rss+xml" title="RSS" href="/rss.xml"><meta property="og:title" content="我不知道的 VSCode 扩展（09）— 架构、进程模型与源码导读 | ?.log"><meta property="og:description" content="很多人以为 VSCode 是一个单进程应用，但实际上，VSCode 在运行时可以有十几个甚至几十个进程。打开系统的进程管理器，搜索 &#34;Code&#34;，会看到一长串进程列表。"><meta property="og:type" content="article"><meta property="og:url" content="https://example.com/posts/vscode-extension-09/"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="我不知道的 VSCode 扩展（09）— 架构、进程模型与源码导读 | ?.log"><meta name="twitter:description" content="很多人以为 VSCode 是一个单进程应用，但实际上，VSCode 在运行时可以有十几个甚至几十个进程。打开系统的进程管理器，搜索 &#34;Code&#34;，会看到一长串进程列表。"><script type="application/ld+json">{JSON.stringify(jsonLd)}</script><link rel="stylesheet" href="/_astro/index.sfjfXeKE.css">
+<link rel="stylesheet" href="/_astro/_slug_.KigR83JL.css"></head> <body class="flex min-h-screen flex-col"> <!-- 跳过链接 --> <a href="#main" class="skip-link">跳到主要内容</a> <!-- 导航栏 - VSCode 标签页风格 --> <header class="
+        fixed inset-x-0 top-0 z-50
+        bg-[var(--color-titlebar)]
+        border-b border-[var(--color-border)]
+        transition-colors duration-200
+      "> <div class="main-container flex h-12 items-center justify-between"> <!-- Logo - 终端风格 --> <a href="/" class="
+            flex items-center gap-2
+            font-mono text-sm font-medium
+            text-[var(--color-text-primary)]
+            transition-opacity hover:opacity-80
+          "> <span class="text-[var(--color-accent)]">~/</span> <span>?.log</span> <span class="text-[var(--color-comment)]">$</span> </a> <!-- 导航标签页 --> <div class="flex items-center"> <nav aria-label="主导航" class="flex items-center"> <a href="/" class="tab font-mono text-xs"> 首页 </a><a href="/posts/" class="tab font-mono text-xs active" aria-current="page"> 文章 </a><a href="/series/" class="tab font-mono text-xs"> 系列 </a><a href="/tags/" class="tab font-mono text-xs"> 标签 </a><a href="/archives/" class="tab font-mono text-xs"> 归档 </a><a href="/about/" class="tab font-mono text-xs"> 关于 </a> </nav> <!-- 工具栏按钮组 --> <div class="flex items-center gap-1 ml-2"> <!-- 搜索按钮 --> <a href="/search/" class="
+                flex items-center justify-center
+                h-7 w-7 rounded
+                text-[var(--color-text-secondary)]
+                bg-[var(--color-surface)]
+                border border-[var(--color-border)]
+                transition-colors
+                hover:bg-[var(--color-surface-hover)]
+                hover:text-[var(--color-text-primary)]
+              " aria-label="搜索" title="搜索 (⌘K)"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:search">   <symbol id="ai:lucide:search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m21 21l-4.34-4.34"/><circle cx="11" cy="11" r="8"/></g></symbol><use href="#ai:lucide:search"></use>  </svg> </a> <!-- 主题切换 --> <button id="theme-toggle" type="button" aria-label="切换主题" class="
+    relative flex h-7 w-7 items-center justify-center
+    rounded
+    bg-[var(--color-surface)]
+    border border-[var(--color-border)]
+    text-[var(--color-text-secondary)]
+    transition-colors
+    hover:bg-[var(--color-surface-hover)]
+    hover:text-[var(--color-text-primary)]
+    focus:outline-none
+  " data-astro-cid-x3pjskd3> <!-- 太阳图标 (亮色模式) --> <svg id="icon-sun" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" data-astro-cid-x3pjskd3></path> </svg> <!-- 月亮图标 (暗色模式) --> <svg id="icon-moon" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" data-astro-cid-x3pjskd3></path> </svg> <!-- 系统图标 (跟随系统) --> <svg id="icon-system" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" data-astro-cid-x3pjskd3></path> </svg> </button> <script type="module">const m="theme",s=["light","dark","system"];function r(){if(typeof localStorage>"u")return"system";const e=localStorage.getItem(m);return s.includes(e)?e:"system"}function l(){return typeof window>"u"?"light":window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}function u(e){return e==="system"?l():e}function d(e){const n=u(e),t=document.documentElement;n==="dark"?t.classList.add("dark"):t.classList.remove("dark"),f(e)}function f(e){const n=document.getElementById("icon-sun"),t=document.getElementById("icon-moon"),o=document.getElementById("icon-system");if(!n||!t||!o)return;[n,t,o].forEach(i=>{i.style.opacity="0",i.style.transform="scale(0.5) rotate(-180deg)"});let c;switch(e){case"light":c=n;break;case"dark":c=t;break;default:c=o}requestAnimationFrame(()=>{c.style.opacity="1",c.style.transform="scale(1) rotate(0deg)"})}function g(){const e=r(),t=(s.indexOf(e)+1)%s.length,o=s[t];localStorage.setItem(m,o),d(o)}function a(){const e=r();d(e),document.getElementById("theme-toggle")?.addEventListener("click",g),window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{r()==="system"&&d("system")})}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",a):a();document.addEventListener("astro:after-swap",a);</script>  </div> </div> </div> </header> <!-- 主内容区 --> <main id="main" class="main-container-wide flex-1 pb-16 pt-20">   <div class="reading-progress-container" aria-hidden="true" data-astro-cid-mu6cnre2> <div class="reading-progress-bar" id="reading-progress" data-astro-cid-mu6cnre2></div> </div> <script type="module">function a(){const e=document.getElementById("reading-progress"),n=document.querySelector("article");if(!e||!n)return;function o(){const r=n.getBoundingClientRect(),s=r.top+window.scrollY,l=r.height,i=window.innerHeight,d=window.scrollY,c=s-i/2,g=s+l-i/2,u=Math.min(Math.max((d-c)/(g-c),0),1);e.style.transform=`scaleX(${u})`}let t=!1;window.addEventListener("scroll",()=>{t||(requestAnimationFrame(()=>{o(),t=!1}),t=!0)}),o()}a();document.addEventListener("astro:after-swap",a);</script>   <div class="relative lg:grid lg:grid-cols-[1fr_220px] lg:gap-8 xl:grid-cols-[1fr_260px]"> <article class="animate-fade-in min-w-0"> <!-- 文章头部 --> <header class="mb-8"> <!-- 返回链接 --> <a href="/posts/" class="
+            group mb-6 inline-flex items-center gap-2
+            text-sm font-medium text-text-secondary
+            transition-colors hover:text-accent
+          "> <svg width="1em" height="1em" class="transition-transform group-hover:-translate-x-1" style="width: 1rem; height: 1rem;" data-icon="lucide:arrow-left">   <symbol id="ai:lucide:arrow-left" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m12 19l-7-7l7-7m7 7H5"/></symbol><use href="#ai:lucide:arrow-left"></use>  </svg> <span>返回文章列表</span> </a> <!-- 元信息 --> <div class="mb-4 flex flex-wrap items-center gap-4 text-sm text-text-secondary"> <!-- 发布日期 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:calendar">   <symbol id="ai:lucide:calendar" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M8 2v4m8-4v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></g></symbol><use href="#ai:lucide:calendar"></use>  </svg> <time datetime="2024-06-23T00:00:00.000Z"> 2024年6月23日 </time> </div> <!-- 阅读时间 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:clock">   <symbol id="ai:lucide:clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="10"/></g></symbol><use href="#ai:lucide:clock"></use>  </svg> <span>10 min read</span> </div> <!-- 更新日期 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:refresh-cw">   <symbol id="ai:lucide:refresh-cw" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9a9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5m5 4a9 9 0 0 1-9 9a9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></g></symbol><use href="#ai:lucide:refresh-cw"></use>  </svg> <span>更新于 2026年3月6日</span> </div> </div> <div class="mb-4 flex flex-wrap items-center gap-2 font-mono text-xs"> <a href="/series/VSCode%20%E6%89%A9%E5%B1%95/" class="
+                  inline-flex items-center gap-1 rounded px-2 py-1
+                  bg-[var(--color-accent)]/10 text-[var(--color-accent)]
+                  transition-colors hover:bg-[var(--color-accent)]/15
+                "> <svg width="1em" height="1em" class style="width: 0.75rem; height: 0.75rem;" data-icon="lucide:folder">   <symbol id="ai:lucide:folder" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol><use href="#ai:lucide:folder"></use>  </svg> <span>我不知道的 VSCode 扩展</span> </a> </div> <!-- 标题 --> <h1 class="text-3xl font-bold leading-tight text-text-primary sm:text-4xl"> 我不知道的 VSCode 扩展（09）— 架构、进程模型与源码导读 </h1> <!-- 描述 --> <p class="mt-4 text-lg leading-relaxed text-text-secondary"> 很多人以为 VSCode 是一个单进程应用，但实际上，VSCode 在运行时可以有十几个甚至几十个进程。打开系统的进程管理器，搜索 &quot;Code&quot;，会看到一长串进程列表。 </p> <!-- 标签 --> <div class="mt-6 flex flex-wrap gap-2 font-mono text-xs" aria-label="标签"> <a href="/tags/VSCode~20~E6~89~A9~E5~B1~95/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"VSCode 扩展"</span> </a><a href="/tags/~E6~88~91~E4~B8~8D~E7~9F~A5~E9~81~93~E7~9A~84/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"我不知道的"</span> </a><a href="/tags/~E6~9E~B6~E6~9E~84/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"架构"</span> </a><a href="/tags/~E8~BF~9B~E7~A8~8B~E6~A8~A1~E5~9E~8B/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"进程模型"</span> </a><a href="/tags/Extension~20Host/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"Extension Host"</span> </a><a href="/tags/IPC/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"IPC"</span> </a><a href="/tags/~E6~B2~99~E7~AE~B1/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"沙箱"</span> </a><a href="/tags/~E6~BA~90~E7~A0~81/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"源码"</span> </a> </div> </header> <!-- 封面图 -->  <!-- 文章内容 --> <div class="
+          prose prose-lg
+          prose-headings:font-bold
+          prose-a:text-accent prose-a:no-underline hover:prose-a:underline
+          prose-img:rounded prose-img:shadow-lg
+          prose-code:before:content-none prose-code:after:content-none
+          max-w-none
+        "> <h1 id="我不知道的-vscode-扩展09-架构进程模型与源码导读"><a href="#我不知道的-vscode-扩展09-架构进程模型与源码导读">我不知道的 VSCode 扩展（09）— 架构、进程模型与源码导读</a></h1>
+<h2 id="一vscode-不是一个进程而是一组进程"><a href="#一vscode-不是一个进程而是一组进程">一、VSCode 不是一个进程，而是一组进程</a></h2>
+<p>很多人以为 VSCode 是一个单进程应用，但实际上，<strong>VSCode 在运行时可以有十几个甚至几十个进程</strong>。打开系统的进程管理器，搜索 “Code”，会看到一长串进程列表。</p>
+<p>这背后的原因是 VSCode 基于 Electron 构建，而 Electron 本身就是多进程架构（主进程 + 渲染进程）。VSCode 在 Electron 的基础上又引入了更多专用进程，其中最重要的就是 <strong>Extension Host（扩展宿主进程）</strong>。</p>
+<p>说白了，VSCode 的多进程架构是为了解决一个核心矛盾：<strong>扩展生态越丰富，单进程架构就越脆弱</strong>。一个有 bug 的扩展不应该拖垮整个编辑器。</p>
+<h2 id="二进程全景"><a href="#二进程全景">二、进程全景</a></h2>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="plaintext"><code><span class="line"><span>┌─────────────────────────────────────────────────┐</span></span>
+<span class="line"><span>│                  Main Process                    │</span></span>
+<span class="line"><span>│   (应用生命周期、窗口管理、进程调度)               │</span></span>
+<span class="line"><span>└─────────────┬──────────────┬────────────────────┘</span></span>
+<span class="line"><span>              │              │</span></span>
+<span class="line"><span>    ┌─────────▼──────┐  ┌───▼──────────────────┐</span></span>
+<span class="line"><span>    │ Renderer Process│  │ Extension Host Process│</span></span>
+<span class="line"><span>    │ (编辑器 UI 渲染) │  │ (扩展代码执行)         │</span></span>
+<span class="line"><span>    └────────────────┘  └───┬──────────────────┘</span></span>
+<span class="line"><span>                            │</span></span>
+<span class="line"><span>              ┌─────────────┼─────────────┐</span></span>
+<span class="line"><span>              │             │             │</span></span>
+<span class="line"><span>    ┌─────────▼──┐ ┌───────▼───┐ ┌───────▼──────┐</span></span>
+<span class="line"><span>    │LS Process  │ │Terminal   │ │ Debug Adapter │</span></span>
+<span class="line"><span>    │(语言服务器) │ │Process    │ │ Process       │</span></span>
+<span class="line"><span>    └────────────┘ └───────────┘ └──────────────┘</span></span></code></pre>
+<h3 id="main-process主进程"><a href="#main-process主进程">Main Process（主进程）</a></h3>
+<p>Electron 的主进程，职责包括：</p>
+<p><strong>（1）</strong> 窗口管理——创建、关闭、最小化编辑器窗口
+<strong>（2）</strong> 进程管理——启动和监控 Extension Host、Language Server 等子进程
+<strong>（3）</strong> 系统级操作——文件对话框、剪贴板、通知等原生 API 调用
+<strong>（4）</strong> 扩展管理——安装、卸载、启用、禁用扩展</p>
+<h3 id="renderer-process渲染进程"><a href="#renderer-process渲染进程">Renderer Process（渲染进程）</a></h3>
+<p>Chromium 渲染进程，负责编辑器 UI 的渲染——文本绘制、语法高亮、代码折叠、滚动、光标动画。每个 VSCode 窗口对应一个渲染进程，每个 Webview 也有独立的渲染进程。</p>
+<h3 id="extension-host-process扩展宿主进程"><a href="#extension-host-process扩展宿主进程">Extension Host Process（扩展宿主进程）</a></h3>
+<p><strong>这是理解 VSCode 扩展架构的核心。</strong></p>
+<p>Extension Host 是一个独立的 Node.js 进程，所有扩展代码都在这个进程中运行。它的核心职责：</p>
+<p><strong>（1）</strong> 加载所有已激活扩展的入口模块，执行 <code>activate()</code> 函数
+<strong>（2）</strong> 提供 <code>vscode</code> 命名空间下的所有 API（<code>vscode.window</code>、<code>vscode.workspace</code> 等）
+<strong>（3）</strong> 充当扩展代码和 VSCode 主进程之间的”中间人”——扩展调用 API 时，实际是 Extension Host 通过 IPC 转发给主进程</p>
+<p>这里有一个很多人会忽略的细节——<strong>扩展调用的 <code>vscode.window.showInformationMessage()</code> 并不是在扩展进程里弹出消息框</strong>。Extension Host 收到这个调用后，通过 IPC 把请求发给主进程，主进程再通知渲染进程渲染消息框。扩展看到的 API 只是一层代理。</p>
+<h3 id="其他辅助进程"><a href="#其他辅助进程">其他辅助进程</a></h3>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>进程类型</th><th>作用</th></tr></thead><tbody><tr><td>Language Server Process</td><td>运行 LSP 语言服务器（TypeScript、Python 等各自独立）</td></tr><tr><td>Terminal Process</td><td>每个终端标签对应一个 shell 子进程</td></tr><tr><td>Debug Adapter Process</td><td>调试适配器，桥接 VSCode 和目标调试器</td></tr><tr><td>Search/Ripgrep Process</td><td>文件内容搜索</td></tr><tr><td>Shared Process</td><td>跨窗口共享的功能（扩展安装状态同步等）</td></tr><tr><td>File Watcher Process</td><td>监听文件系统变化</td></tr></tbody></table>
+<h2 id="三进程间通信ipc"><a href="#三进程间通信ipc">三、进程间通信（IPC）</a></h2>
+<p>多进程架构意味着进程之间需要通信。VSCode 内部的 IPC 机制基于 Electron 的 <code>ipcMain</code> / <code>ipcRenderer</code>，以及自定义的 MessagePort 协议。</p>
+<h3 id="扩展-api-调用的完整链路"><a href="#扩展-api-调用的完整链路">扩展 API 调用的完整链路</a></h3>
+<p>以 <code>vscode.window.showInformationMessage(&#39;hello&#39;)</code> 为例，调用链路是：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="plaintext"><code><span class="line"><span>扩展代码调用 vscode.window.showInformationMessage(&#39;hello&#39;)</span></span>
+<span class="line"><span>  ↓</span></span>
+<span class="line"><span>Extension Host 中的 API 代理层序列化请求</span></span>
+<span class="line"><span>  ↓</span></span>
+<span class="line"><span>通过 IPC 发送到 Main Process</span></span>
+<span class="line"><span>  ↓</span></span>
+<span class="line"><span>Main Process 通知 Renderer Process</span></span>
+<span class="line"><span>  ↓</span></span>
+<span class="line"><span>Renderer Process 渲染消息框 UI</span></span>
+<span class="line"><span>  ↓</span></span>
+<span class="line"><span>用户点击&quot;确定&quot;</span></span>
+<span class="line"><span>  ↓</span></span>
+<span class="line"><span>Renderer → Main → Extension Host</span></span>
+<span class="line"><span>  ↓</span></span>
+<span class="line"><span>API 调用的 Promise resolve</span></span></code></pre>
+<p>换句话说，一次简单的 <code>showInformationMessage</code> 调用，实际上经历了至少 4 次跨进程通信。这也是为什么<strong>扩展中的 API 调用都是异步的</strong>——因为底层要走 IPC。</p>
+<h3 id="webview-通信"><a href="#webview-通信">Webview 通信</a></h3>
+<p>Webview 和扩展之间的 <code>postMessage</code> 也是跨进程的：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="plaintext"><code><span class="line"><span>Webview 调用 vscode.postMessage({...})</span></span>
+<span class="line"><span>  ↓</span></span>
+<span class="line"><span>Renderer Process (Webview) → Main Process → Extension Host</span></span>
+<span class="line"><span>  ↓</span></span>
+<span class="line"><span>扩展代码中 panel.webview.onDidReceiveMessage 触发</span></span></code></pre>
+<h2 id="四extension-host-的隔离与安全"><a href="#四extension-host-的隔离与安全">四、Extension Host 的隔离与安全</a></h2>
+<h3 id="进程隔离"><a href="#进程隔离">进程隔离</a></h3>
+<p>Extension Host 运行在独立进程中带来两个好处：</p>
+<p><strong>（1）稳定性。</strong> 如果某个扩展抛出未捕获的异常或死循环，只会导致 Extension Host 进程崩溃或卡死。VSCode 主进程和渲染进程不受影响，编辑器 UI 仍然可以响应。VSCode 检测到 Extension Host 崩溃后会尝试重启它。</p>
+<p><strong>（2）资源可控。</strong> 可以监控 Extension Host 的 CPU 和内存使用。<code>Developer: Show Running Extensions</code> 命令能看到每个扩展的资源占用，方便定位哪个扩展在拖后腿。</p>
+<h3 id="api-边界即安全边界"><a href="#api-边界即安全边界">API 边界即安全边界</a></h3>
+<p>扩展只能通过 <code>vscode</code> 命名空间的 API 与 VSCode 交互，不能直接访问主进程的内存或调用 Electron 的原生 API。<strong>API 层就是安全边界</strong>——VSCode 团队可以在 API 层做权限控制、输入校验、速率限制。</p>
+<p>不过要注意，Extension Host 作为一个完整的 Node.js 进程，<strong>扩展是可以访问本地文件系统和网络的</strong>（通过 Node.js 的 <code>fs</code>、<code>http</code> 模块）。VSCode 的沙箱更多是 API 层面的隔离，不是操作系统层面的完全沙箱。</p>
+<h2 id="五源码导读关键目录"><a href="#五源码导读关键目录">五、源码导读：关键目录</a></h2>
+<p>VSCode 是开源的（<a href="https://github.com/microsoft/vscode">github.com/microsoft/vscode</a>），源码量巨大，但与扩展系统相关的代码集中在几个目录：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>目录</th><th>内容</th></tr></thead><tbody><tr><td><code>src/vs/workbench/services/extensions/</code></td><td>Extension Host 的启动、管理、通信逻辑</td></tr><tr><td><code>src/vs/workbench/api/</code></td><td>扩展 API 的实现——每个 <code>vscode.xxx</code> 背后对应的真实逻辑</td></tr><tr><td><code>src/vs/platform/extensionManagement/</code></td><td>扩展安装、卸载、更新、版本管理</td></tr><tr><td><code>src/vs/code/electron-main/</code></td><td>Electron 主进程代码，包含 Extension Host 进程的创建</td></tr><tr><td><code>extensions/</code></td><td>内置扩展（Git、Markdown、TypeScript 等）——最好的学习范例</td></tr></tbody></table>
+<h3 id="从-api-实现看架构"><a href="#从-api-实现看架构">从 API 实现看架构</a></h3>
+<p>以 <code>vscode.commands.registerCommand</code> 为例，追踪它的实现路径：</p>
+<p><strong>（1）</strong> 扩展代码调用 <code>vscode.commands.registerCommand(&#39;xxx&#39;, handler)</code></p>
+<p><strong>（2）</strong> 这个调用实际进入 <code>src/vs/workbench/api/common/extHostCommands.ts</code>，在 Extension Host 侧注册命令</p>
+<p><strong>（3）</strong> 注册信息通过 IPC 同步到主进程侧的 <code>src/vs/workbench/api/browser/mainThreadCommands.ts</code></p>
+<p><strong>（4）</strong> 当用户执行命令时，主进程通过 IPC 回调 Extension Host 中注册的 handler</p>
+<p>文件命名有一个规律：<code>extHost*.ts</code> 是 Extension Host 侧的代码，<code>mainThread*.ts</code> 是主进程侧的代码。<strong>两者成对出现，通过 RPC 协议通信</strong>。理解了这个模式，就掌握了阅读 VSCode 扩展系统源码的钥匙。</p>
+<h3 id="内置扩展最好的学习范例"><a href="#内置扩展最好的学习范例">内置扩展：最好的学习范例</a></h3>
+<p><code>extensions/</code> 目录下的内置扩展和第三方扩展使用完全相同的 API，代码质量由 VSCode 团队保证。想学某个 API 怎么用，与其看文档，不如直接看内置扩展是怎么写的：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>内置扩展</th><th>学什么</th></tr></thead><tbody><tr><td><code>extensions/git/</code></td><td>FileSystemProvider、SCM API、Terminal API</td></tr><tr><td><code>extensions/markdown-language-features/</code></td><td>Webview、LSP Client</td></tr><tr><td><code>extensions/typescript-language-features/</code></td><td>Language Features、诊断、CodeAction</td></tr><tr><td><code>extensions/json-language-features/</code></td><td>配置驱动的语言服务</td></tr></tbody></table>
+<h2 id="六总结"><a href="#六总结">六、总结</a></h2>
+<p>如果你只记住一句话：<strong>VSCode 的扩展不和编辑器跑在同一个进程里——Extension Host 是一个独立的 Node.js 进程，扩展通过 API 代理层与主进程通信，API 边界就是安全边界。</strong></p>
+<p>理解了进程模型，很多问题就有了答案：</p>
+<ul>
+<li>为什么扩展 API 都是异步的？——因为要走 IPC。</li>
+<li>为什么扩展崩溃不会导致 VSCode 卡死？——因为进程隔离。</li>
+<li>为什么 Webview 里的 <code>console.log</code> 在扩展调试控制台看不到？——因为在不同进程里。</li>
+<li>为什么 <code>vscode</code> 模块不能被 esbuild 打包？——因为它是运行时注入的代理对象，不是真正的 npm 包。</li>
+</ul>
+<hr/>
+<p><strong>本系列其他文章：</strong></p>
+<ul>
+<li>上一篇：<a href="/posts/vscode-extension-08/">开发工具链与效率提升</a></li>
+</ul>
+<p><strong>延伸阅读：</strong></p>
+<ul>
+<li><a href="https://github.com/microsoft/vscode">VSCode 源码仓库</a></li>
+<li><a href="https://code.visualstudio.com/api/advanced-topics/extension-host">Extension Host 官方架构文档</a></li>
+</ul> </div> <!-- 文章底部 --> <footer class="mt-12 border-t border-border pt-8"> <!-- 分享提示 --> <div class="code-window"> <div class="code-window-titlebar"> <span class="flex-1 text-center font-mono text-xs text-[var(--color-text-secondary)]">share.ts</span> </div> <div class="p-4 font-mono text-sm"> <p class="syntax-comment">// 觉得这篇文章有帮助？</p> <p class="syntax-comment">// 欢迎分享给更多人</p> <p class="mt-4"> <span class="syntax-keyword">export const</span> <span class="syntax-variable">&nbsp;subscribe</span> <span class="text-[var(--color-text-primary)]">&nbsp;=&nbsp;</span> <a href="/rss.xml" class="syntax-string hover:underline">"/rss.xml"</a> <span class="text-[var(--color-text-primary)]">;</span> </p> </div> </div> </footer> </article> <!-- TOC 侧边栏 - 仅在大屏幕显示 --> <aside class="hidden lg:block"> <nav class="toc-container" aria-label="文章目录" data-astro-cid-xvrfupwn><div class="toc-header" data-astro-cid-xvrfupwn><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-xvrfupwn><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7" data-astro-cid-xvrfupwn></path></svg><span data-astro-cid-xvrfupwn>目录</span></div><ul class="toc-list" data-astro-cid-xvrfupwn><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#一vscode-不是一个进程而是一组进程" class="toc-link" data-slug="一vscode-不是一个进程而是一组进程" data-astro-cid-xvrfupwn>一、VSCode 不是一个进程，而是一组进程</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#二进程全景" class="toc-link" data-slug="二进程全景" data-astro-cid-xvrfupwn>二、进程全景</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#main-process主进程" class="toc-link" data-slug="main-process主进程" data-astro-cid-xvrfupwn>Main Process（主进程）</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#renderer-process渲染进程" class="toc-link" data-slug="renderer-process渲染进程" data-astro-cid-xvrfupwn>Renderer Process（渲染进程）</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#extension-host-process扩展宿主进程" class="toc-link" data-slug="extension-host-process扩展宿主进程" data-astro-cid-xvrfupwn>Extension Host Process（扩展宿主进程）</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#其他辅助进程" class="toc-link" data-slug="其他辅助进程" data-astro-cid-xvrfupwn>其他辅助进程</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#三进程间通信ipc" class="toc-link" data-slug="三进程间通信ipc" data-astro-cid-xvrfupwn>三、进程间通信（IPC）</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#扩展-api-调用的完整链路" class="toc-link" data-slug="扩展-api-调用的完整链路" data-astro-cid-xvrfupwn>扩展 API 调用的完整链路</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#webview-通信" class="toc-link" data-slug="webview-通信" data-astro-cid-xvrfupwn>Webview 通信</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#四extension-host-的隔离与安全" class="toc-link" data-slug="四extension-host-的隔离与安全" data-astro-cid-xvrfupwn>四、Extension Host 的隔离与安全</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#进程隔离" class="toc-link" data-slug="进程隔离" data-astro-cid-xvrfupwn>进程隔离</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#api-边界即安全边界" class="toc-link" data-slug="api-边界即安全边界" data-astro-cid-xvrfupwn>API 边界即安全边界</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#五源码导读关键目录" class="toc-link" data-slug="五源码导读关键目录" data-astro-cid-xvrfupwn>五、源码导读：关键目录</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#从-api-实现看架构" class="toc-link" data-slug="从-api-实现看架构" data-astro-cid-xvrfupwn>从 API 实现看架构</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#内置扩展最好的学习范例" class="toc-link" data-slug="内置扩展最好的学习范例" data-astro-cid-xvrfupwn>内置扩展：最好的学习范例</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#六总结" class="toc-link" data-slug="六总结" data-astro-cid-xvrfupwn>六、总结</a></li></ul></nav><script type="module">function s(){const n=document.querySelectorAll(".toc-link"),c=document.querySelectorAll("article h2[id], article h3[id]");if(n.length===0||c.length===0)return;const i=new IntersectionObserver(t=>{t.forEach(o=>{if(o.isIntersecting){const r=o.target.getAttribute("id");n.forEach(e=>{e.classList.toggle("active",e.getAttribute("data-slug")===r)})}})},{rootMargin:"-80px 0px -80% 0px",threshold:0});c.forEach(t=>i.observe(t)),n.forEach(t=>{t.addEventListener("click",o=>{o.preventDefault();const r=t.getAttribute("data-slug"),e=document.getElementById(r||"");if(e){const a=e.getBoundingClientRect().top+window.scrollY-100;window.scrollTo({top:a,behavior:"smooth"})}})})}s();document.addEventListener("astro:after-swap",s);</script> </aside> </div>  <script type="module">function i(){document.querySelectorAll("pre:has(code)").forEach(t=>{if(t.querySelector(".code-header"))return;const s=t.querySelector("code");if(!s)return;const r=Array.from(s.classList).find(a=>a.startsWith("language-")),d=r?r.replace("language-",""):"text",c=document.createElement("div");c.className="code-header";const n=document.createElement("span");n.className="code-lang",n.textContent=d.toUpperCase();const e=document.createElement("button");e.className="code-copy-btn",e.setAttribute("aria-label","复制代码"),e.innerHTML=`
+        <svg class="copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </svg>
+        <svg class="check-icon hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      `,e.addEventListener("click",async()=>{const a=s.textContent||"";try{await navigator.clipboard.writeText(a),e.classList.add("copied"),e.querySelector(".copy-icon")?.classList.add("hidden"),e.querySelector(".check-icon")?.classList.remove("hidden"),setTimeout(()=>{e.classList.remove("copied"),e.querySelector(".copy-icon")?.classList.remove("hidden"),e.querySelector(".check-icon")?.classList.add("hidden")},2e3)}catch(l){console.error("复制失败:",l)}}),c.appendChild(n),c.appendChild(e);const o=document.createElement("div");o.className="code-block-wrapper",t.parentNode?.insertBefore(o,t),o.appendChild(c),o.appendChild(t)})}i();document.addEventListener("astro:after-swap",i);</script>   <button id="back-to-top" class="back-to-top" aria-label="返回顶部" title="返回顶部" data-astro-cid-wlspcwf4> <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-wlspcwf4> <path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" data-astro-cid-wlspcwf4></path> </svg> </button> <script type="module">function o(){const e=document.getElementById("back-to-top");if(!e)return;function i(){window.scrollY>400?e.classList.add("visible"):e.classList.remove("visible")}e.addEventListener("click",()=>{window.scrollTo({top:0,behavior:"smooth"})});let t=!1;window.addEventListener("scroll",()=>{t||(requestAnimationFrame(()=>{i(),t=!1}),t=!0)}),i()}o();document.addEventListener("astro:after-swap",o);</script>   </main> <!-- 页脚 - VSCode 状态栏风格 --> <footer class="
+        border-t border-[var(--color-border)]
+        bg-[var(--color-surface)]
+        py-6
+        text-xs font-mono text-[var(--color-text-secondary)]
+      "> <div class="main-container"> <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"> <!-- 版权信息 --> <p class="text-center sm:text-left"> <span class="syntax-comment">// </span> <span class="syntax-keyword">const</span> <span class="syntax-variable"> copyright</span> <span> = </span> <span class="syntax-string">"2026 NorthSeacoder"</span> </p> <!-- 链接 --> <div class="flex items-center justify-center gap-4 sm:justify-end"> <a href="/rss.xml" class="
+                flex items-center gap-1.5
+                transition-colors
+                hover:text-[var(--color-accent)]
+              " aria-label="RSS 订阅"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:rss">   <symbol id="ai:lucide:rss" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></g></symbol><use href="#ai:lucide:rss"></use>  </svg> <span>RSS</span> </a> <a href="https://github.com/NorthSeacoder" target="_blank" rel="noopener noreferrer" class="
+                flex items-center gap-1.5
+                transition-colors
+                hover:text-[var(--color-accent)]
+              " aria-label="GitHub"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:github">   <symbol id="ai:lucide:github" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5c.08-1.25-.27-2.48-1-3.5c.28-1.15.28-2.35 0-3.5c0 0-1 0-3 1.5c-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.4 5.4 0 0 0 4 9c0 3.5 3 5.5 6 5.5c-.39.49-.68 1.05-.85 1.65S8.93 17.38 9 18v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></g></symbol><use href="#ai:lucide:github"></use>  </svg> <span>GitHub</span> </a> </div> </div> </div> </footer> </body></html>

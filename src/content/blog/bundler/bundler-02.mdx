@@ -1,0 +1,165 @@
+---
+title: 我不知道的打包工具（02）— esbuild 与 tsup：零配置极速打包的底层机制
+description: >-
+  一个 TypeScript 库项目，用 Webpack 构建需要 30 秒，换成 tsup 只要 0.5 秒。快了 60
+  倍。这不是玄学，也不是"优化了配置"的结果——背后是语言级别的架构差异。
+subtitle: esbuild 与 tsup：零配置极速打包的底层机制
+pubDate: '2025-02-23'
+updatedDate: '2026-03-06'
+tags:
+  - 打包工具
+  - esbuild
+  - tsup
+  - Go
+  - TypeScript
+  - 零配置
+  - 我不知道的
+lang: zh-CN
+keywords:
+  - 打包工具
+  - esbuild
+  - tsup
+  - Go
+  - TypeScript
+  - 零配置
+  - 我不知道的
+topic: 打包工具
+category: 前端工程化
+type: post
+series: 打包工具
+seriesOrder: 2
+slug: bundler-02
+model: claude-sonnet-4.6
+---
+# 我不知道的打包工具（02）— esbuild 与 tsup：零配置极速打包的底层机制
+
+一个 TypeScript 库项目，用 Webpack 构建需要 30 秒，换成 tsup 只要 0.5 秒。快了 60 倍。这不是玄学，也不是"优化了配置"的结果——背后是语言级别的架构差异。
+
+上一篇梳理了打包工具的演进脉络，提到 esbuild 用"换一门语言"的方式实现了数量级的速度提升。这篇就展开讲：Go 的并行架构到底快在哪里，tsup 在 esbuild 之上补了什么，以及什么场景下 tsup 够用、什么场景下不够。
+
+## 一、esbuild 为什么快
+
+很多人以为 esbuild 快是因为"用了多线程"，但实际上，Node.js 也有 Worker Threads，Webpack 也能开多进程（thread-loader）。仅仅"多线程"解释不了 10-100 倍的差距。
+
+问题的关键在于——Go 的并行模型和 Node.js 的并行模型是两个层次的东西。
+
+**（1）goroutine 的轻量级并行。** Go 的 goroutine 不是操作系统线程，而是 Go 运行时调度的协程。创建一个 goroutine 只需要约 2KB 栈空间，而 Node.js 的 Worker Thread 需要独立的 V8 实例、独立的堆内存，开销在 MB 级别。esbuild 可以为每个文件启动一个 goroutine 并行处理解析和转换，几千个文件同时进行，共享内存，无需序列化。Node.js 的 Worker Threads 之间传数据要经过结构化克隆（structured clone），这个开销在大量小文件场景下会成为瓶颈。
+
+**（2）不走传统的 AST 遍历管道。** Webpack 和 Rollup 的流程是：源码 → 解析器生成 AST → 遍历 AST 做转换 → 从 AST 重新生成代码。每个步骤都要遍历整棵树，中间还有插件钩子介入。esbuild 用自己的解析器直接从源码做一次性扫描，解析、转换、代码生成在同一个 pass 中完成。说白了，**Webpack 是"读一遍、改一遍、写一遍"，esbuild 是"读一遍就写出来了"。**
+
+**（3）内存布局优化。** Go 支持值类型和连续内存分配，AST 节点在内存中紧密排列，CPU 缓存命中率高。JavaScript 的对象是堆上的引用类型，AST 节点散布在内存各处，遍历时缓存频繁失效。这个差异在处理几千个文件时会被放大到可感知的程度。
+
+下面这段代码可以直观感受 esbuild 的速度。用 esbuild 的 JavaScript API 打包一个入口文件：
+
+```javascript
+const esbuild = require('esbuild');
+
+const start = Date.now();
+esbuild.buildSync({
+  entryPoints: ['src/index.ts'],
+  bundle: true,
+  outfile: 'dist/index.js',
+  platform: 'node',
+  format: 'esm',
+});
+console.log(`构建耗时: ${Date.now() - start}ms`);
+```
+
+对一个包含 200 个模块的中等规模项目，这段代码通常在 50-100ms 内完成。同样的项目用 Webpack 需要 3-5 秒。区别不在配置多少，而在底层执行模型。
+
+## 二、esbuild 做了什么取舍
+
+速度不是免费的，esbuild 为了快做了明确的功能取舍。
+
+**Tree Shaking 不如 Rollup 精确。** Rollup 会对每个函数调用做副作用分析——如果一个导出函数内部调用了另一个带副作用的函数，Rollup 能识别出来并保留。esbuild 的 Tree Shaking 更粗粒度，基本只看"这个导出有没有被 import"，对副作用的追踪有限。对于应用打包差别不大，但如果在写一个追求极致体积的工具库，这个差距是可感知的。
+
+**插件系统有限。** esbuild 只提供 `onResolve`、`onLoad`、`onStart`、`onEnd` 四类钩子。没有 Webpack 那样可以介入编译生命周期每个阶段的完整 plugin API，也没有 Rollup 的 `transform` 钩子。想在构建过程中做复杂的自定义转换（比如自动注入环境变量、按条件替换模块），会比较受限。
+
+**不生成 .d.ts 类型声明文件。** 这是一个很多人会忽略的细节——esbuild 只负责把 TypeScript "剥皮"成 JavaScript，它根本不理解 TypeScript 的类型系统。类型检查和声明文件生成都不在它的能力范围内。这意味着如果你在写一个给其他人用的 TS 库，只用 esbuild 打包是不够的，消费者拿不到类型提示。
+
+## 三、tsup 在 esbuild 之上补了什么
+
+tsup 的定位很清晰：给 esbuild 套一层"库开发者友好"的壳。它解决的核心痛点有三个。
+
+**（1）.d.ts 声明文件生成。** tsup 的 `dts: true` 选项背后并不是 esbuild 在工作，而是启动了 TypeScript Compiler API（tsc）来生成声明文件。换句话说，tsup 实际上跑了两条管线：esbuild 负责 JS 产物的极速生成，tsc 负责类型声明的精确生成。这也是为什么 tsup 的 `--dts` 选项比纯打包慢不少——类型声明的速度取决于 tsc，不取决于 esbuild。
+
+**（2）多格式输出。** 一个 TS 库需要同时输出 ESM（给现代打包工具）和 CJS（给 Node.js require）两种格式。esbuild 每次只能指定一种 format，tsup 封装了并行调用，一次配置输出多种格式。
+
+**（3）零配置可用。** 不需要写配置文件，直接 `npx tsup src/index.ts` 就能得到可发布的产物。当然，实际项目通常需要一个 `tsup.config.ts`。
+
+## 四、tsup 实战配置
+
+一个典型的 TS 库 tsup 配置长这样：
+
+```typescript
+import { defineConfig } from 'tsup';
+
+export default defineConfig({
+  entry: ['src/index.ts'],
+  format: ['cjs', 'esm'],
+  dts: true,
+  splitting: false,
+  sourcemap: true,
+  clean: true,
+  external: ['react', 'react-dom'],
+  treeshake: true,
+});
+```
+
+这段配置做了几件事：入口是 `src/index.ts`，同时输出 CJS 和 ESM 两种格式，生成类型声明，排除 React 作为外部依赖（不打进 bundle），开启 Tree Shaking，每次构建前清理 dist 目录。
+
+对应的 `package.json` 中需要配合设置导出字段：
+
+```json
+{
+  "name": "my-lib",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./dist/index.js",
+      "import": "./dist/index.mjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist"]
+}
+```
+
+这段 `exports` 配置让 Node.js 和打包工具能根据引用方式自动选择正确的格式——`require()` 走 CJS，`import` 走 ESM。关于 `exports` 字段的细节（条件导出的优先级、子路径导出等），在本系列第 03 篇展开。
+
+开发阶段可以用 watch 模式实时编译：
+
+```bash
+tsup src/index.ts --watch --format esm,cjs --dts
+```
+
+每次修改源码，tsup 会在毫秒级完成重新构建。如果你只记住一句话：**tsup 的价值不是发明了什么新能力，而是把 esbuild 的速度和 tsc 的类型能力拼成了一个"TS 库开箱即用"的方案。**
+
+## 五、tsup、unbuild 与 Rollup 怎么选
+
+三者适用场景不同，选择的依据是项目的具体约束。
+
+**tsup 适合独立 TS 库的快速打包。** 一个 npm 包，需要 ESM + CJS + .d.ts，不需要复杂的构建管道——tsup 是目前摩擦最小的选择。配置简单，构建极快，覆盖 80% 的 TS 库场景。
+
+**unbuild 适合 monorepo 内的包构建。** unbuild 基于 Rollup，支持 "stub" 模式——开发时不真正打包，而是生成一个指向源码的代理文件，修改源码后下游包立刻生效，不需要 rebuild。这在 monorepo 中多包联调时非常有用。Nuxt 生态的包基本都用 unbuild。
+
+**Rollup 适合对输出体积有极致要求的库。** 很多人以为 tsup 的 `treeshake: true` 和 Rollup 的 Tree Shaking 效果一样，但实际上 tsup 开启 treeshake 时底层调用的是 Rollup（不是 esbuild 自带的 Tree Shaking）。如果你的库对产物体积敏感（比如一个被广泛使用的工具函数库），直接用 Rollup 配置可以获得最精确的 dead code elimination 和更灵活的输出控制。
+
+## 六、总结
+
+esbuild 的速度优势来自三个层面：Go goroutine 的轻量级并行（对比 Node.js Worker Thread 的重量级隔离）、单 pass 编译（对比传统的多遍 AST 遍历）、以及值类型内存布局带来的缓存友好性。这不是"优化"能弥补的差距，是执行模型层面的代差。
+
+tsup 在 esbuild 之上补齐了库开发的关键缺口：类型声明文件、多格式输出、零配置体验。它的定位不是替代 Rollup，而是"让 80% 的 TS 库不需要折腾 Rollup 配置"。
+
+下一篇进入模块格式的细节——CJS、ESM、UMD 到底怎么回事，`package.json` 的 `exports` 字段为什么这么多坑。
+
+---
+
+**本系列其他文章：**
+- 上一篇：[打包工具全景 — 从 Webpack 到 Rolldown 的设计哲学](/posts/bundler-01/)
+- 下一篇：[CJS、ESM、UMD 与 exports 字段 — 模块格式的那些坑](/posts/bundler-03/)
+
+**相关主题：**
+- 打包后的代码如何在浏览器中执行：[事件循环：浏览器如何协调 JS 与渲染](/posts/browser-03/)

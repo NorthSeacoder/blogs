@@ -1,0 +1,199 @@
+---
+title: 我不知道的 React（16）— 同一应用运行多版本 React
+description: >-
+  一个前端项目里同时跑两个版本的
+  React？听起来像是在自找麻烦。但在微前端架构和大型遗留项目中，这种需求真实存在——而且不是"能不能"的问题，是"怎么安全地做到"的问题。
+subtitle: 同一应用运行多版本 React
+pubDate: '2024-05-29'
+updatedDate: '2026-03-06'
+tags:
+  - React
+  - 微前端
+  - Module Federation
+  - Webpack
+  - 多版本共存
+  - 前端架构
+lang: zh-CN
+keywords:
+  - React
+  - 微前端
+  - Module Federation
+  - Webpack
+  - 多版本共存
+  - 前端架构
+topic: React
+category: React
+type: post
+series: React
+seriesOrder: 16
+slug: react-16
+model: claude-4.6-opus
+optimized_from: 019. Multi-version.mdx
+optimization_type: 深度升级
+style_version: 2026-03-03T00:00:00.000Z
+diagnosis:
+  style_conformity: 8
+  content_depth: 深
+  topic_structure: 保留
+---
+# 我不知道的 React（16）— 同一应用运行多版本 React
+
+一个前端项目里同时跑两个版本的 React？听起来像是在自找麻烦。但在微前端架构和大型遗留项目中，这种需求真实存在——而且不是"能不能"的问题，是"怎么安全地做到"的问题。
+
+这篇不讲"应不应该"（当然能不多版本共存就不多版本共存），而是讲清楚三件事：为什么不能简单地装两个 React、隔离的核心机制是什么、Module Federation 具体怎么处理这个问题。
+
+## 一、什么场景下会需要多版本共存
+
+通常有三种情况。
+
+**（1）** 微前端架构。不同团队维护的子应用可能用了不同版本的 React。团队 A 的子应用还在 React 16，团队 B 已经升到了 React 18。当这些子应用需要聚合到同一个宿主应用中展示时，强制统一版本等于强制所有团队同步升级——这在大型组织中几乎不可行，也违背了微前端"团队自治"的初衷。
+
+**（2）** 大型项目渐进式升级。一个用了五年的 React 15 项目，几十万行代码，一次性升到 React 18 风险太大。更务实的做法是：新模块用 React 18 开发，旧模块暂时维持 React 15，两者在同一个应用中共存，然后逐步迁移旧模块。
+
+**（3）** 集成无法升级的第三方组件。某个关键的第三方 UI 库已经停止维护，强依赖 React 16。主应用想用 React 18 的新特性，但短期内找不到这个库的替代品。
+
+说白了，多版本共存不是技术追求，而是工程妥协。
+
+## 二、为什么不能直接装两个 React
+
+很多人以为 npm/yarn 能处理多版本依赖——确实能装上两个版本，但 React 跑起来会崩。原因不在于包管理，而在于 React 的运行时机制。
+
+### 单例冲突
+
+React（尤其是 `react-dom`）在运行时依赖一些模块级的单例来管理内部状态——调度器（Scheduler）、Fiber 树的根节点、事件委托的注册点。两个版本的 `react-dom` 同时初始化，会争夺这些单例资源的控制权，内部状态互相覆盖，结果就是不可预测的崩溃。
+
+### Context 不互通
+
+React 16 的 `createContext` 创建的 Context 对象，和 React 18 的 `createContext` 创建的 Context 对象，内部结构不一样。React 18 的 `useContext` 识别不了 React 16 创建的 Context Provider，反过来也一样。换句话说，**跨版本边界的组件树无法通过 Context 共享数据**。
+
+### 事件系统冲突
+
+React 16 的合成事件系统把事件委托到 `document` 上，React 17+ 改为委托到 React 应用的根 DOM 节点上。两个版本的事件系统同时运行，事件冒泡路径和委托机制会互相干扰，可能导致事件处理函数被调用两次或者压根不被调用。
+
+### Hooks 内部不兼容
+
+虽然 Hooks 的使用规则（必须在顶层调用、不能在条件中调用）没变，但不同版本的内部实现细节（Fiber 节点上 Hook 链表的结构、调度优先级的处理）存在差异。一个版本的 React 渲染器去处理另一个版本创建的 Hook 状态，会导致状态丢失或副作用异常。
+
+**问题的关键在于——不同版本的 React 在运行时就是两个独立的"宇宙"。** 它们的内部状态管理、组件标识、事件机制互不兼容。直接混合使用 = 两个宇宙碰撞 = 崩溃。
+
+## 三、隔离方案一：iframe
+
+最简单也最彻底的隔离方式。每个子应用独立部署，宿主应用通过 `<iframe>` 嵌入。
+
+每个 iframe 有自己独立的文档环境——独立的 `window`、独立的 `document`、独立的 JavaScript 执行上下文。两个 iframe 里各跑一个 React，完全不可能冲突，因为它们根本不在同一个 JavaScript 运行时中。
+
+代价也很明显。应用间通信只能靠 `postMessage`，每次传数据都要序列化和反序列化。iframe 有自己独立的滚动条，弹窗（Modal）不能跨越 iframe 边界，URL 路由和浏览器历史记录的管理也更复杂。说白了，iframe 的隔离太彻底了，很多需要"跨应用"配合的体验做起来很别扭。
+
+## 四、隔离方案二：Web Components
+
+把 React 应用封装成标准的自定义元素（Custom Element），外部无论用什么框架、什么版本的 React，都可以像用普通 HTML 标签一样使用它。
+
+```javascript
+class ReactWidget extends HTMLElement {
+  connectedCallback() {
+    const root = ReactDOM.createRoot(this);
+    root.render(<MyApp />);
+  }
+
+  disconnectedCallback() {
+    ReactDOM.unmountComponentAtNode(this);
+  }
+}
+
+customElements.define('react-widget', ReactWidget);
+```
+
+宿主应用只需要 `<react-widget></react-widget>`，不需要知道这个标签内部用的是哪个版本的 React。Shadow DOM 可以提供样式隔离。
+
+但这种方案需要处理的细节不少：React 组件到 Custom Element 的属性映射、事件传递（React 的合成事件和 Custom Element 的 DOM 事件是两套系统）、生命周期的对齐。而且打包时需要确保每个 Web Component 包含了自己完整的 React 运行时，体积是个问题。
+
+## 五、隔离方案三：Module Federation
+
+Webpack 5 引入的 Module Federation 是目前社区中处理多版本依赖最灵活的方案。它的核心思路是：**让不同的应用在运行时共享或隔离模块，由配置决定。**
+
+一个应用可以把自己的某些模块暴露出去（Remote），另一个应用可以在运行时加载这些模块（Host）。关键在于 `shared` 配置——它决定了 React 这类关键依赖是共享同一个实例，还是各自加载各自的版本。
+
+来看一个具体的配置：
+
+```javascript
+// Host 应用的 webpack.config.js
+new ModuleFederationPlugin({
+  name: 'host',
+  remotes: {
+    app1: 'app1@http://localhost:3001/remoteEntry.js',
+  },
+  shared: {
+    react: { singleton: true, requiredVersion: '^18.0.0' },
+    'react-dom': { singleton: true, requiredVersion: '^18.0.0' },
+  },
+});
+```
+
+```javascript
+// Remote 应用（app1）的 webpack.config.js
+new ModuleFederationPlugin({
+  name: 'app1',
+  exposes: {
+    './Widget': './src/Widget',
+  },
+  shared: {
+    react: { singleton: true, requiredVersion: '^18.0.0' },
+    'react-dom': { singleton: true, requiredVersion: '^18.0.0' },
+  },
+});
+```
+
+当两边的 `requiredVersion` 兼容时（比如都是 `^18.0.0`），Module Federation 会在运行时只加载一份 React，Host 和 Remote 共享同一个 React 实例。这是性能最优的情况。
+
+如果版本不兼容呢？比如 Host 要 `^18.0.0`，Remote 要 `^16.0.0`：
+
+```javascript
+// Remote 应用使用旧版 React
+shared: {
+  react: { singleton: false, requiredVersion: '^16.0.0' },
+  'react-dom': { singleton: false, requiredVersion: '^16.0.0' },
+},
+```
+
+`singleton: false` 允许 Remote 加载自己的 React 16 实例。两个版本的 React 各自运行在自己的模块作用域中，互不干扰。代价是用户需要下载两份 React。
+
+这里有一个很多人会忽略的细节——**`singleton: true` 对 React 非常重要。** 如果两个应用都设了 `singleton: true` 但版本不兼容，Module Federation 会在运行时抛出警告。这个警告是在告诉你：React 这种必须全局唯一的库，如果强行共享一个不兼容的版本，会出问题。这时候要么统一版本，要么改成 `singleton: false` 让它们各自隔离。
+
+## 六、跨版本边界的通信
+
+无论用哪种隔离方案，不同 React 版本的组件树之间都不能直接通过 React 的机制（props、Context）通信。但数据交换的需求是真实的——宿主应用需要告诉子应用"当前用户是谁"，子应用需要通知宿主"用户完成了某个操作"。
+
+实际项目中常用的通信方式：
+
+**自定义事件。** 基于 DOM 的 `CustomEvent` 做跨版本通信，不依赖任何框架：
+
+```javascript
+// 子应用发送事件
+window.dispatchEvent(new CustomEvent('user-action', {
+  detail: { type: 'purchase', itemId: 123 }
+}));
+
+// 宿主应用监听事件
+window.addEventListener('user-action', (e) => {
+  console.log('收到子应用事件:', e.detail);
+});
+```
+
+**共享状态层。** 用一个框架无关的状态管理方案（比如一个简单的发布-订阅模式、或者 Zustand 的 vanilla store）作为中间层，两边都往这个中间层读写。
+
+**postMessage。** iframe 方案下的唯一选择，其他方案也可以用，但序列化开销和异步性会让通信逻辑变复杂。
+
+## 七、总结
+
+React 多版本共存的核心逻辑就三句话：不同版本的 React 运行时互不兼容（单例冲突、Context 不互通、事件系统冲突），所以必须做隔离；隔离的粒度和方式取决于具体方案（iframe 最彻底、Web Components 适中、Module Federation 最灵活）；通信则需要绕开 React 的内部机制，走 DOM 事件或框架无关的中间层。
+
+如果你只记住一句话：**多版本共存是一种工程妥协，不是技术目标。** 能统一版本就统一版本，不能统一时再考虑隔离方案。Module Federation 是目前微前端场景下最主流的选择，但它解决的是"如何安全地共存"，不是"共存没有代价"——额外的 JS 体积、更复杂的构建配置、跨边界通信的限制，这些代价都需要在架构决策时纳入考量。
+
+---
+
+**本系列其他文章：**
+- 上一篇：[RSC vs SSR — 服务端渲染范式详解](/posts/react-15/)
+
+**相关主题：**
+- React 的事件系统与 DOM 事件的关系：[从 JSX 到 DOM 与 Diff 算法](/posts/react-03/)
+- Webpack 构建与浏览器加载机制：[从输入 URL 到页面呈现](/posts/http-01/)

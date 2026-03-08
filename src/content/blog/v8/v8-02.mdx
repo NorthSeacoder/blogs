@@ -1,0 +1,189 @@
+---
+title: 我不知道的 V8（02）— 函数是如何变得"可调用"的
+description: >-
+  在 JavaScript 里，函数既是对象（typeof fn === 'function'，但 fn instanceof Object ===
+  true），又是可执行的代码块。这个"双重身份"不是语言层面的比喻，而是 V8 内部有具体实现的机制。一个普通对象写了 foo()…
+subtitle: 函数是如何变得"可调用"的
+pubDate: '2024-02-23'
+updatedDate: '2026-03-04'
+tags:
+  - V8
+  - Callable
+  - 字节码
+  - 调用栈
+  - 执行上下文
+  - 函数对象
+  - 我不知道的
+lang: zh-CN
+keywords:
+  - V8
+  - Callable
+  - 字节码
+  - 调用栈
+  - 执行上下文
+  - 函数对象
+  - 我不知道的
+topic: V8
+category: V8
+type: post
+series: V8
+seriesOrder: 2
+slug: v8-02
+model: claude-sonnet-4.6
+---
+# 我不知道的 V8（02）— 函数是如何变得"可调用"的
+
+在 JavaScript 里，函数既是对象（`typeof fn === 'function'`，但 `fn instanceof Object === true`），又是可执行的代码块。这个"双重身份"不是语言层面的比喻，而是 V8 内部有具体实现的机制。一个普通对象写了 `foo()` 会抛出 `TypeError: foo is not a function`，但函数对象写了 `foo()` 就可以执行——V8 做了什么来区分它们？
+
+## 一、函数在 V8 内部是什么
+
+考虑这个函数：
+
+```javascript
+function sayHello(name) {
+  return `Hello, ${name}!`;
+}
+
+console.log(typeof sayHello);               // "function"
+console.log(sayHello instanceof Object);    // true
+console.log(sayHello.length);               // 1（参数个数）
+console.log(sayHello.name);                 // "sayHello"
+```
+
+`sayHello` 可以被当作对象（有属性、可以传递、可以赋值），也可以被调用（`sayHello("V8")`）。普通对象做不到后者。
+
+在 V8 的 C++ 层，函数被表示为 `JSFunction` 对象，它比普通 `JSObject` 多了几个关键属性：
+
+| 属性 | 作用 |
+|------|------|
+| `code` | 指向函数的字节码或优化后的机器码 |
+| `context` | 捕获函数定义时的词法环境（闭包的来源） |
+| `shared_info` | 共享信息，包含参数数量、函数名等元数据 |
+| `[[Call]]` 内部方法 | 标记"这个对象可以被调用" |
+
+**`[[Call]]` 内部方法**是关键。普通对象没有这个方法，调用时 V8 会检查它，找不到就抛 `TypeError`。函数对象有 `[[Call]]`，调用时 V8 执行它指向的字节码（或机器码）。
+
+## 二、从源码到字节码：函数的编译过程
+
+以 `sayHello` 为例，跟踪 V8 的处理过程：
+
+**步骤一：解析为 AST**
+
+Parser 读取函数声明，在 AST 中生成一个 `FunctionDeclaration` 节点，记录：
+- 函数名 `sayHello`
+- 参数列表 `[name]`
+- 函数体（返回语句）
+- 作用域信息
+
+**步骤二：Ignition 生成字节码**
+
+Ignition 解释器遍历 AST，生成对应的字节码指令。`sayHello` 的字节码大致如下（伪代码）：
+
+```
+; 函数 sayHello 的字节码
+LdaNamedProperty [name]    ; 加载参数 name 的值
+Star r0                    ; 存入寄存器 r0
+LdaConstant ["Hello, "]    ; 加载字符串常量
+Add r0                     ; 拼接：常量 + r0（name 的值）
+LdaConstant ["!"]          ; 加载 "!"
+Add                        ; 再拼接
+Return                     ; 返回结果
+```
+
+**步骤三：创建 JSFunction 对象**
+
+字节码生成完毕后，V8 创建 `JSFunction` 对象，`code` 属性指向这段字节码，`context` 捕获当前词法环境。函数就绪，可以被调用了。
+
+**步骤四（可选）：TurboFan 优化**
+
+如果 `sayHello` 被频繁调用（热点代码），TurboFan 会将字节码编译成优化的机器码，替换 `code` 属性的指向。下次调用直接执行机器码，更快。
+
+## 三、调用发生了什么：调用栈与执行上下文
+
+当执行 `sayHello("V8")` 时：
+
+**1. V8 检查 `[[Call]]` 内部方法**
+
+如果存在，继续。如果不存在，抛 `TypeError: sayHello is not a function`。
+
+**2. 创建执行上下文**
+
+为 `sayHello` 分配一个新的执行上下文，包含：
+- 变量绑定：`name = "V8"`
+- `this` 绑定（取决于调用方式）
+- 作用域链：指向 `sayHello` 的词法环境
+
+**3. 压入调用栈**
+
+新的执行上下文被压入 V8 的调用栈。此时调用栈状态：
+
+```
+┌─────────────────────────────┐
+│  sayHello 执行上下文         │
+│  name = "V8"                │
+│  返回地址 → 调用方           │
+├─────────────────────────────┤
+│  全局执行上下文              │
+└─────────────────────────────┘
+```
+
+**4. 执行字节码**
+
+Ignition 逐条执行 `sayHello` 的字节码，完成字符串拼接，返回 `"Hello, V8!"`。
+
+**5. 弹出调用栈**
+
+`sayHello` 的执行上下文从栈顶弹出，销毁（如果没有被闭包引用）。控制权回到调用方。
+
+## 四、箭头函数的不同之处
+
+箭头函数也是 Callable 对象，但有几个关键区别：
+
+```javascript
+const arrowSay = (name) => `Hello, ${name}!`;
+
+// 箭头函数没有自己的 this
+console.log(arrowSay.prototype); // undefined
+
+// 不能作为构造函数
+new arrowSay("V8"); // TypeError: arrowSay is not a constructor
+```
+
+**V8 的处理差异：**
+
+普通函数的 `JSFunction` 有 `prototype` 属性，有 `[[Construct]]` 内部方法（支持 `new`），有自己的 `this` 绑定逻辑。
+
+箭头函数的 `JSFunction` 没有 `prototype`，没有 `[[Construct]]`，`this` 直接来自词法环境（定义时所在的上下文），不在调用时确定。
+
+这使得箭头函数的字节码更简洁——不需要 `this` 绑定的相关指令，也不需要处理 `prototype` 链。
+
+## 五、查看实际字节码
+
+想直接观察 V8 为函数生成的字节码？Node.js 提供了 `--print-bytecode` 标志：
+
+```bash
+node --print-bytecode your-script.js
+```
+
+更精准的方式，只查看特定函数：
+
+```bash
+node --print-bytecode --print-bytecode-filter=sayHello your-script.js
+```
+
+输出会包含真实的 V8 字节码指令，如 `LdaNamedProperty`（加载命名属性）、`CallRuntime`（调用内置函数）等，与本文的伪代码描述对应。
+
+## 六、总结
+
+JavaScript 函数之所以"可调用"，是因为 V8 为函数对象添加了 `[[Call]]` 内部方法，并在 `JSFunction` 的 `code` 属性中存储了对应的字节码（或机器码）。
+
+完整链路：解析器将函数声明转为 AST 节点 → Ignition 将 AST 转为字节码 → V8 创建 `JSFunction` 对象，`code` 指向字节码 → 调用时创建执行上下文、压栈、执行字节码、弹栈返回。
+
+理解这条链路，能解释很多 JavaScript 的行为：为什么箭头函数不能 `new`，为什么普通对象调用会报 `TypeError`，为什么频繁调用同一个函数会越来越快（TurboFan 在优化），为什么 `arguments` 对象的使用会影响优化（它改变了字节码生成策略）。
+
+---
+
+**本系列其他文章：**
+- 上一篇：[从源码到执行：引擎的完整旅程](/posts/v8-01/)
+- 下一篇：[隐藏类与快慢属性：对象性能的核心](/posts/v8-04/)
+- 延伸阅读：[函数内联：TurboFan 最重要的优化手段](/posts/v8-07/)

@@ -1,0 +1,212 @@
+---
+title: 我不知道的 Pixi.js（08）— 多分辨率与自适应渲染
+description: >-
+  同一个 Pixi.js 应用在 MacBook 的 Retina 屏上清晰锐利，在普通显示器上却模糊发虚——这是最常见的多分辨率问题。很多人以为设个
+  resolution: 2 就能解决，但实际上多分辨率适配涉及三个独立的维度：画布物理尺寸、渲染分辨率和纹理资源选择。这三者需要…
+subtitle: 多分辨率与自适应渲染
+pubDate: '2024-07-08'
+updatedDate: '2026-03-06'
+tags:
+  - Pixi.js
+  - 我不知道的
+  - 多分辨率
+  - DPR
+  - 自适应
+lang: zh-CN
+keywords:
+  - Pixi.js
+  - 我不知道的
+  - 多分辨率
+  - DPR
+  - 自适应
+topic: Pixi.js
+category: Pixi.js
+type: post
+series: Pixi.js
+seriesOrder: 8
+slug: pixi-08
+model: claude-4.6-opus
+---
+同一个 Pixi.js 应用在 MacBook 的 Retina 屏上清晰锐利，在普通显示器上却模糊发虚——这是最常见的多分辨率问题。很多人以为设个 `resolution: 2` 就能解决，但实际上多分辨率适配涉及三个独立的维度：画布物理尺寸、渲染分辨率和纹理资源选择。这三者需要协同配置，漏了任何一个都会出问题。
+
+---
+
+## 一、DPR 和 resolution：画布的像素密度
+
+设备像素比（Device Pixel Ratio, DPR）决定了一个 CSS 像素对应多少物理像素。Retina 屏的 DPR 通常是 2，也就是说一个 100x100 CSS 像素的元素，实际渲染了 200x200 物理像素。
+
+Pixi.js 的 `resolution` 参数控制画布的渲染密度：
+
+```javascript
+import { Application } from 'pixi.js';
+
+const app = new Application();
+await app.init({
+  width: 800,
+  height: 600,
+  resolution: window.devicePixelRatio || 1,
+  autoDensity: true,
+});
+```
+
+这两行配置做了什么？
+
+- `resolution: 2`：画布的实际像素变成 1600x1200（宽高各 x2）
+- `autoDensity: true`：画布的 CSS 尺寸保持 800x600（视觉大小不变）
+
+换句话说，`resolution` 让 Pixi.js 用更多像素渲染同样大小的画面，画面因此更清晰。`autoDensity` 确保画布不会因为分辨率加倍而在页面上显示为两倍大小。
+
+如果不设 `autoDensity`，画布实际宽度会是 1600px，在页面上就变大了——这是新手常见的坑。
+
+---
+
+## 二、窗口 resize：动态调整画布尺寸
+
+固定尺寸的画布在窗口大小变化时会出现留白或溢出。Pixi.js v8 支持两种 resize 方式：
+
+**方式一：手动监听 resize**
+
+```javascript
+window.addEventListener('resize', () => {
+  app.renderer.resize(window.innerWidth, window.innerHeight);
+});
+```
+
+**方式二：v8 内置的 resizeTo（推荐）**
+
+```javascript
+await app.init({
+  resizeTo: window, // 自动跟随窗口大小
+  resolution: window.devicePixelRatio,
+  autoDensity: true,
+});
+```
+
+`resizeTo` 可以传 `window`（全屏）或任意 DOM 元素（限定区域）。引擎会自动监听目标元素的尺寸变化并调整画布。
+
+这里有一个很多人会忽略的细节——**resize 后，场景树中对象的位置不会自动更新**。画布从 800x600 变成了 1200x800，但一个定位在 `(400, 300)` 的 Sprite 还在原来的位置。如果需要"始终居中"，要在 resize 时手动重算位置：
+
+```javascript
+app.renderer.on('resize', (width, height) => {
+  centerSprite.position.set(width / 2, height / 2);
+});
+```
+
+---
+
+## 三、纹理资源选择：@1x 和 @2x
+
+画布分辨率加倍了，但如果纹理本身还是低分辨率的，放大后就会模糊。Pixi.js 的 Assets 系统支持按 DPR 自动选择不同分辨率的纹理。
+
+做法是准备多套资源，命名带 `@Nx` 后缀：
+
+```
+assets/
+  hero@1x.png    (100x100)
+  hero@2x.png    (200x200)
+  spritesheet@1x.json
+  spritesheet@2x.json
+```
+
+然后告诉 Assets 系统当前的分辨率偏好：
+
+```javascript
+import { Assets } from 'pixi.js';
+
+// 设置分辨率偏好
+Assets.preferences.resolution = window.devicePixelRatio;
+
+// 加载时 Assets 会自动选择匹配的版本
+const texture = await Assets.load('hero.png');
+// DPR=2 的设备加载 hero@2x.png
+// DPR=1 的设备加载 hero@1x.png
+```
+
+说白了，`@2x` 纹理的像素是 `@1x` 的 4 倍（宽高各 2 倍），但在 DPR=2 的屏幕上显示尺寸和 `@1x` 在 DPR=1 上一样。这保证了不同设备上视觉大小一致，同时高 DPR 设备有更高的清晰度。
+
+问题的关键在于——**高分辨率纹理意味着更大的显存占用**。一张 `@2x` 图集是 `@1x` 的 4 倍大小。移动设备上盲目全用 `@2x` 可能导致显存不足。策略是关键素材用 `@2x`（角色、UI），次要素材用 `@1x`（背景、装饰粒子）。
+
+---
+
+## 四、缩放策略：保持宽高比还是拉伸填充
+
+窗口宽高比和设计稿不一致时，有几种常见的缩放策略：
+
+**（1）等比缩放（letterbox）——保持宽高比，多出的部分留黑边**
+
+```javascript
+const designWidth = 1920;
+const designHeight = 1080;
+
+function resize() {
+  const screenWidth = window.innerWidth;
+  const screenHeight = window.innerHeight;
+  const scale = Math.min(screenWidth / designWidth, screenHeight / designHeight);
+
+  app.stage.scale.set(scale);
+  app.stage.position.set(
+    (screenWidth - designWidth * scale) / 2,
+    (screenHeight - designHeight * scale) / 2,
+  );
+  app.renderer.resize(screenWidth, screenHeight);
+}
+```
+
+**（2）裁切填充（cover）——保持宽高比，超出部分裁掉**
+
+```javascript
+function resize() {
+  const scale = Math.max(
+    window.innerWidth / designWidth,
+    window.innerHeight / designHeight,
+  );
+  app.stage.scale.set(scale);
+  app.stage.position.set(
+    (window.innerWidth - designWidth * scale) / 2,
+    (window.innerHeight - designHeight * scale) / 2,
+  );
+  app.renderer.resize(window.innerWidth, window.innerHeight);
+}
+```
+
+如果你只记住一句话：**`Math.min` 是 letterbox，`Math.max` 是 cover**。和 CSS 的 `object-fit: contain` vs `object-fit: cover` 是同一个逻辑。
+
+---
+
+## 五、坐标系统的影响
+
+分辨率和缩放会影响事件坐标的计算。如果画布 `resolution` 为 2，屏幕上的 (100, 100) 点对应的 Pixi.js 坐标仍然是 (100, 100)（因为 `autoDensity` 做了映射）。但如果手动缩放了 `stage`，事件坐标就需要额外转换。
+
+```javascript
+app.stage.eventMode = 'static';
+app.stage.on('pointerdown', (event) => {
+  // event.global — 画布坐标（已处理 resolution）
+  // 如果 stage 被缩放了，需要转换到设计稿坐标
+  const designX = (event.global.x - app.stage.position.x) / app.stage.scale.x;
+  const designY = (event.global.y - app.stage.position.y) / app.stage.scale.y;
+});
+```
+
+或者更简洁地用 `getLocalPosition`：
+
+```javascript
+app.stage.on('pointerdown', (event) => {
+  const local = event.getLocalPosition(app.stage);
+  // local.x, local.y 就是设计稿坐标系下的值
+});
+```
+
+---
+
+## 总结
+
+Pixi.js 的多分辨率适配需要三步协同：`resolution` + `autoDensity` 让画布按设备 DPR 渲染、`@1x`/`@2x` 纹理匹配画布分辨率、缩放策略（letterbox 或 cover）处理宽高比差异。三者缺一不可——光提高 resolution 而不换高清纹理，效果不会变清晰；光换高清纹理而 resolution 不对，反而会浪费资源。
+
+---
+
+**本系列其他文章：**
+- 上一篇：[性能优化与调试实践](/posts/pixi-07/)
+- 下一篇：[物理引擎的集成实践](/posts/pixi-09/)
+
+**延伸阅读：**
+- [PixiJS Application Documentation](https://pixijs.download/release/docs/app.Application.html)

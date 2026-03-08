@@ -1,0 +1,136 @@
+---
+title: 我不知道的浏览器（02）— 渲染线程为什么是单线程的
+description: '"JavaScript 是单线程的"——这句话几乎每个前端开发者都说过，但很少有人追问一句：为什么？'
+subtitle: 渲染线程为什么是单线程的
+pubDate: '2024-09-09'
+updatedDate: '2026-03-05'
+tags:
+  - 浏览器原理
+  - 渲染线程
+  - 主线程
+  - 单线程
+  - Web Workers
+  - 性能优化
+lang: zh-CN
+keywords:
+  - 浏览器原理
+  - 渲染线程
+  - 主线程
+  - 单线程
+  - Web Workers
+  - 性能优化
+topic: 浏览器
+category: 浏览器原理
+type: post
+series: 浏览器
+seriesOrder: 2
+slug: browser-02
+model: claude-sonnet-4.6
+optimized_from: '02.我不知道的浏览器:渲染线程的秘密任务.mdx'
+optimization_type: 重写
+style_version: 2026-03-03T00:00:00.000Z
+diagnosis:
+  style_conformity: 3
+  content_depth: 浅
+  topic_structure: 保留
+---
+# 我不知道的浏览器（02）— 渲染线程为什么是单线程的
+
+"JavaScript 是单线程的"——这句话几乎每个前端开发者都说过，但很少有人追问一句：**为什么**？
+
+单线程不是 JavaScript 的先天缺陷，而是渲染线程的主动设计选择。理解这个设计，才能真正理解"主线程是性能瓶颈"这句话的含义。
+
+## 一、渲染线程的职责清单
+
+渲染进程的主线程，承担了所有把代码变成可视页面的核心工作：
+
+**解析与构建**：读取 HTML 字节流，解析出 DOM 树；读取 CSS，解析出 CSSOM 树。
+
+**样式计算**：把 DOM 树和 CSSOM 树合并，计算每个节点的最终 computed style——处理继承、层叠、单位换算（`rem` → `px`）。
+
+**布局（Layout）**：确定每个节点在屏幕上的精确位置和尺寸，生成布局树。这个步骤也叫 Reflow（回流），是渲染流水线中开销最大的环节之一。
+
+**绘制（Paint）**：把布局结果转化为绘制指令，记录"在哪里画什么颜色的形状"。
+
+**JavaScript 执行**：解析和执行 JS 代码，包括事件回调、定时器函数、Promise 处理。
+
+这几项任务全部跑在**同一个线程**上，顺序执行，没有并发。
+
+## 二、为什么不允许多线程并发操作 DOM
+
+直觉上，让多个线程并行处理渲染似乎更快。但问题在于，渲染的多个步骤之间存在严格的**数据依赖**。
+
+考虑一个场景：线程 A 正在执行 `element.remove()`，同时线程 B 正在读取 `element.offsetTop`。这两个操作如果并发，就产生了数据竞争——B 应该返回元素存在时的值还是被删除后的值？
+
+实现多线程 DOM 访问，需要给 DOM 树加锁（类似数据库的行锁）。每次读写 DOM 节点都要先获取锁、完成后释放锁。这不仅会引入死锁风险，更会让每次 `document.getElementById()` 都变成一次加锁操作。
+
+换句话说，多线程 DOM 并不是"不能做"，而是**做了之后 Web 开发会变得像写并发数据库代码一样复杂**。单线程设计把并发问题消灭在根源——没有并发，就没有数据竞争，DOM 操作天然安全。
+
+这里有一个很多人会忽略的细节——CSS 动画之所以能在主线程繁忙时仍然流畅，正是因为合成线程可以独立处理 `transform` 和 `opacity` 动画，不需要访问 DOM。这是绕开单线程限制的核心机制。
+
+## 三、Web Workers：被允许的多线程，有明确边界
+
+浏览器提供了 Web Workers 作为"受限多线程"方案，让开发者可以在后台线程运行 JS：
+
+```javascript
+// 主线程
+const worker = new Worker('worker.js');
+
+worker.postMessage({ data: heavyDataArray });
+
+worker.onmessage = (event) => {
+  // Worker 计算完成，结果通过消息传回
+  console.log(event.data.result);
+};
+```
+
+```javascript
+// worker.js（在独立线程运行）
+self.onmessage = (event) => {
+  const result = heavyComputation(event.data.data);
+  self.postMessage({ result });
+};
+```
+
+**Worker 线程不能访问 DOM**。这是明确的设计边界，不是技术限制。Worker 只能通过 `postMessage` 与主线程交换数据，DOM 操作必须回到主线程执行。
+
+这个设计确保了 DOM 的单线程访问原则不被打破，同时给了开发者在不阻塞主线程的情况下运行耗时计算的能力——排序大数组、图像处理、数据解析等场景都适合放进 Worker。
+
+除 Web Workers 外，Service Workers 运行在另一个独立线程，主要处理网络请求拦截和离线缓存，同样不能直接访问 DOM。
+
+## 四、单线程的实际代价
+
+单线程设计的代价是明确的：**JS 执行和页面渲染共用一个线程，任何一方耗时过长，另一方就得等。**
+
+下面这段代码，能说出它会有什么问题吗？
+
+```javascript
+button.addEventListener('click', () => {
+  // 同步执行，耗时 300ms
+  for (let i = 0; i < 50_000_000; i++) {
+    Math.sqrt(i);
+  }
+  // 这行代码在 300ms 后才执行
+  updateUI();
+});
+```
+
+这段代码在循环执行的 300ms 里，主线程被完全占用。浏览器无法进行任何 UI 更新，也无法响应其他点击、滚动事件。用户会感觉页面"冻住了"。
+
+解决方案是将耗时计算迁移到 Web Worker，只把结果传回主线程更新 UI。Chrome DevTools 的 Performance 面板会把超过 50ms 的长任务标记为红色，正是因为 50ms 是人眼开始感知卡顿的阈值。
+
+## 五、总结
+
+渲染主线程是单线程的，根本原因是**多线程并发访问 DOM 的复杂性不可接受**。单线程通过消除竞争让 Web 开发模型保持简单，代价是 JS 执行和渲染共用时间片。
+
+**如果你只记住一句话：主线程单线程是"以简单性换并发性"的设计决策，而不是技术限制。** 理解这一点，才能真正明白为什么长任务会卡顿，为什么 Web Workers 是正确的解决方向。
+
+---
+
+**本系列其他文章：**
+- 上一篇：[进程、线程与多进程架构](/posts/browser-01/)
+- 下一篇：[事件循环：浏览器如何协调 JS 与渲染](/posts/browser-03/)
+
+**相关主题：**
+- 主线程的具体工作从 V8 引擎视角看：[从源码到执行：引擎的完整旅程](/posts/v8-01/)
+- 主线程的渲染部分（布局、绘制、合成）：[渲染流水线：从 HTML 到屏幕的八个步骤](/posts/browser-04/)

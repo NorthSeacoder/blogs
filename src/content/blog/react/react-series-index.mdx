@@ -1,0 +1,106 @@
+---
+title: 我不知道的 React — 系列导读与阅读路径
+description: 《我不知道的 React》系列导读、阅读路径与文章索引。
+pubDate: '2026-03-06'
+tags:
+  - React
+  - 系列索引
+  - 我不知道的
+lang: zh-CN
+keywords:
+  - React
+  - 系列索引
+  - 我不知道的
+topic: React
+category: React
+type: index
+series: React
+slug: react-series-index
+---
+# 我不知道的 React — 系列导读
+
+**文章数量：** 16 篇
+
+---
+
+## 阅读路径
+
+根据不同背景选择入口：
+
+**如果想系统学习：** 按编号 01 → 16 顺序阅读
+
+**如果只关心核心原理：** 重点看 01、02、03、04、05
+
+**如果在排查性能问题：** 重点看 02（Fiber）、03（Diff）、04（Render 触发）、14（React 19 Compiler）
+
+**如果想理解 Hooks：** 重点看 05、06、07、08
+
+**如果关注服务端渲染：** 重点看 14、15、16
+
+---
+
+## 章节目录
+
+### 第一组：核心架构
+
+| # | 文章 | 核心内容 |
+| --- | --- | --- |
+| 01 | [核心与渲染层的解耦 — React vs ReactDOM](/posts/react-01/) | 虚拟 DOM 抽象层，ReactDOM/ReactNative 渲染器分离 |
+| 02 | [Fiber 架构 — 可中断渲染与优先级调度](/posts/react-02/) | Fiber 节点结构，时间切片，Lane 优先级模型 |
+| 03 | [从 JSX 到 DOM — 渲染流程与 Diff 算法](/posts/react-03/) | JSX 编译，协调过程，三条 Diff 策略 |
+| 04 | [生命周期演进与 Render 触发机制](/posts/react-04/) | 类组件生命周期，函数组件执行模型，重渲染条件 |
+
+---
+
+### 第二组：Hooks 深度
+
+| # | 文章 | 核心内容 |
+| --- | --- | --- |
+| 05 | [useState — 批量更新与 Hook 底层机制](/posts/react-05/) | Hook 链表，批量更新，闭包陷阱 |
+| 06 | [useEffect 等核心 Hooks 详解](/posts/react-06/) | useEffect 执行时机，useRef/useMemo/useCallback 原理 |
+| 07 | [组件通信与自定义 Hooks 实战](/posts/react-07/) | Context、状态提升、自定义 Hook 的设计模式 |
+| 08 | [逻辑复用的三代进化 — HOC、Render Props 与 Hooks](/posts/react-08/) | 三种模式的原理、优劣与演进关系 |
+
+---
+
+### 第三组：组件模式
+
+| # | 文章 | 核心内容 |
+| --- | --- | --- |
+| 09 | [Portals 与事件冒泡的真相](/posts/react-09/) | createPortal 原理，DOM 树 vs React 树的事件传播 |
+| 10 | [受控与非受控组件的选择之道](/posts/react-10/) | 数据流差异，性能影响，适用场景 |
+| 11 | [ErrorBoundary 的工作原理与局限性](/posts/react-11/) | getDerivedStateFromError/componentDidCatch，捕获边界 |
+
+---
+
+### 第四组：生态与工程
+
+| # | 文章 | 核心内容 |
+| --- | --- | --- |
+| 12 | [Redux 核心原理与中间件机制](/posts/react-12/) | 单向数据流，Reducer 纯函数，中间件洋葱模型，Thunk vs Saga |
+| 13 | [React Router 原理、模式与实践](/posts/react-13/) | History API，路由匹配，嵌套路由，代码分割 |
+
+---
+
+### 第五组：现代 React
+
+| # | 文章 | 核心内容 |
+| --- | --- | --- |
+| 14 | [React 19 核心特性 — Compiler、Actions 与新 Hooks](/posts/react-14/) | React Compiler 自动 memoization，Actions API，useOptimistic，use Hook |
+| 15 | [RSC vs SSR — 服务端渲染范式详解](/posts/react-15/) | RSC Payload vs HTML，水合机制，选择性水合 |
+| 16 | [同一应用运行多版本 React](/posts/react-16/) | 单例冲突，Module Federation，隔离方案 |
+
+---
+
+## 与其他系列的关联
+
+| 关联系列 | 推荐交叉阅读 |
+| --- | --- |
+| V8 | [执行流程全览](/posts/v8-01/) — 理解 JS 代码如何被 V8 编译和执行 |
+| V8 | [async/await 实现原理](/posts/v8-16/) — useEffect 异步调度的底层 |
+| V8 | [垃圾回收](/posts/v8-17/) — React 组件卸载与内存泄漏的关联 |
+| 浏览器 | [事件循环协调 JS 与渲染](/posts/browser-03/) — Fiber 时间切片依赖的底层机制 |
+| 浏览器 | [渲染流水线八个步骤](/posts/browser-04/) — 虚拟 DOM 最终如何变成像素 |
+| HTTP | [从输入 URL 到页面呈现](/posts/http-01/) — SSR/RSC 页面的完整加载链路 |
+
+---

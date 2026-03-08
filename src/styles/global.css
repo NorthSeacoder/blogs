@@ -226,6 +226,19 @@ a:hover {
   border-color: var(--color-border);
 }
 
+.prose :where(pre.astro-code):not(:where([class~="not-prose"] *)) {
+  color: var(--shiki-light, inherit);
+}
+
+.dark .prose :where(pre.astro-code):not(:where([class~="not-prose"] *)) {
+  background-color: var(--shiki-dark-bg, #161b22) !important;
+  color: var(--shiki-dark, #e6edf3) !important;
+}
+
+.dark .prose :where(pre.astro-code span[style*='--shiki-dark']):not(:where([class~="not-prose"] *)) {
+  color: var(--shiki-dark) !important;
+}
+
 .prose :where(blockquote):not(:where([class~="not-prose"] *)) {
   @apply rounded-r border-l-4 italic;
   border-color: var(--color-accent);

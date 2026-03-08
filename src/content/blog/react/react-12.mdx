@@ -1,0 +1,270 @@
+---
+title: 我不知道的 React（12）— Redux 核心原理与中间件机制
+description: >-
+  很多人对 Redux 的理解停留在"一个全局状态管理工具"的层面——Store 存数据、Action 描述变更、Reducer 算新值。用起来没问题，但要问
+  dispatch 之后到底经历了什么、中间件为什么是三层柯里化函数、Immutability 为什么不是"建议"而是"硬…
+subtitle: Redux 核心原理与中间件机制
+pubDate: '2022-05-21'
+updatedDate: '2026-03-06'
+tags:
+  - React
+  - Redux
+  - 中间件
+  - Redux Toolkit
+  - Redux Thunk
+  - Redux Saga
+  - 状态管理
+  - 我不知道的
+lang: zh-CN
+keywords:
+  - React
+  - Redux
+  - 中间件
+  - Redux Toolkit
+  - Redux Thunk
+  - Redux Saga
+  - 状态管理
+  - 我不知道的
+topic: React
+category: React
+type: post
+series: React
+seriesOrder: 12
+slug: react-12
+model: claude-4.6-opus
+---
+# 我不知道的 React（12）— Redux 核心原理与中间件机制
+
+很多人对 Redux 的理解停留在"一个全局状态管理工具"的层面——Store 存数据、Action 描述变更、Reducer 算新值。用起来没问题，但要问 dispatch 之后到底经历了什么、中间件为什么是三层柯里化函数、Immutability 为什么不是"建议"而是"硬性要求"，就不一定说得清了。
+
+这篇把 Redux 的核心机制和中间件系统放在一起讲，因为它们本质上是同一条数据管线的两段——前半段是 dispatch → Reducer → Store 更新的主流程，后半段是中间件在 Action 到达 Reducer 之前的拦截与增强。理解了这条管线，也就理解了 Redux 的设计哲学。
+
+## 一、单向数据流：Redux 最核心的约束
+
+Redux 整套设计围绕一个原则：**状态的变更路径必须是单向且可追踪的。**
+
+具体来说，数据只能沿着一条固定路径流动：View 触发 Action → dispatch 发送 Action → Reducer 计算新 State → Store 更新 → View 重新渲染。没有捷径，没有后门。
+
+说白了，Redux 不允许"直接改 Store 里的值"这种操作。任何状态变更都必须经过 dispatch 一个 Action 对象，由 Reducer 这个纯函数来计算下一个状态。这个约束看起来繁琐，但它带来了一个巨大的好处——**每次状态变更都有一份完整的"变更记录"（Action 对象），可以被记录、回放、甚至撤销。** Redux DevTools 的时间旅行调试能力，就是建立在这个约束之上的。
+
+下面这段代码是 `dispatch` 内部的简化实现，看完就知道这条数据管线有多简单：
+
+```javascript
+function dispatch(action) {
+  currentState = rootReducer(currentState, action);
+  listeners.forEach(listener => listener());
+  return action;
+}
+```
+
+三行代码。把当前 State 和 Action 交给 Reducer，拿到新 State，通知所有订阅者。这就是 Redux 主流程的全部。
+
+## 二、Reducer 的纯函数约束
+
+Reducer 的签名是 `(state, action) => newState`。这个函数有三条硬性要求：相同输入必须产生相同输出、不能有副作用（不能调 API、不能操作 DOM）、不能直接修改传入的 state。
+
+前两条大多数人都知道，第三条才是最容易踩坑的地方。
+
+来看一个典型的错误写法和正确写法的对比：
+
+```javascript
+// 错误：直接修改了传入的 state 对象
+function reducer(state, action) {
+  if (action.type === 'ADD_TODO') {
+    state.todos.push(action.payload);
+    return state;
+  }
+  return state;
+}
+```
+
+```javascript
+// 正确：返回一个全新的对象
+function reducer(state, action) {
+  if (action.type === 'ADD_TODO') {
+    return {
+      ...state,
+      todos: [...state.todos, action.payload]
+    };
+  }
+  return state;
+}
+```
+
+第一种写法虽然 `state.todos` 确实多了一项，但 `state` 对象的引用没有变——`dispatch` 前后是同一个对象。这会导致 `react-redux` 的 `useSelector` 做浅比较时判断"没变化"，从而跳过组件的重渲染。页面上看不到任何更新，但控制台打印 `store.getState()` 却发现数据已经变了。
+
+**这才是 Immutability 在 Redux 中不是"建议"而是"硬性要求"的真正原因——它不是为了代码风格，而是 `react-redux` 的重渲染判断机制依赖引用相等性检查。** 如果你直接修改旧对象再返回，引用没变，组件就不会更新。
+
+## 三、Redux Toolkit 做了什么
+
+手写 Immutable 更新很容易出错，尤其是嵌套层级深的状态。`state.a.b.c.d` 要更新 `d`，得把 `a`、`b`、`c` 全部展开一遍。Redux Toolkit（RTK）通过内置 Immer 来解决这个问题。
+
+```javascript
+import { createSlice } from '@reduxjs/toolkit';
+
+const todosSlice = createSlice({
+  name: 'todos',
+  initialState: [],
+  reducers: {
+    addTodo: (state, action) => {
+      state.push(action.payload);
+    },
+    toggleTodo: (state, action) => {
+      const todo = state.find(t => t.id === action.payload);
+      if (todo) {
+        todo.completed = !todo.completed;
+      }
+    }
+  }
+});
+```
+
+`state.push(action.payload)` 看起来像是在直接修改 state，但实际上 Immer 在底层做了一件事——你操作的是一个 Proxy 代理的"草稿"对象（draft），Immer 会记录你对草稿的所有修改，最终生成一个全新的不可变对象。**你写的是"可变"的语法，产出的是"不可变"的结果。**
+
+RTK 还做了另外两件事：`configureStore` 自动配置了 Redux DevTools 和常用中间件（包括 Thunk），`createSlice` 自动根据 Reducer 名称生成对应的 Action Creator 和 Action Type，省去了手写 `ACTION_TYPE` 常量和 Action Creator 函数的样板代码。
+
+## 四、中间件机制：dispatch 被劫持了
+
+Redux 的主流程只处理同步逻辑——dispatch 一个 Action 对象，Reducer 同步计算出新 State。但现实中，大量操作是异步的：API 请求、定时器、WebSocket 消息。这些异步逻辑怎么融入 Redux 的单向数据流？
+
+答案是中间件。中间件本质上是对 `store.dispatch` 的增强——它拦截了原始的 `dispatch` 方法，在 Action 到达 Reducer 之前插入了一个处理管道。
+
+这里有一个很多人会忽略的细节——中间件的签名是一个三层嵌套函数：
+
+```javascript
+const myMiddleware = store => next => action => {
+  console.log('Action 进入:', action.type);
+  const result = next(action);
+  console.log('State 变更后:', store.getState());
+  return result;
+};
+```
+
+为什么是三层？因为 Redux 的 `applyMiddleware` 需要分步注入不同的参数。第一层拿到 `store`（用于 `getState`），第二层拿到 `next`（指向下一个中间件或原始 dispatch），第三层拿到实际的 `action`。
+
+`next(action)` 这行是关键——调用它意味着把 Action 交给管道中的下一个处理者。如果不调 `next`，Action 就到此为止，不会继续往后传，Reducer 也收不到。这是中间件可以"拦截"Action 的核心机制。
+
+多个中间件串联起来的执行模型类似于洋葱模型：
+
+```javascript
+applyMiddleware(logger, thunk, saga)
+```
+
+Action 进入时，依次经过 logger → thunk → saga → Reducer；处理完后，反向返回 saga → thunk → logger。每个中间件都可以在 `next(action)` 调用前后做自己的事情——前面执行前置逻辑，后面执行后置逻辑。
+
+**中间件的注册顺序直接影响执行行为。** 如果 `logger` 放在 `thunk` 前面，logger 会看到 thunk 派发的函数类型 Action；如果放在 `thunk` 后面，logger 只能看到 thunk 内部最终 dispatch 的普通 Action 对象。
+
+## 五、Redux Thunk：最简单的异步方案
+
+Thunk 的设计思路极其简单：**让 dispatch 不仅能接受 Action 对象，还能接受一个函数。** 如果 dispatch 收到的是函数，Thunk 中间件会执行它，把 `dispatch` 和 `getState` 传进去；如果是普通对象，直接交给下一个中间件。
+
+Thunk 的实现只有几行代码：
+
+```javascript
+function thunkMiddleware({ dispatch, getState }) {
+  return next => action => {
+    if (typeof action === 'function') {
+      return action(dispatch, getState);
+    }
+    return next(action);
+  };
+}
+```
+
+这段代码说明了一件事——Thunk 本身不处理任何异步逻辑，它只是允许你传一个函数给 dispatch，异步逻辑写在这个函数里面，由你自己控制。
+
+一个典型的异步请求用 Thunk 写出来是这样的：
+
+```javascript
+const fetchUser = (userId) => async (dispatch, getState) => {
+  const { users } = getState();
+  if (users[userId]) return;
+
+  dispatch({ type: 'FETCH_USER_REQUEST' });
+  try {
+    const response = await fetch(`/api/user/${userId}`);
+    const user = await response.json();
+    dispatch({ type: 'FETCH_USER_SUCCESS', payload: user });
+  } catch (error) {
+    dispatch({ type: 'FETCH_USER_FAILURE', payload: error.message });
+  }
+};
+```
+
+简单直接，但问题也明显：异步逻辑、错误处理、缓存判断、dispatch 调用全混在一个函数里。逻辑简单的时候还好，一旦涉及竞态处理（同一接口被快速调用多次，只要最后一次的结果）或者任务取消，代码会迅速变得复杂，而且得手动用 `AbortController` 之类的原生 API 来实现。
+
+## 六、Redux Saga：Generator 驱动的副作用管理
+
+Saga 用了一种完全不同的设计思路。它不是让你在函数里直接执行异步逻辑，而是让你**用 Generator 函数来"声明"你想做什么**，具体的执行由 Saga 中间件负责。
+
+换句话说，Thunk 是"你告诉 Redux 怎么做"，Saga 是"你告诉 Redux 你想做什么，它自己去做"。
+
+```javascript
+import { call, put, takeLatest } from 'redux-saga/effects';
+
+function* fetchUser(action) {
+  try {
+    const user = yield call(fetch, `/api/user/${action.payload}`);
+    const data = yield user.json();
+    yield put({ type: 'FETCH_USER_SUCCESS', payload: data });
+  } catch (error) {
+    yield put({ type: 'FETCH_USER_FAILURE', payload: error.message });
+  }
+}
+
+function* watchFetchUser() {
+  yield takeLatest('FETCH_USER_REQUEST', fetchUser);
+}
+```
+
+每个 `yield` 后面跟的 `call`、`put`、`takeLatest` 都不是直接执行——它们返回的是一个描述"我想做什么"的普通对象（叫 Effect）。Saga 中间件读到这个 Effect 后，才去真正执行对应的操作。
+
+**这种"声明式"的设计带来了两个实际好处：**
+
+**（1）** 测试变得非常简单。测试 Saga 不需要 mock `fetch`，只需要验证 Generator 每一步 yield 出来的 Effect 对象是否正确——`expect(gen.next().value).toEqual(call(fetch, '/api/user/1'))`。
+
+**（2）** 复杂异步流程有内建支持。`takeLatest` 自动取消上一次未完成的请求（解决竞态问题），`throttle` 做节流，`fork` 启动并行任务，`race` 实现超时控制。这些在 Thunk 中需要手动实现的功能，Saga 都有现成的 Effect。
+
+但 Saga 的代价是学习成本——需要理解 Generator 函数的执行模型，以及 `fork` 和 `spawn` 的区别（`fork` 出的子任务会随父任务取消而取消，`spawn` 出的子任务独立运行，互不影响）。对于简单的 CRUD 应用来说，这个成本不太划算。
+
+## 七、Thunk 与 Saga 的选择边界
+
+如果你只记住一句话，记住这个：**Thunk 适合"请求-响应"模式的简单异步，Saga 适合需要精细控制异步流程的复杂场景。**
+
+| 维度 | Redux Thunk | Redux Saga |
+|------|------------|------------|
+| 核心思路 | dispatch 一个函数，在函数里手动处理异步 | yield Effect 对象，中间件负责执行 |
+| 竞态处理 | 手动（AbortController） | 内建（takeLatest） |
+| 任务取消 | 手动 | 内建（fork/cancel） |
+| 测试 | 需要 mock dispatch 和 API | 只需验证 yield 的 Effect |
+| 代码量 | 少 | 多（Watcher + Worker 分离） |
+| 学习成本 | 低 | 中高（Generator + Effect 体系） |
+| 适用场景 | 简单 CRUD、快速原型 | 复杂异步流、大型项目 |
+
+实际项目中还有第三条路——**RTK Query**。它直接把数据获取和缓存管理内建到 Redux Toolkit 中，自动处理请求状态（loading / success / error）、缓存、轮询、预取等常见需求，不需要手写 Thunk 或 Saga。如果应用的异步需求主要是"从 API 取数据然后展示"，RTK Query 是目前最省心的方案。
+
+## 八、useReducer 与 Redux 的关系
+
+React 内置的 `useReducer` 和 Redux 共享同一个模式——`(state, action) => newState`。但它们解决的问题不在同一个层面。
+
+`useReducer` 管理的是组件的局部状态。它在一个组件内部工作，不需要全局 Store，也没有中间件和 DevTools。当一个组件的状态逻辑比较复杂——多个 state 之间有联动关系、下一个状态依赖上一个状态——用 `useReducer` 比一堆 `useState` 更清晰。
+
+Redux 管理的是应用的全局状态。它的 Store 是全局单例，任何组件都可以读取和更新。中间件系统让异步逻辑有了明确的归属，DevTools 让每次状态变更都可追踪。
+
+问题的关键在于——这两者不是替代关系，而是不同作用域的状态管理方案。一个页面可以同时用 Redux 管理全局的用户信息和权限数据，用 `useReducer` 管理某个表单组件内部的字段联动逻辑。
+
+## 九、总结
+
+Redux 的设计哲学可以用一句话概括：**用约束换可预测性。** 单向数据流约束了状态变更的路径，Reducer 的纯函数约束了变更的计算方式，Immutability 约束了数据的修改方式，中间件的洋葱模型约束了副作用的处理位置。这些约束确实增加了代码量，但换来了状态变更的完全可追踪——每个 Action 是什么、在哪触发的、导致了什么变化，一目了然。
+
+对于异步逻辑，Thunk 够简单但控制力有限，Saga 够强大但学习成本不低，RTK Query 则专注于解决数据获取和缓存这个最常见的子问题。选择哪个，取决于项目中异步逻辑的复杂度——如果只是"请求-展示"，RTK Query 足矣；如果涉及复杂的异步编排（并发控制、任务取消、重试策略），Saga 才是必要的。
+
+---
+
+**本系列其他文章：**
+- 上一篇：[ErrorBoundary 的工作原理与局限性](/posts/react-11/)
+- 下一篇：[React Router 原理、模式与实践](/posts/react-13/)
+
+**相关主题：**
+- Hooks 与状态管理的关系：[useState 与 Hook 底层机制](/posts/react-05/)
+- 组件间状态共享的其他方案：[组件通信与自定义 Hooks](/posts/react-07/)

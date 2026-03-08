@@ -1,0 +1,249 @@
+---
+title: 我不知道的 React（06）— 核心 Hooks 详解
+description: >-
+  上一篇讲了 useState 的批量更新和 Hook 链表机制。但 React 的 Hook
+  体系远不止状态管理——副作用处理、跨层级通信、性能优化，每一个场景都有对应的 Hook。这些 Hook
+  单独看都不难，但很多人以为掌握了用法就等于理解了原理，结果在实际项目中踩了各种坑。
+subtitle: 核心 Hooks 详解
+pubDate: '2022-05-22'
+updatedDate: '2026-03-06'
+tags:
+  - React
+  - useEffect
+  - useContext
+  - useReducer
+  - useRef
+  - useMemo
+  - useCallback
+  - 我不知道的
+lang: zh-CN
+keywords:
+  - React
+  - useEffect
+  - useContext
+  - useReducer
+  - useRef
+  - useMemo
+  - useCallback
+  - 我不知道的
+topic: React
+category: React
+type: post
+series: React
+seriesOrder: 6
+slug: react-06
+model: claude-4.6-opus
+---
+# 我不知道的 React（06）— 核心 Hooks 详解
+
+上一篇讲了 `useState` 的批量更新和 Hook 链表机制。但 React 的 Hook 体系远不止状态管理——副作用处理、跨层级通信、性能优化，每一个场景都有对应的 Hook。这些 Hook 单独看都不难，但很多人以为掌握了用法就等于理解了原理，结果在实际项目中踩了各种坑。
+
+本篇拆解五个核心 Hook 的设计意图和常见误区。
+
+## 一、useEffect 不是生命周期的替代品
+
+这是最普遍的认知偏差。很多人以为 `useEffect` 就是函数组件版的 `componentDidMount` + `componentDidUpdate` + `componentWillUnmount`，三合一。
+
+**但实际上，useEffect 的心智模型和生命周期完全不同。**
+
+类组件的生命周期是"时间点思维"——挂载时做什么、更新时做什么、卸载时做什么。而 `useEffect` 是"同步思维"——**这个副作用依赖哪些数据，数据变了就重新同步**。React 官方文档用了一个很准确的描述：useEffect 是把组件"同步"到外部系统。
+
+说白了，不要用"什么时候执行"来理解 `useEffect`，要用"和什么数据保持同步"来理解它。
+
+还有一个执行时机的差异经常被忽略。`componentDidMount` 在 DOM 挂载后同步执行，会阻塞浏览器绘制。而 `useEffect` 是在浏览器完成绘制之后异步执行的——它不会阻塞页面渲染，但执行时机更晚。如果需要在绘制前同步读取或修改 DOM（比如测量元素尺寸避免闪烁），应该用 `useLayoutEffect`。
+
+## 二、依赖数组的三种写法和陷阱
+
+`useEffect` 的第二个参数——依赖数组——有三种写法，行为截然不同。
+
+第一种，不传依赖数组。这意味着每次组件渲染后 effect 都会执行，相当于"和所有状态同步"。
+
+第二种，传空数组 `[]`。Effect 只在挂载时执行一次，卸载时执行清理函数。这是最接近 `componentDidMount` 的用法，但心智模型不同——它的含义是"这个 effect 不依赖任何响应式数据"。
+
+第三种，传入具体依赖 `[a, b]`。当 `a` 或 `b` 的值变化时，effect 重新执行。
+
+下面这段代码展示了清理函数的作用：
+
+```jsx
+function ChatRoom({ roomId }) {
+  useEffect(() => {
+    const connection = createConnection(roomId);
+    connection.connect();
+    return () => connection.disconnect();
+  }, [roomId]);
+}
+```
+
+当 `roomId` 从 `"general"` 变为 `"travel"` 时，React 先执行上一次 effect 的清理函数（断开 `"general"` 的连接），再执行新的 effect（连接 `"travel"`）。**清理函数不是"卸载时才跑"，而是每次 effect 重新执行前都会跑。** 很多人会忽略的细节正是这一点，导致出现资源泄漏或重复订阅。
+
+### 陈旧闭包：依赖数组最常见的坑
+
+依赖数组写错最典型的后果是陈旧闭包。看这组对比：
+
+```jsx
+function Counter() {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      console.log(count); // 永远打印 0
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+}
+```
+
+`count` 在 effect 闭包里被捕获了，但依赖数组是空的，effect 不会重新执行，闭包里的 `count` 永远是初次渲染时的 `0`。修复方式有两种：把 `count` 加入依赖数组，或者用函数式更新 `setCount(c => c + 1)` 来避免对 `count` 的直接引用。
+
+```jsx
+useEffect(() => {
+  const id = setInterval(() => {
+    setCount(c => c + 1); // 不读 count，不需要依赖
+  }, 1000);
+  return () => clearInterval(id);
+}, []);
+```
+
+问题的关键在于：**依赖数组不是"性能优化"的手段，而是"正确性"的保障。** 少写一个依赖不是让代码跑得更快，而是让代码跑出 bug。
+
+## 三、useRef 的两面性
+
+`useRef` 最常见的用途是拿到 DOM 元素的引用：
+
+```jsx
+function TextInput() {
+  const inputRef = useRef(null);
+
+  function handleClick() {
+    inputRef.current.focus();
+  }
+
+  return <input ref={inputRef} />;
+}
+```
+
+调用 `useRef(null)` 返回一个 `{ current: null }` 对象，React 在挂载时会把真实 DOM 节点赋值给 `current`。这部分比较直观，没有太多意外。
+
+但 `useRef` 还有另一面：**它是函数组件里存储可变值的唯一手段，而且修改它不会触发 re-render。**
+
+换句话说，`useRef` 创建的是一个"组件级别的实例变量"。它在整个组件生命周期内保持同一个对象引用，修改 `.current` 不会触发渲染，也不受渲染周期的影响。
+
+这个特性在定时器场景中尤其有用。回到上一节的陈旧闭包问题，用 `useRef` 可以这样解决：
+
+```jsx
+function Counter() {
+  const [count, setCount] = useState(0);
+  const countRef = useRef(count);
+  countRef.current = count;
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      console.log(countRef.current); // 始终是最新值
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+}
+```
+
+每次渲染时 `countRef.current` 都被更新为最新的 `count`，而定时器回调通过 ref 读取的永远是最新值。**`useState` 存的值属于某次渲染的快照，`useRef` 存的值属于组件实例的共享引用。** 理解这个区别，才能选对工具。
+
+## 四、useContext：解决 Props Drilling 的代价
+
+当多层嵌套的组件需要共享同一份数据时，逐层传递 props 既繁琐又脆弱。`useContext` 提供了一种跨层级共享数据的能力。
+
+```jsx
+const ThemeContext = React.createContext('light');
+
+function App() {
+  const [theme, setTheme] = useState('dark');
+  return (
+    <ThemeContext.Provider value={theme}>
+      <Toolbar />
+    </ThemeContext.Provider>
+  );
+}
+
+function ThemedButton() {
+  const theme = useContext(ThemeContext);
+  return <button className={theme}>Click</button>;
+}
+```
+
+`Toolbar` 组件不需要知道 `theme` 的存在，`ThemedButton` 直接从 Context 中读取，中间层完全不参与数据传递。
+
+但这个便利有代价。
+
+很多人以为 Context 是"轻量级的状态管理"，但实际上 **Context 的更新会导致所有消费它的组件 re-render，无论该组件是否用到了变化的那部分数据**。如果把一个包含多个字段的大对象塞进一个 Context，任何字段的变化都会触发全部消费者重渲染。
+
+如果你只记住一句话：**Context 适合低频变化的全局配置（主题、语言、登录状态），不适合高频变化的业务数据。**
+
+解决这个问题有几种思路：拆分 Context，让不同频率的数据走不同的 Provider；或者在消费侧配合 `React.memo` 和 `useMemo` 缩小重渲染范围。但从根本上说，Context 的设计定位就不是 Redux 的替代品——它解决的是"数据传递路径"问题，不是"全局状态管理"问题。
+
+## 五、useMemo 与 useCallback：不要过度优化
+
+这两个 Hook 的目的都是缓存——`useMemo` 缓存计算结果，`useCallback` 缓存函数引用。很多人在了解了 React 的 re-render 机制后，会条件反射式地给所有计算加 `useMemo`、给所有函数加 `useCallback`。
+
+**这是一个常见的过度优化陷阱。**
+
+先看 `useMemo` 的典型使用场景：
+
+```jsx
+function ProductList({ products, filter }) {
+  const filtered = useMemo(() => {
+    return products.filter(p => p.category === filter);
+  }, [products, filter]);
+
+  return filtered.map(p => <ProductCard key={p.id} product={p} />);
+}
+```
+
+当 `products` 和 `filter` 没有变化时，`filtered` 直接返回上次的缓存结果，避免重复执行过滤逻辑。这在数据量大的时候确实有意义。
+
+再看 `useCallback`：
+
+```jsx
+function Parent() {
+  const [count, setCount] = useState(0);
+
+  const handleClick = useCallback(() => {
+    console.log('clicked');
+  }, []);
+
+  return <MemoChild onClick={handleClick} />;
+}
+
+const MemoChild = React.memo(function Child({ onClick }) {
+  console.log('Child render');
+  return <button onClick={onClick}>Click</button>;
+});
+```
+
+`useCallback` 保证 `handleClick` 的引用在依赖不变时保持稳定，配合 `React.memo` 包裹的子组件，避免因函数引用变化导致的不必要 re-render。
+
+问题的关键在于这两个 Hook 本身也有开销。每次渲染时，React 需要比较依赖数组的每一项是否变化，还需要在内存中保存上一次的缓存值。**如果计算本身很轻量（比如简单的字符串拼接、基本的数学运算），缓存的成本可能比重新计算还高。**
+
+什么时候该用？有三个判断标准。第一，计算确实昂贵——数据量大的过滤、排序、复杂的对象构造。第二，缓存值作为 props 传递给了 `React.memo` 包裹的子组件——只有这样，稳定引用才有意义。第三，缓存值作为其他 Hook 的依赖——比如作为 `useEffect` 的依赖项，不稳定的引用会导致 effect 反复执行。
+
+很多人会忽略的细节是：**单独使用 `useCallback` 而不配合 `React.memo`，几乎没有任何性能收益。** 因为父组件 re-render 时，子组件默认就会 re-render，无论 props 变没变。`useCallback` 稳定了函数引用，但没有人去检查这个引用是否变了——只有 `React.memo` 才会做浅比较。
+
+正确的做法是：先用 React DevTools Profiler 定位性能瓶颈，确认某个组件的 re-render 确实造成了可感知的卡顿，再针对性地加 `useMemo` / `useCallback` + `React.memo`。
+
+## 六、总结
+
+React 的核心 Hook 体系，每一个都解决一个特定的问题域。
+
+`useEffect` 的心智模型是"同步副作用到外部系统"，不是生命周期的映射。依赖数组决定的是正确性而非性能。`useRef` 兼具 DOM 引用和可变值存储两种能力，修改它不触发渲染这一点使它成为逃逸闭包陷阱的利器。`useContext` 解决了数据传递路径的问题，但它的重渲染机制决定了它不适合高频变化的场景。`useMemo` 和 `useCallback` 是性能优化工具，但滥用它们反而引入额外开销——先测量，再优化。
+
+**不要追求"每个 Hook 都用上"，而是理解每个 Hook 存在的原因，在正确的场景使用正确的工具。**
+
+---
+
+### 系列导航
+
+- 上一篇：[useState — 批量更新与 Hook 底层机制](/posts/react-05/)
+- 下一篇：[组件通信与自定义 Hooks 实战](/posts/react-07/)
+- [返回系列索引：我不知道的 React](/blog/react-00)
+
+**相关主题：**
+- 生命周期与 Render 触发机制：[React-04](/posts/react-04/)
+- 逻辑复用的三代进化：[React-08](/posts/react-08/)

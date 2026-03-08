@@ -7,25 +7,13 @@ import CodeWindow from '../../../components/CodeWindow.astro';
 import PostCard from '../../../components/PostCard.astro';
 import Icon from '../../../components/Icon.astro';
 import { getCollection } from 'astro:content';
-import { filterDrafts, sortPosts } from '../../../lib/utils';
+import { filterDrafts, groupSeriesPosts, sortPosts } from '../../../lib/utils';
 
 export async function getStaticPaths() {
   const posts = sortPosts(filterDrafts(await getCollection('blog')));
-
-  // 收集所有系列
-  const seriesSet = new Set<string>();
-  posts.forEach((post) => {
-    let seriesName = post.data.series;
-    if (!seriesName) {
-      const match = post.data.title.match(/^我不知道的\s*(.+?)\s*[-–—]/);
-      if (match) seriesName = match[1];
-    }
-    if (seriesName) seriesSet.add(seriesName);
-  });
-
-  return Array.from(seriesSet).map((series) => ({
-    params: { series },
-    props: { series },
+  return groupSeriesPosts(posts).map((group) => ({
+    params: { series: group.name },
+    props: { series: group.name },
   }));
 }
 
@@ -35,24 +23,16 @@ interface Props {
 
 const { series } = Astro.props;
 const allPosts = sortPosts(filterDrafts(await getCollection('blog')));
-
-// 筛选该系列的文章
-const seriesPosts = allPosts.filter((post) => {
-  if (post.data.series === series) return true;
-  const match = post.data.title.match(/^我不知道的\s*(.+?)\s*[-–—]/);
-  return match && match[1] === series;
-});
-
-// 按系列顺序或日期排序
-seriesPosts.sort((a, b) => {
-  if (a.data.seriesOrder !== undefined && b.data.seriesOrder !== undefined) {
-    return a.data.seriesOrder - b.data.seriesOrder;
-  }
-  return a.data.pubDate.getTime() - b.data.pubDate.getTime();
-});
+const seriesGroup = groupSeriesPosts(allPosts).find((group) => group.name === series);
+const seriesPosts = seriesGroup?.posts ?? [];
+const indexPost = seriesGroup?.indexPost;
+const renderedIndex = indexPost ? await indexPost.render() : null;
+const SeriesIndexContent = renderedIndex?.Content;
+const seriesDescription =
+  indexPost?.data.description ?? `「我不知道的 ${series}」系列文章`;
 ---
 
-<BaseLayout title={`我不知道的 ${series}`} description={`「我不知道的 ${series}」系列文章`}>
+<BaseLayout title={`我不知道的 ${series}`} description={seriesDescription}>
   <div class="max-w-3xl mx-auto animate-fade-in">
     <!-- 页面标题 -->
     <CodeWindow filename={`${series.toLowerCase().replace(/\s+/g, '-')}.ts`} class="mb-6">
@@ -79,9 +59,58 @@ seriesPosts.sort((a, b) => {
           <span class="syntax-number">{seriesPosts.length}</span>
           <span class="text-[var(--color-text-primary)]">,</span>
         </p>
+        {
+          indexPost && (
+            <p class="pl-4">
+              <span class="syntax-variable">guide</span>
+              <span class="text-[var(--color-text-primary)]">: </span>
+              <a href={`/posts/${indexPost.slug}/`} class="syntax-string hover:underline">
+                "{indexPost.data.title}"
+              </a>
+              <span class="text-[var(--color-text-primary)]">,</span>
+            </p>
+          )
+        }
+        {
+          indexPost?.data.description && (
+            <p class="pl-4">
+              <span class="syntax-variable">description</span>
+              <span class="text-[var(--color-text-primary)]">: </span>
+              <span class="syntax-string">"{indexPost.data.description}"</span>
+              <span class="text-[var(--color-text-primary)]">,</span>
+            </p>
+          )
+        }
         <p class="text-[var(--color-text-primary)]">{'}'};</p>
       </div>
     </CodeWindow>
+
+    {
+      SeriesIndexContent && (
+        <section class="mb-8">
+          <div
+            class="
+              prose prose-lg
+              prose-headings:font-bold
+              prose-a:text-accent prose-a:no-underline hover:prose-a:underline
+              prose-code:before:content-none prose-code:after:content-none
+              max-w-none
+            "
+          >
+            <SeriesIndexContent />
+          </div>
+
+          <div class="mt-4">
+            <a
+              href={`/posts/${indexPost?.slug}/`}
+              class="font-mono text-xs text-[var(--color-accent)] hover:underline"
+            >
+              查看系列导读原文 →
+            </a>
+          </div>
+        </section>
+      )
+    }
 
     <!-- 文章列表 -->
     <div class="space-y-3">
@@ -89,6 +118,16 @@ seriesPosts.sort((a, b) => {
         <PostCard post={post} index={index} showSeries={false} />
       ))}
     </div>
+
+    {
+      !SeriesIndexContent && seriesPosts.length === 0 && (
+        <CodeWindow filename="empty.ts" class="mt-4">
+          <p class="font-mono text-sm text-[var(--color-text-secondary)]">
+            <span class="syntax-comment">// 该系列内容还在整理中</span>
+          </p>
+        </CodeWindow>
+      )
+    }
 
     <!-- 返回链接 -->
     <div class="mt-6">

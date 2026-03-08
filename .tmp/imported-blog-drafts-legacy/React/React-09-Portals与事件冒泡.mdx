@@ -1,0 +1,229 @@
+---
+title: 我不知道的 React（09）— Portals 与事件冒泡的真相
+description: >-
+  React 组件渲染到 DOM 的位置，通常由它在组件树中的位置决定——父组件在哪个 DOM
+  节点下，子组件就渲染在那个节点内部。这在绝大多数场景下没有问题，但有一类 UI 元素天然需要"跳出"父组件的 DOM 结构：模态框、Toast
+  提示、Tooltip 浮层。
+subtitle: Portals 与事件冒泡的真相
+pubDate: '2022-05-20'
+updatedDate: '2026-03-06'
+tags:
+  - React
+  - Portals
+  - 事件冒泡
+  - 合成事件
+  - createPortal
+lang: zh-CN
+keywords:
+  - React
+  - Portals
+  - 事件冒泡
+  - 合成事件
+  - createPortal
+topic: React
+category: React
+type: post
+series: React
+seriesOrder: 9
+slug: react-09
+model: claude-4.6-opus
+optimized_from: 01.portals.mdx
+optimization_type: 深度升级
+style_version: 2026-03-03T00:00:00.000Z
+diagnosis:
+  style_conformity: 8
+  content_depth: 深
+  topic_structure: 保留
+---
+# 我不知道的 React（09）— Portals 与事件冒泡的真相
+
+React 组件渲染到 DOM 的位置，通常由它在组件树中的位置决定——父组件在哪个 DOM 节点下，子组件就渲染在那个节点内部。这在绝大多数场景下没有问题，但有一类 UI 元素天然需要"跳出"父组件的 DOM 结构：模态框、Toast 提示、Tooltip 浮层。
+
+这些元素如果乖乖待在父组件的 DOM 层级里，会遇到一个经典的 CSS 问题——父容器的 `overflow: hidden` 或 `z-index` 层叠上下文会把它们"关"在里面，视觉上根本出不来。
+
+React Portals 就是为解决这个问题而设计的。但它真正有意思的地方不在于"能渲染到别处"，而在于渲染到别处之后，事件冒泡的行为。
+
+## 一、createPortal 的基本用法
+
+`ReactDOM.createPortal` 接受两个参数：要渲染的 React 子元素，以及一个目标 DOM 容器节点。
+
+```jsx
+import ReactDOM from 'react-dom';
+
+function Modal({ children }) {
+  const modalRoot = document.getElementById('modal-root');
+  return ReactDOM.createPortal(
+    <div className="modal-backdrop">
+      <div className="modal-content">{children}</div>
+    </div>,
+    modalRoot
+  );
+}
+```
+
+这段代码的效果是：`Modal` 组件虽然在 React 组件树中是某个父组件的子节点，但它的 DOM 输出不会渲染在父组件的 DOM 内部，而是直接挂载到 `#modal-root` 这个节点下。
+
+说白了，createPortal 做的事情是把 React 组件树的逻辑归属和 DOM 树的物理位置解耦了。组件在 React 树中依然是父组件的孩子（能正常接收 Props、读取 Context），但它的 DOM 节点可以放在页面的任何位置。
+
+这解决了三个实际问题。**第一，`overflow: hidden` 不再截断浮层内容。** 第二，`z-index` 层叠上下文不再限制弹窗的层级。第三，全局性的 UI（如 Toast、全屏遮罩）可以统一挂载到 `body` 下，避免被复杂的 DOM 嵌套影响布局。
+
+## 二、事件冒泡的"反直觉"行为
+
+Portals 最容易让人困惑的地方在于：**事件冒泡遵循的是 React 组件树，而不是 DOM 树。**
+
+先看一个例子。假设页面结构是这样的：
+
+```html
+<body>
+  <div id="app-root"></div>
+  <div id="modal-root"></div>
+</body>
+```
+
+组件代码如下：
+
+```jsx
+function App() {
+  function handleClick() {
+    console.log('App 的 onClick 被触发了');
+  }
+
+  return (
+    <div onClick={handleClick}>
+      <p>这是应用的主体内容</p>
+      <Modal>
+        <button>点击 Portal 内的按钮</button>
+      </Modal>
+    </div>
+  );
+}
+```
+
+点击 Portal 里的按钮，控制台会打印"App 的 onClick 被触发了"。
+
+从 DOM 的角度看，这完全不合理。按钮的 DOM 节点在 `#modal-root` 下面，而 `App` 的 `div` 在 `#app-root` 下面——两者在 DOM 树上没有任何祖先关系，按照 DOM 事件冒泡的规则，按钮的 click 事件不可能冒泡到 `App` 的 `div` 上。
+
+**但 React 的合成事件系统不走 DOM 的冒泡路径。** 它根据 React 组件树的层级来模拟事件冒泡。在 React 组件树中，`Modal` 是 `App` 里那个 `div` 的子节点，所以 Portal 内部触发的合成事件会沿着 React 组件树向上冒泡——先到 `Modal`，再到 `App` 的 `div`。
+
+## 三、为什么 React 要这样设计
+
+这个设计看似反直觉，但实际上是经过深思熟虑的。
+
+如果 Portal 的事件冒泡遵循 DOM 树而非 React 组件树，就会出现一个问题：一个在逻辑上属于某个组件的子组件，它触发的事件却无法被父组件捕获。这意味着父组件对子组件失去了控制力——它写的 `onClick` 对 Portal 内的交互完全无效。
+
+这才是真正的原因——**React 的组件模型是建立在组件树的逻辑关系上的，而不是 DOM 的物理结构上。** Props 传递、Context 读取、事件冒泡，这些都应该以组件在 React 树中的位置为准。Portal 改变的只是 DOM 输出的物理位置，不改变组件在 React 树中的逻辑归属。
+
+换句话说，Portal 的设计原则是：**渲染位置可以自由，但逻辑行为必须一致。**
+
+## 四、合成事件与原生事件的执行顺序
+
+理解了 Portal 的事件冒泡后，还有一个容易被忽略的细节：当同一个 DOM 节点上同时存在原生事件监听器和 React 的合成事件时，它们的执行顺序是什么？
+
+```jsx
+function Demo() {
+  const divRef = useRef(null);
+
+  useEffect(() => {
+    divRef.current.addEventListener('click', () => {
+      console.log('原生 DOM 事件');
+    });
+  }, []);
+
+  return (
+    <div ref={divRef} onClick={() => console.log('React 合成事件')}>
+      点击这里
+    </div>
+  );
+}
+```
+
+点击后，控制台的输出顺序是：先"原生 DOM 事件"，后"React 合成事件"。
+
+原因在于 React 的事件代理机制。React 并不是把事件监听器直接绑定在目标 DOM 元素上，而是在应用的根节点（`createRoot` 挂载的那个 DOM 节点）上统一监听。当浏览器触发一个点击事件时，它先经过正常的 DOM 事件捕获和冒泡流程——这个过程中，直接绑定在元素上的原生监听器会先执行。事件冒泡到根节点后，React 的代理监听器才接管，根据事件源找到对应的 React 组件，创建合成事件对象，然后按照 React 组件树的层级分发事件。
+
+很多人会忽略的细节是：**如果在原生事件监听器中调用了 `stopPropagation()`，事件就不会冒泡到 React 的根节点，React 的合成事件根本不会触发。** 这在需要混用原生事件和 React 事件的场景下（比如集成第三方库）是一个常见的坑。
+
+## 五、Portal 事件冒泡的实战陷阱
+
+理解原理之后，实际项目中最常踩的坑是：**Portal 内的事件意外触发了外层组件的事件处理函数。**
+
+一个典型场景是模态框。假设页面的外层有一个 `onClick` 用来收起某个下拉菜单，而模态框是通过 Portal 渲染的。用户点击模态框内的按钮，事件会沿着 React 组件树冒泡到外层的 `onClick`，导致下拉菜单被收起——这显然不是期望的行为。
+
+解决方法很直接：在 Portal 内容的根元素上阻止合成事件冒泡。
+
+```jsx
+function Modal({ children, onClose }) {
+  const modalRoot = document.getElementById('modal-root');
+
+  return ReactDOM.createPortal(
+    <div className="backdrop" onClick={onClose}>
+      <div className="content" onClick={e => e.stopPropagation()}>
+        {children}
+      </div>
+    </div>,
+    modalRoot
+  );
+}
+```
+
+这段代码中，点击背景层（backdrop）会触发 `onClose` 关闭模态框，而点击模态框内容区域时，`stopPropagation` 阻止了事件继续冒泡，不会触发背景层的 `onClick`，也不会冒泡到更外层的 React 组件。
+
+如果你只记住一句话：**Portal 内的合成事件会冒泡到 React 组件树的父级，而不是 DOM 树的父级。任何依赖"点击外部关闭"逻辑的组件，在使用 Portal 时都需要考虑这一点。**
+
+## 六、可访问性：Portal 容易遗漏的一环
+
+Portal 解决了视觉层面的渲染问题，但引入了一个可访问性上的挑战：焦点管理。
+
+当模态框打开时，焦点应该从触发按钮移动到模态框内部。关闭时，焦点应该回到原来的位置。在模态框打开期间，按 Tab 键不应该让焦点穿透到模态框背后的内容上。
+
+这些行为不会自动发生。Portal 只负责"把内容渲染到另一个 DOM 位置"，焦点管理需要额外的代码来实现。
+
+```jsx
+function Modal({ children, onClose }) {
+  const modalRef = useRef(null);
+  const previousFocusRef = useRef(null);
+
+  useEffect(() => {
+    previousFocusRef.current = document.activeElement;
+    modalRef.current?.focus();
+
+    return () => {
+      previousFocusRef.current?.focus();
+    };
+  }, []);
+
+  return ReactDOM.createPortal(
+    <div
+      ref={modalRef}
+      tabIndex={-1}
+      role="dialog"
+      aria-modal="true"
+      className="modal"
+    >
+      {children}
+      <button onClick={onClose}>关闭</button>
+    </div>,
+    document.getElementById('modal-root')
+  );
+}
+```
+
+`tabIndex={-1}` 使得 `div` 可以接收焦点但不会出现在 Tab 序列中。`role="dialog"` 和 `aria-modal="true"` 告诉屏幕阅读器这是一个模态对话框。关闭时，清理函数将焦点还原到打开模态框之前的元素。
+
+完整的焦点陷阱（focus trap）实现还需要拦截 Tab 键，将焦点循环限制在模态框内部。实际项目中通常会使用 `focus-trap-react` 这样的库来处理，手写容易遗漏边界情况。
+
+## 七、总结
+
+React Portals 的核心能力是把 DOM 渲染位置和 React 组件树的逻辑归属解耦。它解决了 `overflow`、`z-index` 等 CSS 层叠限制带来的渲染问题，让模态框、Toast 等全局 UI 可以挂载到 DOM 的任意位置。
+
+但 Portal 真正需要理解的不是 `createPortal` 的用法，而是它的事件行为：合成事件沿 React 组件树冒泡，而非 DOM 树。这个设计保证了 React 组件模型的一致性——无论子组件被渲染到 DOM 的哪个位置，它在逻辑上仍然属于 React 组件树中的那个父节点，Props、Context、事件冒泡全部遵循组件树的层级关系。
+
+---
+
+**本系列其他文章：**
+- 上一篇：[逻辑复用的三代进化 — HOC、Render Props 与 Hooks](/posts/react-08/)
+- 下一篇：[受控与非受控组件的选择之道](/posts/react-10/)
+
+**相关主题：**
+- Fiber 架构与事件系统：[可中断渲染与优先级调度](/posts/react-02/)
+- 从 JSX 到 DOM 的渲染流程：[渲染流程与 Diff 算法](/posts/react-03/)

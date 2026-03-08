@@ -1,0 +1,148 @@
+---
+title: 我不知道的打包工具（01）— 打包工具全景：从 Webpack 到 Rolldown 的设计哲学
+description: >-
+  Webpack、Rollup、esbuild、Vite、Rolldown——前端打包工具的名单每隔一两年就多一个。直觉上，这像是 JavaScript
+  社区的造轮子癖。
+subtitle: 打包工具全景：从 Webpack 到 Rolldown 的设计哲学
+pubDate: '2025-02-24'
+updatedDate: '2026-03-06'
+tags:
+  - 打包工具
+  - Webpack
+  - Rollup
+  - esbuild
+  - Vite
+  - Rolldown
+  - 我不知道的
+lang: zh-CN
+keywords:
+  - 打包工具
+  - Webpack
+  - Rollup
+  - esbuild
+  - Vite
+  - Rolldown
+  - 我不知道的
+topic: 打包工具
+category: 前端工程化
+type: post
+series: 打包工具
+seriesOrder: 1
+slug: bundler-01
+model: claude-sonnet-4.6
+---
+# 我不知道的打包工具（01）— 打包工具全景：从 Webpack 到 Rolldown 的设计哲学
+
+Webpack、Rollup、esbuild、Vite、Rolldown——前端打包工具的名单每隔一两年就多一个。直觉上，这像是 JavaScript 社区的造轮子癖。
+
+但把这些工具按时间线排开，会发现一条清晰的演进脉络：**每个新工具的出现，都是因为前一代在某个维度上碰到了设计天花板。** 不是重复造轮子，而是解题思路根本不同。
+
+## 一、Webpack：用 JavaScript 解决一切
+
+Webpack 在 2014 年前后成为事实标准。它的核心设计思路是"一切皆模块"——JS、CSS、图片、字体，都可以通过 Loader 管道转换为 JS 可理解的模块，再由 Plugin 体系在构建的每个生命周期阶段做任意处理。
+
+这套机制的灵活性是空前的。看一段典型配置就能感受到它的设计哲学——显式声明每种文件类型的处理方式：
+
+```js
+// webpack.config.js
+module.exports = {
+  entry: './src/index.js',
+  module: {
+    rules: [
+      { test: /\.tsx?$/, use: 'ts-loader' },
+      { test: /\.css$/, use: ['style-loader', 'css-loader'] },
+      { test: /\.(png|svg)$/, type: 'asset/resource' },
+    ],
+  },
+  plugins: [new HtmlWebpackPlugin({ template: './index.html' })],
+};
+```
+
+每条 `rules` 都在告诉 Webpack："遇到这种文件，用这条 Loader 链处理。" Plugin 则通过 tapable 钩子系统介入编译、封装、输出的各阶段。整个生态在这套机制上长出了上千个插件。
+
+问题在于，Webpack 整条构建链是 JavaScript 编写的，跑在 Node.js 的单线程模型上。小项目感知不明显，但当模块数膨胀到数千时，解析、转换、打包只能排队执行，构建时间从几秒涨到几十秒甚至几分钟。
+
+说白了，**Webpack 的瓶颈不是架构设计的问题，而是 JavaScript 单线程执行模型的天花板。**
+
+## 二、Rollup：ESM 优先与 Tree Shaking 的起源
+
+Rollup 走了一条更窄但更深的路。它不追求"一切皆模块"的通用性，而是专为 ES Modules 设计。
+
+ESM 的 `import`/`export` 是静态声明——代码执行前就能确定哪些导出被引用、哪些没有。Rollup 利用这个特性做 AST 静态分析，把未被引用的代码直接移除。**这就是 Tree Shaking，Rollup 是第一个将它作为核心特性实现的打包工具。**
+
+对比一下 Rollup 的配置，设计哲学差异一目了然：
+
+```js
+// rollup.config.js
+export default {
+  input: 'src/index.js',
+  output: { file: 'dist/index.mjs', format: 'esm' },
+  plugins: [resolve(), commonjs()],
+};
+```
+
+配置文件本身就是一个 ESM 模块（`export default`）。不需要声明文件类型的处理规则——Rollup 默认只处理 JS/ESM，其他格式通过插件按需接入。
+
+Rollup 的产物也更干净。Webpack 需要注入一套 `__webpack_require__` 运行时来模拟模块系统，而 Rollup 直接把模块"打平"成一个文件，没有运行时开销。这让 Rollup 成了库开发的首选。
+
+但 Rollup 仍然是 JavaScript 单线程实现。对 CommonJS 的处理不是原生的（需要 `@rollup/plugin-commonjs` 桥接），HMR 和复杂代码分割等应用级功能也不是它的强项。
+
+## 三、esbuild：换一门语言就好了
+
+2020 年，esbuild 给出了一个暴力但有效的答案：**打包工具慢，不是架构问题，是语言问题。**
+
+esbuild 用 Go 编写。Go 的 goroutine 允许文件解析、依赖分析、代码转换在多个轻量级线程上并行运行，共享内存，几乎没有上下文切换开销。而 Node.js 的单线程模型中，同样的步骤只能排队执行。
+
+实际测试中，esbuild 比 Webpack 快 10 到 100 倍。这不是优化算法带来的提升，是并行执行模型对串行模型的碾压。
+
+但 esbuild 做了明确的取舍。它没有 Rollup 或 Webpack 那样完整的插件系统——自定义转换逻辑只能通过有限的 `onLoad`/`onResolve` 钩子实现。Tree Shaking 的精确度也不如 Rollup，因为 esbuild 追求的是速度而非极致的输出优化。
+
+问题的关键在于——速度和可扩展性之间存在张力。Go 的多线程并行之所以快，部分原因正是绕过了 JS 插件体系的动态开销。一旦允许用户用 JS 写任意插件，并行优势就会被 JS 与 Go 之间的跨语言调用拖慢。
+
+## 四、Vite：开发时能不能不打包
+
+Vite 换了一个角度切入。它解决的不是"怎么打包更快"，而是"开发时能不能跳过打包"。
+
+现代浏览器原生支持 ESM。Vite 在开发模式下让浏览器直接通过 `import` 发起 HTTP 请求加载源码模块，不需要提前遍历依赖图打包。**开发服务器的启动速度几乎与项目规模无关。**
+
+这里有一个很多人会忽略的细节——Vite 并不是"完全不打包"。`node_modules` 里的第三方依赖通常是 CommonJS 格式，或者像 lodash-es 这样包含 600+ 个小模块。如果每个文件都走一次 HTTP 请求，浏览器会被请求瀑布拖垮。所以 Vite 用 esbuild 预构建这些依赖，合并为单文件 ESM 缓存在 `node_modules/.vite` 下。
+
+生产环境又是另一回事。大量 HTTP 请求不可接受（请求瀑布 + 无法高效代码分割），所以 Vite 的生产构建使用 Rollup 做完整打包。
+
+这就形成了 Vite 的"双引擎"策略：开发用 esbuild（快），生产用 Rollup（稳）。代价是两套引擎偶尔出现行为差异——**"开发正常、生产报错"是 Vite 用户最常踩的坑之一。**
+
+## 五、Rolldown：用 Rust 统一两条路线
+
+Rolldown 是这条演进线的最新节点。它用 Rust 重写 Rollup 的核心，兼容 Rollup 的插件 API，同时达到 esbuild 级别的并行速度。
+
+换句话说，Rolldown 试图在一个引擎上同时拿到三样东西：Rollup 的精确 Tree Shaking 和插件生态、esbuild 的原生并行速度、以及开发与生产环境的行为一致性。
+
+2026 年 1 月 21 日，Rolldown 1.0 RC 发布。常见工作负载下比 Rollup 快 10-30 倍。Vite 8 Beta（2025 年 12 月发布）已将 Rolldown 设为默认打包引擎，取代了之前 esbuild + Rollup 的双引擎模式。早期采用者报告了显著提速——Beehiiv 构建快了 64%，Linear 从 46 秒降到 6 秒。
+
+**Vite 的双引擎一致性问题，正在被 Rolldown 的统一方案解决。** 这是前端构建工具链过去五年最重要的架构变化之一。
+
+## 六、一张表看清取舍
+
+| 工具 | 实现语言 | 核心优势 | 核心代价 |
+|------|---------|---------|---------|
+| Webpack | JavaScript | Loader + Plugin 生态最完整 | JS 单线程，大项目构建慢 |
+| Rollup | JavaScript | ESM 静态分析，Tree Shaking 精确 | 仍是 JS 单线程，应用场景有限 |
+| esbuild | Go | 10-100x 速度提升 | 插件能力弱，Tree Shaking 不如 Rollup |
+| Vite | JS + esbuild + Rollup | 开发免打包，启动极快 | 双引擎行为不一致 |
+| Rolldown | Rust | 速度 + 精确度 + 兼容性 | 生态尚在成长（1.0 RC 阶段） |
+
+如果你只记住一句话：**前端打包工具的演进不是重复造轮子，而是在"速度、灵活性、输出质量"三个维度上反复寻找新的平衡点。** Webpack 选了灵活性，Rollup 选了输出质量，esbuild 选了速度，Rolldown 试图三者兼顾。
+
+## 七、总结
+
+Webpack 用 JS 的灵活性解决了"一切皆模块"，代价是单线程的性能天花板。Rollup 用 ESM 静态分析开创了 Tree Shaking，但局限在库场景。esbuild 证明了换一门语言就能获得数量级的速度提升，代价是牺牲可扩展性。Vite 跳出"如何打包更快"的思维，在开发时直接去掉打包步骤，但引入了双引擎一致性问题。Rolldown 用 Rust 的性能 + Rollup 的 API + esbuild 的速度，做出了统一方案。
+
+下一篇聚焦 esbuild 和 tsup——Go 的并行架构到底快在哪里，tsup 在 esbuild 之上补了什么。
+
+---
+
+**本系列其他文章：**
+- 下一篇：[esbuild 与 tsup — 零配置极速打包的底层机制](/posts/bundler-02/)
+
+**相关主题：**
+- 如果你对浏览器如何加载和执行打包后的代码感兴趣：[从输入 URL 到页面呈现](/posts/http-01/)

@@ -1,0 +1,177 @@
+---
+title: 我不知道的 Pixi.js（05）— 动画系统的 Ticker 解析
+description: >-
+  Pixi.js 的 Ticker 是整个渲染循环的心跳。每一帧画面的更新——无论是角色移动、粒子飘散还是滤镜动画——都由 Ticker 驱动。很多人以为
+  Ticker 就是 requestAnimationFrame 的封装，但实际上它还管理着回调优先级、时间步长计算和帧率控制…
+subtitle: 动画系统的 Ticker 解析
+pubDate: '2024-07-05'
+updatedDate: '2026-03-06'
+tags:
+  - Pixi.js
+  - 我不知道的
+  - Ticker
+  - requestAnimationFrame
+  - 动画循环
+lang: zh-CN
+keywords:
+  - Pixi.js
+  - 我不知道的
+  - Ticker
+  - requestAnimationFrame
+  - 动画循环
+topic: Pixi.js
+category: Pixi.js
+type: post
+series: Pixi.js
+seriesOrder: 5
+slug: pixi-05
+model: claude-4.6-opus
+---
+Pixi.js 的 Ticker 是整个渲染循环的心跳。每一帧画面的更新——无论是角色移动、粒子飘散还是滤镜动画——都由 Ticker 驱动。很多人以为 Ticker 就是 `requestAnimationFrame` 的封装，但实际上它还管理着回调优先级、时间步长计算和帧率控制，比 rAF 复杂得多。
+
+---
+
+## 一、Ticker 的核心：requestAnimationFrame 之上的调度层
+
+Pixi.js 的 `Ticker` 底层确实基于 `requestAnimationFrame`（rAF），但它不是简单的 `rAF(callback)`。Ticker 在 rAF 之上叠加了三层能力：
+
+- 多回调管理（一个 Ticker 可注册多个回调，按优先级排序执行）
+- 时间步长标准化（把不稳定的帧间隔转换成平滑的 delta 值）
+- 帧率限制（可以把 60 FPS 的 rAF 降频到 30 FPS）
+
+```javascript
+import { Ticker } from 'pixi.js';
+
+const ticker = Ticker.shared;
+
+ticker.add((ticker) => {
+  // ticker.deltaTime — 相对于目标帧率的倍率，60FPS 下约等于 1
+  // ticker.deltaMS   — 实际经过的毫秒数
+  // ticker.elapsedMS — 从 Ticker 启动到现在的总毫秒数
+  sprite.rotation += 0.05 * ticker.deltaTime;
+});
+```
+
+说白了，`deltaTime` 是一个"标准化帧时间"。目标帧率是 60 FPS 时，一帧耗时 16.67ms，`deltaTime` 约等于 1。如果某帧卡了 33ms（帧率掉到 30 FPS），`deltaTime` 约等于 2。乘以 `deltaTime`，动画速度就不会因帧率波动而忽快忽慢。
+
+---
+
+## 二、delta 的两种含义：deltaTime vs deltaMS
+
+这里有一个很多人会忽略的细节——`ticker.deltaTime` 和 `ticker.deltaMS` 是两个完全不同的值。
+
+下面这段代码展示了区别：
+
+```javascript
+ticker.add((ticker) => {
+  // 方式一：基于标准化 delta（推荐）
+  sprite.x += 5 * ticker.deltaTime;
+  // 60FPS 时每帧移 5 像素，30FPS 时每帧移 10 像素
+  // 视觉效果：始终以 300 像素/秒 的速度移动
+
+  // 方式二：基于真实毫秒数
+  sprite.y += 0.3 * ticker.deltaMS;
+  // 更精确的时间驱动，不依赖目标帧率设定
+});
+```
+
+两种方式的效果类似，但适用场景不同。`deltaTime` 以目标帧率为锚点，适合大多数游戏动画；`deltaMS` 以真实时间为锚点，适合需要精确时间控制的场景（比如和物理引擎同步）。
+
+如果你只记住一句话：**动画逻辑乘以 delta，帧率波动就不会影响动画速度**。不乘 delta 的动画在高刷屏上会跑得更快，在低帧率时会变慢。
+
+---
+
+## 三、回调优先级：谁先执行，谁后执行
+
+Ticker 不是简单地"谁先注册谁先执行"。它支持优先级管理，保证关键回调（比如渲染）总是在正确的时机执行。
+
+```javascript
+import { Ticker, UPDATE_PRIORITY } from 'pixi.js';
+
+const ticker = Ticker.shared;
+
+// 高优先级：物理计算
+ticker.add(() => {
+  updatePhysics();
+}, undefined, UPDATE_PRIORITY.HIGH); // 25
+
+// 普通优先级：游戏逻辑（默认）
+ticker.add(() => {
+  updateGameLogic();
+}, undefined, UPDATE_PRIORITY.NORMAL); // 0
+
+// 低优先级：渲染后的 UI 更新
+ticker.add(() => {
+  updateDebugPanel();
+}, undefined, UPDATE_PRIORITY.LOW); // -25
+```
+
+`UPDATE_PRIORITY` 的值越大越先执行。Pixi.js 内部用这个机制确保 `renderer.render()` 在所有用户逻辑之后执行——先更新状态，再画到屏幕上。
+
+换句话说，一帧内的执行顺序是：高优先级回调（物理、AI）→ 普通优先级回调（游戏逻辑）→ 渲染更新 → 低优先级回调（调试面板）。
+
+---
+
+## 四、帧率控制：maxFPS 和 minFPS
+
+Ticker 支持限制最大帧率和设定最小帧率阈值：
+
+```javascript
+const ticker = Ticker.shared;
+
+// 限制最大帧率为 30 FPS
+ticker.maxFPS = 30;
+// rAF 仍然以 60 FPS 触发，但 Ticker 会跳过偶数帧
+// 适用于不需要高帧率的场景（如策略游戏），减少 GPU 负载
+
+// 设定最小帧率
+ticker.minFPS = 15;
+// 当帧率低于 15 FPS 时，deltaTime 会被钳制（clamped）
+// 防止因单帧耗时过长导致物体"穿墙"
+```
+
+`minFPS` 的作用经常被忽略。假设某一帧因为 GC 暂停了 200ms，如果不钳制 delta，这一帧的 `deltaTime` 会是 12（200ms / 16.67ms），物体会一下子跳很远。设了 `minFPS = 15`，delta 最大只会是 4（约 66ms），避免了极端跳跃。
+
+问题的关键在于——**`maxFPS` 不是精确的帧率控制**。因为 rAF 本身不保证固定间隔，Ticker 的帧率限制是"尽力而为"式的。实际帧率可能在目标值附近波动。如果需要精确的固定时间步进（fixed timestep），需要自己在 Ticker 回调中实现累加器模式。
+
+---
+
+## 五、暂停与恢复：Ticker 的生命周期
+
+Ticker 支持暂停和恢复，适合游戏暂停、切换标签页等场景：
+
+```javascript
+// 暂停 — 停止 rAF 循环
+ticker.stop();
+
+// 恢复 — 重新启动 rAF 循环
+ticker.start();
+// 恢复时 delta 会从暂停前的时间点重新计算
+// 不会出现一次性补偿大量 delta 的问题
+```
+
+v8 的 Application 还支持在页面不可见时自动暂停 Ticker：
+
+```javascript
+await app.init({
+  autoStart: true,       // 创建后自动启动 Ticker
+  sharedTicker: false,   // 使用独立 Ticker 而非 Ticker.shared
+});
+```
+
+这里有一个实际开发中常见的坑——**`Ticker.shared` 是全局单例**。如果你的应用有多个 Pixi 实例或需要独立控制帧率，应该创建独立的 Ticker 实例（`new Ticker()`），而不是都往 `Ticker.shared` 上注册。否则暂停一个游戏会把所有实例的动画都停了。
+
+---
+
+## 总结
+
+Pixi.js 的 Ticker 不只是 rAF 的封装。它提供了三层核心能力：标准化时间步长（deltaTime 消除帧率波动影响）、回调优先级（保证物理→逻辑→渲染的执行顺序）、帧率控制（maxFPS 降频省资源，minFPS 防止极端跳跃）。动画逻辑记得乘以 delta，这一条就能解决 90% 的帧率相关问题。
+
+---
+
+**本系列其他文章：**
+- 上一篇：[滤镜系统的设计原理](/posts/pixi-04/)
+- 下一篇：[图形与遮罩的渲染机制](/posts/pixi-06/)
+
+**延伸阅读：**
+- [PixiJS Ticker Documentation](https://pixijs.download/release/docs/ticker.Ticker.html)

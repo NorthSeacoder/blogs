@@ -1,0 +1,272 @@
+---
+title: 我不知道的 VSCode 扩展（07）— 发布与 CI/CD 流水线
+description: 一、从本地到全球：发布不只是 publish 一下
+subtitle: 发布与 CI/CD 流水线
+pubDate: '2024-04-22'
+updatedDate: '2026-03-06'
+tags:
+  - VSCode 扩展
+  - 我不知道的
+  - 发布
+  - Marketplace
+  - vsce
+  - CI/CD
+  - GitHub Actions
+lang: zh-CN
+keywords:
+  - VSCode 扩展
+  - 我不知道的
+  - 发布
+  - Marketplace
+  - vsce
+  - CI/CD
+  - GitHub Actions
+topic: VSCode 扩展
+category: VSCode
+type: post
+series: VSCode 扩展
+seriesOrder: 7
+slug: vscode-extension-07
+optimized_from: 07.发布到扩展市场.mdx + 08.持续集成与持续部署.mdx
+optimization_type: 合并
+style_version: 2026-03-03T00:00:00.000Z
+diagnosis:
+  style_conformity: 2
+  content_depth: 中
+  topic_structure: 合并
+---
+# 我不知道的 VSCode 扩展（07）— 发布与 CI/CD 流水线
+
+## 一、从本地到全球：发布不只是 `publish` 一下
+
+扩展开发完成后，发布到 VSCode Marketplace 看似只需要一条命令。但很多人第一次发布时会踩到各种坑——`package.json` 字段缺失、PAT 过期、版本号忘记更新、`.vscodeignore` 没配好导致包体积过大。
+
+说白了，发布是一套工程流程，而不是一个单点操作。
+
+## 二、发布前的 package.json 检查清单
+
+`package.json` 是扩展的"身份证"，Marketplace 上展示的几乎所有信息都来自它。发布前必须检查以下字段：
+
+| 字段 | 必填 | 说明 |
+|------|------|------|
+| `name` | 是 | 扩展 ID，全局唯一，只能用小写字母、数字、连字符 |
+| `displayName` | 是 | 显示名称，用户看到的名字 |
+| `description` | 是 | 一句话描述 |
+| `version` | 是 | 语义化版本号（SemVer） |
+| `publisher` | 是 | 发布者 ID（需先创建） |
+| `engines.vscode` | 是 | 兼容的 VSCode 最低版本，如 `"^1.85.0"` |
+| `icon` | 推荐 | 128×128 的 PNG 图标，没有的话 Marketplace 上会显示默认图标 |
+| `categories` | 推荐 | 分类标签，如 `["Programming Languages", "Formatters"]` |
+| `repository` | 推荐 | 源码仓库地址 |
+| `license` | 推荐 | 开源许可证，推荐 MIT |
+
+这里有一个很多人会忽略的细节——**`engines.vscode` 不是"填个大概的版本就行"**。如果扩展用到了新版 API（比如 `LogOutputChannel` 需要 1.74+），但 `engines.vscode` 写的是 `^1.60.0`，那在旧版 VSCode 上安装后会直接报错。应该按**实际使用的最新 API 版本**来设置。
+
+## 三、@vscode/vsce — 打包和发布工具
+
+`vsce` 已经更名为 `@vscode/vsce`，这是 VSCode 官方的命令行工具，负责打包、发布、管理扩展。
+
+### 安装
+
+```bash
+npm install -g @vscode/vsce
+```
+
+需要 Node.js >= 20。
+
+### 创建发布者
+
+发布扩展需要一个 Publisher 身份。在 [Visual Studio Marketplace 管理页面](https://marketplace.visualstudio.com/manage) 创建 Publisher，名称全局唯一且创建后不能修改。
+
+### 获取 Personal Access Token（PAT）
+
+在 [Azure DevOps](https://dev.azure.com/) 中创建 PAT：
+
+**（1）** 进入 User Settings → Personal Access Tokens → New Token
+**（2）** Organization 选 "All accessible organizations"
+**（3）** Scopes 选 "Custom defined"，然后展开 Marketplace，勾选 "Manage"
+**（4）** 复制生成的 Token（只显示一次）
+
+### 打包
+
+```bash
+vsce package
+```
+
+这会在当前目录生成一个 `.vsix` 文件。`.vsix` 本质上是一个 ZIP 包，里面包含编译后的代码、`package.json`、README、CHANGELOG 等。
+
+用 `.vscodeignore` 文件排除不需要打包的内容（类似 `.gitignore`）：
+
+```
+src/**
+node_modules/**
+.vscode/**
+tsconfig.json
+**/*.map
+```
+
+### 发布
+
+```bash
+vsce login <publisher-name>
+# 输入 PAT
+
+vsce publish
+```
+
+也可以在一条命令中完成：
+
+```bash
+vsce publish --pat <your-pat>
+```
+
+发布后通常几分钟到十几分钟内在 Marketplace 上可见。
+
+### 版本管理
+
+每次发布必须递增版本号。可以手动改 `package.json`，也可以用 `vsce publish` 的快捷参数：
+
+```bash
+vsce publish patch   # 1.0.0 → 1.0.1
+vsce publish minor   # 1.0.0 → 1.1.0
+vsce publish major   # 1.0.0 → 2.0.0
+```
+
+### 撤回
+
+```bash
+vsce unpublish <publisher-name>.<extension-name>
+```
+
+撤回后用户无法再安装，但已安装的不受影响。这是一个需要慎重考虑的操作。
+
+## 四、GitHub Actions 自动化发布
+
+手动打包发布在初期没问题，但随着迭代频率提高，自动化就变得必要了。用 GitHub Actions 可以实现：push 到 main 分支 → 自动测试 → 自动发布。
+
+### 工作流配置
+
+创建 `.github/workflows/release.yml`：
+
+```yaml
+name: Release
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      - run: npm run compile
+
+      - run: npm test
+        if: runner.os == 'Linux'
+
+      - run: npx @vscode/vsce package
+        if: github.ref == 'refs/heads/main'
+
+      - uses: actions/upload-artifact@v4
+        if: github.ref == 'refs/heads/main'
+        with:
+          name: vsix
+          path: "*.vsix"
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: vsix
+
+      - run: npx @vscode/vsce publish --pat ${{ secrets.VSCE_PAT }}
+```
+
+### 配置 Secrets
+
+在 GitHub 仓库的 Settings → Secrets and variables → Actions 中，添加：
+
+| Secret 名称 | 值 |
+|------------|---|
+| `VSCE_PAT` | Azure DevOps 的 Personal Access Token |
+
+### 工作流拆解
+
+这个配置把 CI/CD 分成了两个 Job：
+
+**`build`** — 每次 push 和 PR 都执行：安装依赖 → 编译 → 测试 → 打包。PR 只跑测试，不打包不发布。
+
+**`publish`** — 只在 main 分支的 push 事件触发：下载打包产物 → 发布到 Marketplace。
+
+换句话说，PR 是质量门禁，merge 到 main 后自动发布。这是最常见的扩展发布策略。
+
+### 基于 Tag 的发布
+
+如果不想每次 merge 都发布，可以改成基于 Git Tag 触发：
+
+```yaml
+on:
+  push:
+    tags:
+      - 'v*'
+```
+
+流程变成：开发者打 `v1.2.0` 标签 → push tag → 触发发布。
+
+## 五、Pre-release 版本
+
+VSCode Marketplace 支持 Pre-release 渠道，用户可以选择安装稳定版或预发布版。
+
+```bash
+vsce publish --pre-release
+```
+
+在 GitHub Actions 中可以根据分支区分：
+
+```yaml
+- run: npx @vscode/vsce publish --pre-release --pat ${{ secrets.VSCE_PAT }}
+  if: github.ref == 'refs/heads/dev'
+
+- run: npx @vscode/vsce publish --pat ${{ secrets.VSCE_PAT }}
+  if: github.ref == 'refs/heads/main'
+```
+
+## 六、发布清单
+
+每次发布前过一遍：
+
+| 检查项 | 状态 |
+|-------|------|
+| `package.json` 版本号已递增 | |
+| `CHANGELOG.md` 已更新 | |
+| `engines.vscode` 与实际使用的 API 匹配 | |
+| `.vscodeignore` 排除了源码和测试文件 | |
+| `npm test` 全部通过 | |
+| README 中的截图和描述是最新的 | |
+| PAT 未过期 | |
+
+如果你只记住一句话：**手动发布用 `vsce publish`，自动发布用 GitHub Actions + Secrets，版本号别忘了递增。**
+
+---
+
+**本系列其他文章：**
+- 上一篇：[调试与测试](/posts/vscode-extension-06/)
+- 下一篇：[开发工具链与效率提升](/posts/vscode-extension-08/)
+
+**延伸阅读：**
+- [@vscode/vsce 文档](https://github.com/microsoft/vscode-vsce)
+- [Publishing Extensions 官方指南](https://code.visualstudio.com/api/working-with-extensions/publishing-extension)
+- [Continuous Integration 官方指南](https://code.visualstudio.com/api/working-with-extensions/continuous-integration)

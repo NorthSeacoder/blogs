@@ -1,0 +1,238 @@
+---
+title: 我不知道的 Pixi.js（07）— 性能优化与调试实践
+description: >-
+  Pixi.js 号称"最快的 2D 渲染引擎"，但一个场景放上几千个 Sprite
+  后照样会卡。性能问题不在引擎本身，而在于开发者是否理解引擎的工作方式。这篇文章不讲泛泛的"减少开销"建议，而是聚焦 Pixi.js 特有的性能杠杆：Draw
+  Call、批处理中断、纹理管理和对象…
+subtitle: 性能优化与调试实践
+pubDate: '2024-07-07'
+updatedDate: '2026-03-06'
+tags:
+  - Pixi.js
+  - 我不知道的
+  - 性能优化
+  - Draw Call
+  - 内存管理
+lang: zh-CN
+keywords:
+  - Pixi.js
+  - 我不知道的
+  - 性能优化
+  - Draw Call
+  - 内存管理
+topic: Pixi.js
+category: Pixi.js
+type: post
+series: Pixi.js
+seriesOrder: 7
+slug: pixi-07
+model: claude-4.6-opus
+---
+Pixi.js 号称"最快的 2D 渲染引擎"，但一个场景放上几千个 Sprite 后照样会卡。性能问题不在引擎本身，而在于开发者是否理解引擎的工作方式。这篇文章不讲泛泛的"减少开销"建议，而是聚焦 Pixi.js 特有的性能杠杆：Draw Call、批处理中断、纹理管理和对象池。
+
+---
+
+## 一、Draw Call：性能的头号指标
+
+Draw Call 是 CPU 向 GPU 发起的一次绘制请求。每次 Draw Call 都有固定的 CPU 开销（准备顶点数据、绑定纹理、设置状态），和 GPU 计算量无关。
+
+说白了，画 1 个 Sprite 的 Draw Call 开销和画 1000 个 Sprite（如果能合批）的开销差不多。**Draw Call 数量比 Sprite 数量更能决定帧率。**
+
+Pixi.js 的批处理（Batching）系统会自动合并连续使用相同纹理的 Sprite 为一次 Draw Call。但批处理会被以下操作打断：
+
+```javascript
+// 场景一：纹理切换打断批处理
+spriteA.texture = textureAtlas1; // batch 1
+spriteB.texture = textureAtlas2; // batch 2（纹理不同，必须新起一批）
+spriteC.texture = textureAtlas1; // batch 3（虽然纹理同 A，但被 B 打断了）
+// 结果：3 次 Draw Call
+```
+
+```javascript
+// 场景二：把相同纹理的 Sprite 放在一起
+spriteA.texture = textureAtlas1;
+spriteC.texture = textureAtlas1; // 和 A 连续，合批
+spriteB.texture = textureAtlas2; // 单独一批
+// 结果：2 次 Draw Call
+```
+
+这说明了什么？**场景树中对象的排列顺序直接影响 Draw Call 数量。** 相同纹理的对象放在相邻位置，是最简单也最有效的优化手段。
+
+除了纹理切换，以下操作也会打断批处理：
+- 给对象加 Filter（滤镜需要离屏渲染）
+- 给对象加 Mask（遮罩需要切换 Stencil 状态）
+- 混合模式（blendMode）切换
+- 手动调用 `renderer.flush()`
+
+---
+
+## 二、Spritesheet 和纹理图集：减少纹理切换
+
+减少 Draw Call 最直接的方式是减少纹理切换。把多张小图打包成一张大的 Spritesheet（纹理图集），所有 Sprite 共享同一个 `TextureSource`，批处理就不会因纹理不同而中断。
+
+```javascript
+// 10 个 Sprite 使用同一张图集的不同帧 = 1 次 Draw Call
+import { Assets, Sprite, Texture } from 'pixi.js';
+
+await Assets.load('game-atlas.json');
+const sprites = [];
+for (let i = 0; i < 10; i++) {
+  const s = new Sprite(Texture.from(`enemy-${i}`));
+  sprites.push(s);
+  stage.addChild(s);
+}
+```
+
+这里有一个很多人会忽略的细节——**图集的最大尺寸受 GPU 限制**。大多数设备支持 4096x4096，部分移动设备只支持 2048x2048。超过限制的图集会加载失败或被自动缩小。打包图集时注意控制单张尺寸。
+
+实际项目中的建议是按"使用场景"分图集：同一个界面/关卡用到的素材打成一张图集，不同界面用不同图集。这样同一帧内的对象大概率共享同一张纹理。
+
+---
+
+## 三、场景树优化：Culling 和层级控制
+
+场景树的深度和广度都会影响每帧的遍历耗时。两个优化方向：
+
+**（1）Culling — 裁剪屏幕外的对象**
+
+```javascript
+// v8 的 cullable 属性
+sprite.cullable = true;
+// 渲染时自动跳过不在视口内的对象
+// 适合大地图、滚动列表等大量对象在屏幕外的场景
+```
+
+Culling 在对象数量多但同时可见的比例低时效果显著。1000 个 Sprite 的地图，同时可见的可能只有 100 个，Culling 能跳过 900 个对象的渲染和变换计算。
+
+**（2）容器层级 — 扁平优于深嵌套**
+
+每多一层容器嵌套，变换矩阵就多一次相乘。10 层嵌套的叶子节点需要 10 次矩阵乘法才能算出世界坐标。对于扁平的 UI 列表，直接把所有项加到同一个 Container 中，比逐层嵌套高效。
+
+```javascript
+// 不推荐：多层无意义嵌套
+const a = new Container();
+const b = new Container();
+const c = new Container();
+a.addChild(b);
+b.addChild(c);
+c.addChild(sprite); // 3 层矩阵乘法
+
+// 推荐：扁平结构
+stage.addChild(sprite); // 1 层矩阵乘法
+```
+
+---
+
+## 四、对象池：减少 GC 压力
+
+频繁创建和销毁 Sprite 会触发 JavaScript 垃圾回收（GC），GC 暂停会导致帧率抖动。对象池的思路是预创建一批对象，用完不销毁而是回收到池中，下次直接复用。
+
+```javascript
+class SpritePool {
+  constructor(texture, initialSize = 50) {
+    this.texture = texture;
+    this.pool = [];
+    for (let i = 0; i < initialSize; i++) {
+      this.pool.push(this._create());
+    }
+  }
+
+  _create() {
+    const s = new Sprite(this.texture);
+    s.visible = false;
+    return s;
+  }
+
+  acquire() {
+    const s = this.pool.pop() || this._create();
+    s.visible = true;
+    return s;
+  }
+
+  release(sprite) {
+    sprite.visible = false;
+    sprite.removeFromParent();
+    this.pool.push(sprite);
+  }
+}
+
+const bulletPool = new SpritePool(bulletTexture, 100);
+
+// 发射子弹
+const bullet = bulletPool.acquire();
+bullet.position.set(player.x, player.y);
+stage.addChild(bullet);
+
+// 子弹出屏幕后回收
+bulletPool.release(bullet);
+```
+
+问题的关键在于——**`visible = false` 不会把对象从场景树中移除**。设为不可见后渲染器会跳过它，但变换矩阵仍然会被计算。如果池中有大量不可见对象挂在场景树上，`removeFromParent()` 后再回收更干净。
+
+---
+
+## 五、内存管理：GPU 显存的释放
+
+Pixi.js 的内存问题主要出在 GPU 显存。`TextureSource` 上传到 GPU 后会占用显存，即使对应的 Sprite 已经被移除出场景树，显存也不会自动释放。
+
+v8 提供了三种释放方式：
+
+```javascript
+// 1. 手动卸载特定资源
+await Assets.unload('level1-atlas.json');
+
+// 2. 手动释放单个节点的 GPU 数据（v8.15+）
+sprite.unload(); // 释放 GPU 数据，下次需要时自动重建
+
+// 3. 自动 GC（推荐配合手动释放使用）
+await app.init({
+  gcActive: true,
+  gcMaxUnusedTime: 60000,
+  gcFrequency: 30000,
+});
+```
+
+如果你只记住一句话：**场景切换时，手动 `Assets.unload()` 上个场景的纹理**。自动 GC 是兜底，不是替代品——等 60 秒才释放的显存在内存紧张的移动设备上可能已经 OOM 了。
+
+---
+
+## 六、调试工具：Chrome DevTools 的 GPU 面板
+
+Pixi.js 没有内置性能面板（网上有些过时教程提到 `PIXI.stats`，那不存在）。实际调试依赖浏览器开发者工具：
+
+**（1）Performance 面板**：录制一段操作，查看帧率、Long Task、GC 暂停
+
+**（2）Memory 面板**：拍摄堆快照，搜索 `Texture` 或 `BaseTexture` 查看是否有泄漏
+
+**（3）Chrome WebGPU/WebGL Inspector 扩展**：查看实际的 Draw Call 数量、纹理列表、Shader 编译
+
+一个简单的帧率监控可以这样实现：
+
+```javascript
+import { Text } from 'pixi.js';
+
+const fpsText = new Text({ text: 'FPS: 0', style: { fontSize: 16, fill: 'white' } });
+stage.addChild(fpsText);
+
+app.ticker.add(() => {
+  fpsText.text = `FPS: ${Math.round(app.ticker.FPS)}`;
+});
+```
+
+---
+
+## 总结
+
+Pixi.js 的性能优化核心是减少 Draw Call——用 Spritesheet 合并纹理、按纹理排序场景树中的对象、避免不必要的 Filter 和 Mask 打断批处理。对象池减少 GC 抖动，Culling 跳过屏幕外的对象，手动卸载纹理防止显存泄漏。调试依赖 Chrome DevTools，没有内置的银弹工具。
+
+---
+
+**本系列其他文章：**
+- 上一篇：[图形与遮罩的渲染机制](/posts/pixi-06/)
+- 下一篇：[多分辨率与自适应渲染](/posts/pixi-08/)
+
+**相关主题：**
+- 如果你对浏览器渲染性能感兴趣，可以看：[浏览器系列](/series/%E6%B5%8F%E8%A7%88%E5%99%A8/)
+
+**延伸阅读：**
+- [PixiJS Performance Tips](https://pixijs.download/release/docs/guides/components/sprites.html)

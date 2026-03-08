@@ -1,0 +1,327 @@
+---
+title: 我不知道的 WebSocket（01）— 从握手到心跳的全链路解析
+description: 当页面需要实时展示数据——比如聊天消息、股票行情、协同编辑——HTTP 的请求-响应模型就暴露了根本限制：客户端不问，服务器不答。
+subtitle: 从握手到心跳的全链路解析
+pubDate: '2025-01-10'
+updatedDate: '2026-03-06'
+tags:
+  - WebSocket
+  - 实时通信
+  - 网络协议
+  - WebTransport
+  - 我不知道的
+lang: zh-CN
+keywords:
+  - WebSocket
+  - 实时通信
+  - 网络协议
+  - WebTransport
+  - 我不知道的
+topic: WebSocket
+category: WebSocket
+type: post
+series: WebSocket
+seriesOrder: 1
+slug: ws-01
+model: claude-4.6-opus
+optimized_from: '01.我不知道的 WebSocket: 深度解析与优化实践.mdx'
+optimization_type: 深度升级
+style_version: 2026-03-03T00:00:00.000Z
+diagnosis:
+  style_conformity: 3
+  content_depth: 中
+  topic_structure: 保留
+---
+# 我不知道的 WebSocket — 从握手到心跳的全链路解析
+
+## 一、为什么 HTTP 轮询不够用？
+
+当页面需要实时展示数据——比如聊天消息、股票行情、协同编辑——HTTP 的请求-响应模型就暴露了根本限制：**客户端不问，服务器不答**。
+
+早期的解决方案是轮询：客户端每隔一段时间发一次请求，看看有没有新数据。这有两个明显问题：
+
+**（1）** 轮询间隔太长，实时性差。间隔太短，大量请求的 HTTP 头部开销（每次几百字节到几 KB）会浪费带宽。
+
+**（2）** 每次请求都需要建立 TCP 连接（或从连接池取），经历完整的 HTTP 请求-响应流程。即使服务器没有新数据，也必须返回一个空响应。
+
+说白了，轮询是在用"不断询问"来模拟"实时推送"，效率很低。
+
+WebSocket 的出现改变了这个局面——它通过一次 HTTP 握手升级为持久的全双工连接，之后客户端和服务器可以随时互相发送数据，不需要反复建立连接。
+
+---
+
+## 二、握手过程：一次 HTTP 请求完成协议升级
+
+WebSocket 连接的建立过程被称为"握手"（Handshake），它复用了 HTTP 协议作为入口。
+
+客户端发送一个特殊的 HTTP GET 请求：
+
+```
+GET /chat HTTP/1.1
+Host: example.com
+Upgrade: websocket
+Connection: Upgrade
+Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==
+Sec-WebSocket-Version: 13
+```
+
+服务器如果同意升级，返回 `101 Switching Protocols`：
+
+```
+HTTP/1.1 101 Switching Protocols
+Upgrade: websocket
+Connection: Upgrade
+Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=
+```
+
+从这一刻起，这条 TCP 连接不再走 HTTP 协议，而是切换到 WebSocket 的数据帧格式。
+
+这里有一个很多人会忽略的细节——`Sec-WebSocket-Key` 和 `Sec-WebSocket-Accept` 并不是用来"加密"的，它们的作用是**防止代理服务器误缓存**。
+
+具体来说：客户端生成一个随机的 Base64 字符串作为 `Sec-WebSocket-Key`，服务器将它与一个固定的 GUID（`258EAFA5-E914-47DA-95CA-C5AB0DC85B11`）拼接，计算 SHA-1 哈希，再 Base64 编码后作为 `Sec-WebSocket-Accept` 返回。客户端验证这个值是否正确——如果中间有代理服务器拦截了请求并返回缓存的 HTTP 响应，这个验证必然失败。
+
+换句话说，这个握手机制不提供安全性保证（安全性靠 TLS/`wss://`），它只是确保对端确实是一个理解 WebSocket 协议的服务器，而不是一个不知情的 HTTP 代理。
+
+---
+
+## 三、数据帧格式：为什么 WebSocket 比 HTTP 轻量？
+
+握手完成后，通信进入数据帧模式。每条消息被封装成一个或多个"帧"（Frame），帧的头部结构非常紧凑：
+
+```
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-------+-+-------------+-------------------------------+
+|F|R|R|R| opcode|M| Payload len |    Extended payload length    |
+|I|S|S|S|  (4)  |A|     (7)     |            (16/64)            |
+|N|V|V|V|       |S|             |   (if payload len==126/127)   |
+| |1|2|3|       |K|             |                               |
++-+-+-+-+-------+-+-------------+-------------------------------+
+|                     Masking-key (0 or 4 bytes)                |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                     Payload Data                              |
++---------------------------------------------------------------+
+```
+
+对于一条短消息（如 `{"type":"ping"}`），WebSocket 帧的头部只有 **2-6 字节**。对比 HTTP 请求，即使是最简单的 GET 请求，头部通常也有 **200-800 字节**（包含 Cookie、User-Agent、Accept 等字段）。
+
+这意味着在高频小消息场景（如实时聊天每秒几十条消息），WebSocket 的协议开销比 HTTP 轮询低一到两个数量级。
+
+帧头部中几个关键字段：
+
+**FIN**：标识这是否是消息的最后一帧。大消息可以被拆分成多个帧发送。
+
+**Opcode**：标识帧类型——`0x1` 是文本帧，`0x2` 是二进制帧，`0x8` 是关闭帧，`0x9`/`0xA` 是 Ping/Pong。
+
+**Mask**：客户端发往服务器的帧必须使用掩码（Masking），服务器发往客户端的帧不需要。掩码的目的同样是防止代理缓存攻击，而不是数据加密。
+
+---
+
+## 四、前端 API：建立连接、收发消息
+
+WebSocket 的前端 API 简洁直观：
+
+```javascript
+const ws = new WebSocket('wss://example.com/chat');
+
+ws.onopen = () => {
+  console.log('连接已建立');
+  ws.send(JSON.stringify({ type: 'join', room: 'general' }));
+};
+
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  console.log('收到消息:', data);
+};
+
+ws.onclose = (event) => {
+  console.log('连接关闭, code:', event.code, 'reason:', event.reason);
+};
+
+ws.onerror = (error) => {
+  console.error('连接错误:', error);
+};
+```
+
+几个容易踩坑的地方：
+
+**（1）** `ws.send()` 在连接尚未建立时调用会抛错。必须等 `onopen` 触发后才能发送。虽然可以检查 `ws.readyState === WebSocket.OPEN`，但更可靠的做法是用消息队列缓存早期消息。
+
+**（2）** `onclose` 的 `event.code` 遵循 RFC 6455 定义的状态码：1000 是正常关闭，1001 是端点离开，1006 是异常关闭（连接中断，**没有收到关闭帧**）。区分这些状态码对于实现重连逻辑很重要。
+
+**（3）** `onerror` 触发时几乎拿不到有用的错误信息——出于安全考虑，浏览器不会暴露底层 TCP/TLS 错误的细节。实际排查需要结合 DevTools 的 Network 面板。
+
+---
+
+## 五、"连接假死"：为什么需要心跳机制？
+
+很多人以为 WebSocket 连接断了就会触发 `onclose`。大多数情况下是这样，但有一种场景例外——**连接假死**。
+
+假死是指 TCP 连接实际上已经不通了（比如用户切到弱网环境、NAT 网关超时、中间代理断开），但双方都没有主动发送关闭帧。这时客户端的 `readyState` 仍然是 `OPEN`，`onclose` 不会触发，发送的消息也不会收到回应——连接进入了一种"活着但没用"的状态。
+
+心跳机制就是用来检测这种状态的：
+
+```javascript
+class WebSocketClient {
+  constructor(url) {
+    this.url = url;
+    this.reconnectAttempts = 0;
+    this.maxReconnects = 5;
+    this.heartbeatInterval = null;
+    this.connect();
+  }
+
+  connect() {
+    this.ws = new WebSocket(this.url);
+
+    this.ws.onopen = () => {
+      this.reconnectAttempts = 0;
+      this.startHeartbeat();
+    };
+
+    this.ws.onclose = () => {
+      this.stopHeartbeat();
+      this.reconnect();
+    };
+
+    this.ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'pong') return;
+      // 处理业务消息
+    };
+  }
+
+  startHeartbeat() {
+    this.heartbeatInterval = setInterval(() => {
+      if (this.ws.readyState === WebSocket.OPEN) {
+        this.ws.send(JSON.stringify({ type: 'ping' }));
+      }
+    }, 30000);
+  }
+
+  stopHeartbeat() {
+    clearInterval(this.heartbeatInterval);
+  }
+
+  reconnect() {
+    if (this.reconnectAttempts >= this.maxReconnects) return;
+    const delay = 1000 * Math.pow(2, this.reconnectAttempts);
+    setTimeout(() => {
+      this.reconnectAttempts++;
+      this.connect();
+    }, delay);
+  }
+}
+```
+
+这段代码有几个关键设计：
+
+**心跳检测**：每 30 秒发一次 ping，服务器应回复 pong。如果连续若干次 ping 没有收到 pong，就可以判定连接假死，主动关闭并重连。
+
+**指数退避重连**：重连间隔按 1s、2s、4s、8s、16s 递增。这样做是为了避免网络恢复瞬间大量客户端同时重连，导致服务器过载（"惊群效应"）。
+
+问题的关键在于——**心跳并不是 WebSocket 协议层面的要求，而是应用层的可靠性保障**。WebSocket 协议本身有 Ping/Pong 控制帧（Opcode `0x9`/`0xA`），但浏览器的 WebSocket API 不提供发送协议级 Ping 帧的接口，所以应用层心跳通常用普通文本消息来实现。
+
+---
+
+## 六、安全性：wss、Origin 验证和速率限制
+
+WebSocket 的安全性需要在多个层面考虑：
+
+**传输层加密**：生产环境必须使用 `wss://`（WebSocket Secure），它等同于 HTTP 之于 HTTPS——通过 TLS 加密传输数据，防止中间人攻击。
+
+**Origin 验证**：WebSocket 握手请求会携带 `Origin` 头，服务器应验证这个值来防止跨站 WebSocket 劫持（Cross-Site WebSocket Hijacking，CSWSH）。如果不验证 Origin，任何网页都可以通过 JavaScript 连接到你的 WebSocket 服务器。
+
+```javascript
+wss.on('connection', (ws, req) => {
+  const allowedOrigins = ['https://app.example.com'];
+  if (!allowedOrigins.includes(req.headers.origin)) {
+    ws.close(1008, 'Invalid Origin');
+    return;
+  }
+});
+```
+
+**身份认证**：WebSocket 握手阶段的 HTTP 请求可以携带 Cookie，因此可以复用已有的 session 认证。另一种常见方式是在 URL 参数中传递 JWT token（`wss://example.com/chat?token=xxx`），但要注意 token 会出现在服务器日志中，存在泄露风险。更安全的方式是在连接建立后的第一条消息中发送 token。
+
+**速率限制**：对每个连接的消息频率做限制，防止单个客户端发送大量消息导致服务器资源耗尽。
+
+---
+
+## 七、消息压缩：permessage-deflate
+
+WebSocket 支持通过 `permessage-deflate` 扩展对消息进行压缩，在握手阶段协商：
+
+```javascript
+const WebSocket = require('ws');
+const wss = new WebSocket.Server({
+  port: 8080,
+  perMessageDeflate: {
+    zlibDeflateOptions: { level: 6 },
+    threshold: 1024  // 小于 1KB 的消息不压缩
+  }
+});
+```
+
+对 JSON 格式的文本消息，压缩率通常在 **60%-80%**（即压缩后只有原始大小的 20%-40%）。但压缩有 CPU 开销，对于本身就很小的消息（如心跳包），压缩反而会增加延迟。设置 `threshold` 只对大于指定大小的消息启用压缩，是一个合理的取舍。
+
+---
+
+## 八、WebSocket 与 WebTransport：2026 年的选择
+
+WebSocket 诞生于 2011 年，基于 TCP。它的全双工能力解决了 HTTP 轮询的问题，但 TCP 本身的特性也带来了限制——**头部阻塞**（Head-of-Line Blocking）。
+
+TCP 保证数据按顺序到达。如果传输中有一个包丢失了，后续所有包都必须等这个丢失的包重传后才能交付给应用层。对于实时音视频、多人游戏这类场景，一个丢失的旧包可能已经没有价值了，但它会阻塞所有新数据——这就是头部阻塞。
+
+**WebTransport** 基于 HTTP/3 和 QUIC 协议，解决了这个问题：
+
+**（1）** **多路复用无阻塞**：一个 WebTransport 连接可以包含多个独立流，一个流上的丢包不会影响其他流。
+
+**（2）** **不可靠传输（Datagram API）**：可以选择像 UDP 一样"发了就不管"，不需要等重传。在游戏坐标同步、语音通话等场景，最新的数据比完整的数据更重要。
+
+**（3）** **0-RTT 连接建立**：QUIC 支持在第一次数据传输时就携带应用数据，省去了 TCP 三次握手 + TLS 握手的等待时间。
+
+```javascript
+const transport = new WebTransport('https://example.com/wt');
+await transport.ready;
+
+// 不可靠传输：适合实时游戏坐标
+const writer = transport.datagrams.writable.getWriter();
+writer.write(new Uint8Array([playerX, playerY, timestamp]));
+
+// 可靠传输：适合聊天消息
+const stream = await transport.createBidirectionalStream();
+const streamWriter = stream.writable.getWriter();
+streamWriter.write(new TextEncoder().encode('Hello'));
+```
+
+截至 2026 年，WebTransport 已在 Chrome、Edge、Firefox 中稳定支持。Safari 的支持仍在推进中。
+
+那是不是该放弃 WebSocket 了？不是。**WebSocket 的优势在于成熟度和生态**：几乎所有浏览器、所有服务器框架、所有云服务都完整支持 WebSocket。Socket.IO、ws 等库提供了开箱即用的重连、房间管理、广播等功能。而 WebTransport 的服务端生态还在早期阶段。
+
+换句话说，**如果场景是聊天、通知、协同编辑等对可靠性要求高的应用，WebSocket 仍然是最稳妥的选择。如果场景是实时游戏、音视频流、需要不可靠传输的高频数据同步，WebTransport 是更好的方案。**
+
+---
+
+## 九、总结
+
+WebSocket 解决了 HTTP 请求-响应模型在实时通信中的根本限制——通过一次握手升级为持久全双工连接，协议开销从百字节级降到个位数字节。
+
+如果你只记住一句话：**WebSocket 的本质是一条全双工的 TCP 通道，握手靠 HTTP，传输靠自己的帧格式。** 心跳保活、指数退避重连、Origin 验证——这些不是协议规定的，而是工程实践中的必要保障。
+
+---
+
+**延伸阅读：**
+- [RFC 6455 — The WebSocket Protocol](https://datatracker.ietf.org/doc/html/rfc6455)
+- [MDN — WebSocket API](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket)
+- [MDN — WebTransport API](https://developer.mozilla.org/en-US/docs/Web/API/WebTransport)
+- [web.dev — WebTransport](https://web.dev/webtransport/)
+
+---
+
+**本系列其他文章：**
+- 下一篇：规划中
+
+**相关主题：**
+- 如果你对 HTTP 协议的演进感兴趣，可以看：[我不知道的 HTTP 系列](/series/HTTP/)
+- 如果你对浏览器网络请求的底层机制感兴趣，可以看：[我不知道的浏览器系列](/series/%E6%B5%8F%E8%A7%88%E5%99%A8/)

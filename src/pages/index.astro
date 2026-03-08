@@ -5,10 +5,11 @@ import CodeWindow from '../components/CodeWindow.astro';
 import Sidebar from '../components/Sidebar.astro';
 import Icon from '../components/Icon.astro';
 import { getCollection } from 'astro:content';
-import { filterDrafts, sortPosts } from '../lib/utils';
+import { filterContentPosts, filterDrafts, sortPosts } from '../lib/utils';
 import { siteConfig } from '../lib/siteConfig';
 
-const posts = sortPosts(filterDrafts(await getCollection('blog')));
+const allPosts = sortPosts(filterDrafts(await getCollection('blog')));
+const posts = filterContentPosts(allPosts);
 const latest = posts.slice(0, 5);
 ---
 

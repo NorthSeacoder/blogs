@@ -10,6 +10,9 @@
         "description": {
           "type": "string"
         },
+        "subtitle": {
+          "type": "string"
+        },
         "pubDate": {
           "anyOf": [
             {
@@ -69,6 +72,29 @@
           "items": {
             "type": "string"
           }
+        },
+        "topic": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "post",
+            "index"
+          ]
+        },
+        "series": {
+          "type": "string"
+        },
+        "seriesOrder": {
+          "type": "integer",
+          "minimum": 0
         },
         "$schema": {
           "type": "string"

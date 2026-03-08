@@ -1,0 +1,202 @@
+---
+title: 我不知道的打包工具（03）— CJS、ESM、UMD 与 exports 字段：模块格式的那些坑
+description: 你发布了一个 npm 包，TypeScript 编译通过了，本地测试也没问题。用户 require 你的包，报错；换成 import，还是报错。问题出在哪？
+subtitle: CJS、ESM、UMD 与 exports 字段：模块格式的那些坑
+pubDate: '2025-02-25'
+updatedDate: '2026-03-06'
+tags:
+  - 打包工具
+  - CJS
+  - ESM
+  - UMD
+  - package.json
+  - exports
+  - 模块化
+  - 我不知道的
+lang: zh-CN
+keywords:
+  - 打包工具
+  - CJS
+  - ESM
+  - UMD
+  - package.json
+  - exports
+  - 模块化
+  - 我不知道的
+topic: 打包工具
+category: 前端工程化
+type: post
+series: 打包工具
+seriesOrder: 3
+slug: bundler-03
+model: claude-sonnet-4.6
+---
+# 我不知道的打包工具（03）— CJS、ESM、UMD 与 exports 字段
+
+你发布了一个 npm 包，TypeScript 编译通过了，本地测试也没问题。用户 `require` 你的包，报错；换成 `import`，还是报错。问题出在哪？
+
+根本原因往往不在代码本身，而在 package.json 的模块配置与实际输出格式不匹配。模块格式和入口字段这两件事看似简单，但组合起来的坑比大多数人想象的多。
+
+## 一、CJS 和 ESM 的本质差异
+
+很多人以为 CJS 和 ESM 的区别只是语法不同——`require` 换成 `import`，`module.exports` 换成 `export default`。但实际上，它们是两套完全不同的模块加载机制。
+
+**CJS 是运行时求值，ESM 是编译时确定依赖。** 这一句话决定了后面所有的行为差异。
+
+先看 CJS 的加载过程。`require()` 是一个普通函数调用，在代码执行到这一行时才去查找、读取、执行目标模块，然后返回 `module.exports` 对象。这意味着 `require` 可以出现在任何位置——if 分支里、循环里、甚至字符串拼接的路径里。
+
+```js
+// CJS：运行时动态加载，路径可以是变量
+const moduleName = condition ? './a' : './b';
+const mod = require(moduleName);
+```
+
+ESM 则完全不同。`import` 声明必须出现在模块顶层，引擎在代码执行之前就扫描所有 `import`，构建出一张静态的依赖关系图。
+
+```js
+// ESM：编译时静态分析，以下写法直接报语法错误
+if (condition) {
+  import mod from './a'; // SyntaxError
+}
+```
+
+这个差异的直接后果是：**Tree Shaking 只能在 ESM 上实现。** 因为打包工具必须在编译阶段就知道哪些导出被使用、哪些没有，才能安全地删除死代码。CJS 的动态特性让打包工具无法在编译时判断一个 `require` 到底会加载什么。
+
+还有一个容易忽略的区别：CJS 导出的是值的拷贝，ESM 导出的是值的活绑定（live binding）。CJS 模块执行完后，外部拿到的是导出对象的快照；ESM 中导入方拿到的是对导出变量的引用，原模块修改了值，导入方能感知到。
+
+## 二、UMD 和 IIFE — 兼容时代的产物
+
+在 ESM 成为标准之前，库作者面临一个现实问题：同一份代码要同时跑在 Node.js、浏览器、甚至 AMD 加载器里。UMD 就是为了解决这个问题而生的"万能格式"，核心是一段运行时环境检测：
+
+```js
+(function (root, factory) {
+  if (typeof define === 'function' && define.amd) {
+    define(['exports'], factory);       // AMD 环境
+  } else if (typeof exports === 'object') {
+    module.exports = factory();          // CJS 环境
+  } else {
+    root.MyLib = factory();              // 浏览器全局变量
+  }
+})(this, function () {
+  return { version: '1.0.0' };
+});
+```
+
+说白了，UMD 就是用 if-else 嗅探当前环境，然后选择对应的模块注册方式。它能工作，但代价是额外的包装代码，而且无法被 Tree Shaking 优化——打包工具看到的是一个 IIFE，不是静态的 `export`。IIFE 比 UMD 更简单，直接封装在匿名函数里执行，通过挂载 `window` 暴露接口，早期 jQuery、Lodash 都提供这种版本。
+
+**对于 2025 年之后的新项目，UMD 基本可以不考虑了。** Node.js 12+ 原生支持 ESM，现代浏览器全部支持 `<script type="module">`，打包工具也以 ESM 作为首选格式。除非需要兼容极老环境，否则只需要输出 ESM + CJS 两种格式。
+
+## 三、package.json 的三个入口字段
+
+npm 包的入口配置经历了三个阶段，对应三个字段：`main`、`module`、`exports`。
+
+`main` 是最早的入口字段，Node.js 从诞生起就用它来定位包的入口文件。默认指向 CJS 格式。当你 `require('some-pkg')` 时，Node.js 读取该包 package.json 的 `main` 字段，找到对应文件并执行。
+
+`module` 是一个非标准字段，由 Rollup 社区提出。它的含义是"这个包的 ESM 入口在哪"。Node.js 本身不认识 `module` 字段，但 Webpack、Rollup、Vite 等打包工具会优先读取它。换句话说，`module` 是打包工具之间的一个"君子协定"，不是官方规范。
+
+`exports` 是 Node.js 12.11 引入的官方条件导出字段。**当 `exports` 存在时，它的优先级高于 `main` 和 `module`。** 这是三者之间最关键的优先级关系。
+
+一个典型的同时兼容 CJS 和 ESM 的 package.json 配置：
+
+```json
+{
+  "name": "my-lib",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.mjs"
+    },
+    "./utils": {
+      "import": "./dist/utils.mjs",
+      "require": "./dist/utils.cjs"
+    }
+  }
+}
+```
+
+这段配置做了三件事：`main` 和 `module` 保留向后兼容（给不认识 `exports` 的老工具用），`exports` 中的 `"."` 定义了包的主入口在不同条件下的映射，`"./utils"` 定义了子路径导出，让用户可以 `import { helper } from 'my-lib/utils'`。
+
+## 四、exports 字段详解与 Dual Package Hazard
+
+`exports` 的条件导出按**从上到下、首次匹配**的规则解析。Node.js 遇到 `import` 时匹配 `"import"` 条件，遇到 `require()` 时匹配 `"require"` 条件，都不匹配时走 `"default"`。`"default"` 必须放在最后，否则它会"吃掉"后面所有条件。`exports` 还支持通配符模式：
+
+```json
+{
+  "exports": {
+    "./components/*": "./dist/components/*/index.mjs"
+  }
+}
+```
+
+这里有一个很多人会忽略的细节——`exports` 中的路径必须以 `./` 开头。写成 `"components/*"` 而不是 `"./components/*"`，Node.js 会直接报 `ERR_INVALID_PACKAGE_CONFIG`。
+
+现在进入最关键的部分：**Dual Package Hazard（双包危险）**。
+
+问题的关键在于——当一个包同时提供 CJS 和 ESM 两种入口时，如果某些代码通过 `require()` 加载了这个包，另一些代码通过 `import` 加载了同一个包，Node.js 会把它们当作两个不同的模块实例。
+
+下面这段代码演示了这个问题：
+
+```js
+// my-lib/dist/index.cjs
+class Config { /* ... */ }
+const instance = new Config();
+module.exports = { Config, instance };
+
+// my-lib/dist/index.mjs
+export class Config { /* ... */ }
+export const instance = new Config();
+
+// 用户代码
+const { instance: a } = require('my-lib');  // 加载 CJS 版本
+import { instance as b } from 'my-lib';     // 加载 ESM 版本
+
+console.log(a === b); // false — 两个不同的实例！
+```
+
+两次加载产生了两份独立的模块状态。如果你的库依赖单例模式（比如全局配置对象、插件注册表），这个问题会导致极难排查的 bug——`instanceof` 检查失败，注册的插件"消失"了，状态不同步。
+
+**解决 Dual Package Hazard 的推荐做法是：ESM 入口作为唯一的"真实实现"，CJS 入口只做一层薄包装，重新导出 ESM 的内容。** 这样无论从哪个入口进来，最终都指向同一份模块实例。
+
+```js
+// dist/index.cjs — CJS wrapper
+// 通过动态 import() 代理到 ESM 实现，确保单一实例
+module.exports = import('./index.mjs');
+```
+
+不过这种方式有限制：`require()` 返回的是 Promise 而非同步值。另一种方案是把共享状态提取到一个内部 CJS 文件中，让两个入口都引用它。具体选择取决于你的库是否依赖单例。
+
+## 五、`"type": "module"` 的影响
+
+package.json 中的 `"type"` 字段决定了包内 `.js` 文件的默认解析模式。设为 `"module"` 时，所有 `.js` 文件被当作 ESM 解析，写 CJS 必须用 `.cjs` 扩展名。不设 `"type"` 或设为 `"commonjs"`（默认值），`.js` 按 CJS 解析，ESM 文件需要用 `.mjs`。
+
+如果你只记住一句话：**`.mjs` 永远是 ESM，`.cjs` 永远是 CJS，`.js` 的行为取决于最近的 package.json 中的 `"type"` 字段。**
+
+这个规则导致一个常见错误：没设 `"type": "module"` 的包里，`exports` 的 `"import"` 条件指向 `.js` 文件，Node.js 以 CJS 模式解析它，遇到 `export` 关键字直接报语法错误。
+
+## 六、常见错误速查
+
+**（1）`exports` 路径不以 `./` 开头。** 这是最常见的配置错误。`"import": "dist/index.mjs"` 缺少了前导 `./`，Node.js 会拒绝解析。
+
+**（2）`"default"` 条件没有放在最后。** `exports` 的条件匹配是顺序敏感的。如果 `"default"` 出现在 `"import"` 之前，所有导入都会走 `"default"`，`"import"` 条件永远不会被触发。
+
+**（3）忘记设 `"type": "module"` 但 `exports` 指向 `.js` 文件。** 上面已经讲过，`.js` 的解析模式取决于 `"type"` 字段，不匹配就会报语法错误。
+
+**（4）`exports` 遮蔽了内部文件路径。** 一旦设置了 `exports`，包内未在 `exports` 中声明的文件路径将无法被外部访问。这是有意为之的封装机制，但如果你忘了把某个子路径加进去，用户的 `import 'my-lib/internal'` 就会报 `ERR_PACKAGE_PATH_NOT_EXPORTED`。
+
+## 七、总结
+
+CJS 和 ESM 的分野不在语法，而在加载机制——运行时求值 vs 编译时静态分析。这个根本差异决定了 Tree Shaking、Dual Package Hazard 等一系列问题的成因和解法。
+
+`exports` 字段是目前最推荐的入口配置方式，它同时解决了条件导出、子路径映射和包封装三个问题。但它的条件顺序、路径格式、与 `"type"` 字段的配合都有严格要求，配置错误往往直接导致运行时报错。
+
+---
+
+**本系列其他文章：**
+- 上一篇：[esbuild 与 tsup — 零配置极速打包的底层机制](/posts/bundler-02/)
+- 下一篇：[Father — 组件库构建工具的设计与实践](/posts/bundler-04/)
+
+**相关主题：**
+- 浏览器如何加载 ESM 模块：[从输入 URL 到页面呈现](/posts/http-01/)

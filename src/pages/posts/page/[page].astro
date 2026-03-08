@@ -3,11 +3,14 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 import PostCard from '../../../components/PostCard.astro';
 import Icon from '../../../components/Icon.astro';
 import { getCollection } from 'astro:content';
-import { filterDrafts, paginate, sortPosts } from '../../../lib/utils';
+import { filterContentPosts, filterDrafts, paginate, sortPosts } from '../../../lib/utils';
 
 export async function getStaticPaths() {
   const pageSize = 6;
-  const pages = paginate(sortPosts(filterDrafts(await getCollection('blog'))), pageSize);
+  const pages = paginate(
+    filterContentPosts(sortPosts(filterDrafts(await getCollection('blog')))),
+    pageSize
+  );
   return pages.slice(1).map((items, index) => ({
     params: { page: String(index + 2) },
     props: {

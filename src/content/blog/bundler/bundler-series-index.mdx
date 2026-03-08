@@ -1,0 +1,79 @@
+---
+title: 我不知道的打包工具 — 系列导读与阅读路径
+description: 《我不知道的 打包工具》系列导读、阅读路径与文章索引。
+pubDate: '2026-03-06'
+tags:
+  - 打包工具
+  - 前端工程化
+  - 系列索引
+  - 我不知道的
+lang: zh-CN
+keywords:
+  - 打包工具
+  - 前端工程化
+  - 系列索引
+  - 我不知道的
+topic: 打包工具
+category: 前端工程化
+type: index
+series: 打包工具
+slug: bundler-series-index
+---
+# 我不知道的打包工具 — 系列导读
+
+**文章数量：** 5 篇
+
+---
+
+## 阅读路径
+
+根据不同背景选择入口：
+
+**如果想系统理解打包工具全貌：** 按编号 01 → 05 顺序阅读
+
+**如果在开发 TypeScript 库，想快速打包：** 重点看 02、03
+
+**如果在做组件库开发：** 重点看 04，然后回看 01 了解全景
+
+**如果在纠结"到底用什么工具"：** 直接看 05，再按需回看细节
+
+---
+
+## 章节目录
+
+### 第一组：工具与原理
+
+| # | 文章 | 核心内容 |
+| --- | --- | --- |
+| 01 | [打包工具全景 — 从 Webpack 到 Rolldown 的设计哲学](/posts/bundler-01/) | Webpack/Rollup/esbuild/Vite/Rolldown 的设计哲学差异，为什么有这么多打包工具 |
+| 02 | [esbuild 与 tsup — 零配置极速打包的底层机制](/posts/bundler-02/) | esbuild 的 Go 并行架构，tsup 的封装层，零配置打包实战 |
+
+---
+
+### 第二组：模块系统
+
+| # | 文章 | 核心内容 |
+| --- | --- | --- |
+| 03 | [CJS、ESM、UMD 与 exports 字段 — 模块格式的那些坑](/posts/bundler-03/) | CJS vs ESM 本质差异、UMD 历史遗产、package.json exports 详解、Dual Package Hazard |
+
+---
+
+### 第三组：专项与选型
+
+| # | 文章 | 核心内容 |
+| --- | --- | --- |
+| 04 | [Father — 组件库构建工具的设计与实践](/posts/bundler-04/) | Father 4.x 多引擎架构、Bundless/Bundle 双模式、CSS Modules 样式隔离 |
+| 05 | [构建工具选型 — 如何根据项目类型选择打包方案](/posts/bundler-05/) | 四种项目类型的决策框架、Vite vs Webpack、tsup vs Rollup vs unbuild |
+
+---
+
+## 与其他系列的关联
+
+| 关联系列 | 关联点 |
+| --- | --- |
+| 浏览器 | 打包后的代码如何被浏览器加载和执行（Browser-01 进程架构、Browser-04 渲染流水线） |
+| HTTP | 模块加载涉及的网络请求（HTTP-01 从输入 URL 到页面呈现） |
+| V8 | 打包产物的 JS 执行机制（V8-01 执行流程、V8-09 作用域） |
+| React | 组件库构建与 React 组件模式（React-08 逻辑复用的三代进化） |
+
+---

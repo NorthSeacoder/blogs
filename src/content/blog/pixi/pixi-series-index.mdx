@@ -1,0 +1,78 @@
+---
+title: 我不知道的 Pixi.js — 系列导读与阅读路径
+description: 《我不知道的 Pixi.js》系列导读、阅读路径与文章索引。
+pubDate: '2026-03-06'
+tags:
+  - Pixi.js
+  - 系列索引
+  - 我不知道的
+lang: zh-CN
+keywords:
+  - Pixi.js
+  - 系列索引
+  - 我不知道的
+topic: Pixi.js
+category: Pixi.js
+type: index
+series: Pixi.js
+slug: pixi-series-index
+---
+# 我不知道的 Pixi.js — 系列导读
+
+**文章数量：** 10 篇
+**Pixi.js 版本：** v8.16.0（2026 年 2 月）
+
+---
+
+## 阅读路径
+
+根据不同背景选择入口：
+
+**如果想系统学习 Pixi.js：** 按编号 01 → 10 顺序阅读
+
+**如果只关心渲染原理：** 重点看 01（架构）、02（纹理）、04（滤镜）、06（图形与遮罩）
+
+**如果在做游戏开发：** 重点看 05（Ticker）、07（性能优化）、09（物理集成）、10（插件生态）
+
+**如果在排查性能问题：** 直接看 07（性能优化），再看 01 中的批处理部分
+
+---
+
+## 章节目录
+
+### 渲染核心
+
+| # | 文章 | 核心内容 |
+| --- | --- | --- |
+| 01 | [渲染引擎的核心架构](/posts/pixi-01/) | v8 初始化、场景树、变换矩阵、渲染队列与批处理 |
+| 02 | [纹理与 Sprites 的管理机制](/posts/pixi-02/) | Assets 加载、TextureSource/Texture/Sprite 三层架构、Spritesheet、GC |
+
+### 交互与动画
+
+| # | 文章 | 核心内容 |
+| --- | --- | --- |
+| 03 | [交互事件的底层实现](/posts/pixi-03/) | EventSystem、eventMode、命中测试、冒泡捕获、事件委托 |
+| 05 | [动画系统的 Ticker 解析](/posts/pixi-05/) | Ticker 调度、deltaTime vs deltaMS、回调优先级、帧率控制 |
+
+### 视觉效果
+
+| # | 文章 | 核心内容 |
+| --- | --- | --- |
+| 04 | [滤镜系统的设计原理](/posts/pixi-04/) | RenderTarget、GlProgram/GpuProgram 双后端、Uniform、ping-pong 策略 |
+| 06 | [图形与遮罩的渲染机制](/posts/pixi-06/) | v8 链式 Graphics API、三角化、Stencil Mask vs Alpha Mask |
+
+### 工程实践
+
+| # | 文章 | 核心内容 |
+| --- | --- | --- |
+| 07 | [性能优化与调试实践](/posts/pixi-07/) | Draw Call 优化、Spritesheet、Culling、对象池、内存管理 |
+| 08 | [多分辨率与自适应渲染](/posts/pixi-08/) | DPR、resolution/autoDensity、@1x/@2x 纹理、letterbox/cover 缩放 |
+
+### 生态与集成
+
+| # | 文章 | 核心内容 |
+| --- | --- | --- |
+| 09 | [物理引擎的集成实践](/posts/pixi-09/) | Matter.js 集成、坐标同步、固定时间步进、碰撞事件映射 |
+| 10 | [插件与扩展生态](/posts/pixi-10/) | Spine 骨骼动画、粒子系统、@pixi/ui、自定义插件开发 |
+
+---

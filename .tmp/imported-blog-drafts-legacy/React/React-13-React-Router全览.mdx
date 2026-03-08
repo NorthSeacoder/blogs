@@ -1,0 +1,307 @@
+---
+title: 我不知道的 React（13）— React Router 原理、模式与实践
+description: >-
+  很多人以为 React Router 就是一个"URL 到组件的映射表"——配置好 path 和
+  component，剩下的它帮你搞定。能用是能用，但要问   为什么不会刷新页面、BrowserRouter 和 HashRouter
+  到底在监听什么事件、嵌套路由的   是怎么知…
+subtitle: React Router 原理、模式与实践
+pubDate: '2022-05-25'
+updatedDate: '2026-03-06'
+tags:
+  - React
+  - React-Router
+  - SPA
+  - History API
+  - 路由
+  - 嵌套路由
+  - 代码分割
+lang: zh-CN
+keywords:
+  - React
+  - React-Router
+  - SPA
+  - History API
+  - 路由
+  - 嵌套路由
+  - 代码分割
+topic: React
+category: React
+type: post
+series: React
+seriesOrder: 13
+slug: react-13
+model: claude-4.6-opus
+optimized_from: 013.React-Router-Link.mdx + 014.React-Router-core.mdx
+optimization_type: 合并+深度升级
+style_version: 2026-03-03T00:00:00.000Z
+diagnosis:
+  style_conformity: 8
+  content_depth: 深
+  topic_structure: 合并
+---
+# 我不知道的 React（13）— React Router 原理、模式与实践
+
+很多人以为 React Router 就是一个"URL 到组件的映射表"——配置好 path 和 component，剩下的它帮你搞定。能用是能用，但要问 `<Link>` 为什么不会刷新页面、BrowserRouter 和 HashRouter 到底在监听什么事件、嵌套路由的 `<Outlet>` 是怎么知道该渲染哪个子组件的，就不一定说得清了。
+
+这篇从 React Router 的底层机制开始，把 URL 变化 → 路由匹配 → 组件渲染这条链路拆开讲清楚。
+
+## 一、SPA 路由的核心问题
+
+传统的多页应用中，每次点击链接，浏览器都会向服务器发送一个新请求，服务器返回一整个 HTML 页面，浏览器重新加载——页面闪烁、JavaScript 状态丢失、用户体验被打断。
+
+SPA 要解决的问题是：**URL 变了，但页面不刷新，只更新需要变化的那部分 UI。**
+
+这个需求拆解开来，需要解决三件事：如何在不触发页面刷新的前提下修改 URL、如何监听到 URL 的变化、如何根据新 URL 决定渲染哪个组件。React Router 做的就是把这三件事串起来。
+
+## 二、两种路由模式的底层区别
+
+React Router 提供了两种主要的路由模式，它们解决的是同一个问题——"不刷新页面地修改和监听 URL"——但使用了完全不同的浏览器 API。
+
+### BrowserRouter：History API
+
+BrowserRouter 基于 HTML5 的 History API。修改 URL 用 `history.pushState()`，监听浏览器前进/后退用 `popstate` 事件。
+
+```javascript
+window.history.pushState({}, '', '/users/123');
+```
+
+这行代码会把地址栏从当前地址改成 `/users/123`，并往浏览器历史记录里添加一条新记录，但**不会触发任何网络请求**。`popstate` 事件则在用户点击浏览器的前进/后退按钮时触发，React Router 监听这个事件来感知 URL 的回退变化。
+
+BrowserRouter 产出的 URL 是标准路径格式，比如 `/users/123`、`/about`，对 SEO 友好，看起来和普通网站一样。但它有一个部署要求：**服务器必须把所有路径都指向同一个 `index.html`。** 因为 `/users/123` 这个路径在服务器上并不存在一个真实的文件，如果用户直接在地址栏输入这个 URL 或者刷新页面，服务器会返回 404。需要配置 Nginx 的 `try_files` 或类似规则，把所有请求都回落到 `index.html`，让前端 JS 来处理路由。
+
+### HashRouter：Hash 变化
+
+HashRouter 利用的是 URL 中 `#` 后面的部分（hash）。修改 hash 时浏览器不会发送请求，监听 hash 变化用 `hashchange` 事件。
+
+```javascript
+window.location.hash = '#/users/123';
+```
+
+URL 看起来像 `http://example.com/#/users/123`。`#` 后面的内容不会被发送到服务器，所以不需要任何服务器配置——服务器始终只收到对 `http://example.com/` 的请求，永远不会 404。
+
+代价是 URL 不够干净，且搜索引擎对 hash 路径的抓取和索引不如标准路径可靠。
+
+**如果你只记住一句话：BrowserRouter 用 `pushState` 改 URL，需要服务器配合；HashRouter 用 `#` 改 URL，不需要服务器配合。** 现代项目绝大多数选 BrowserRouter，因为几乎所有部署平台（Vercel、Netlify、Nginx）都能轻松配置回落规则。
+
+## 三、`<Link>` 不是 `<a>` 标签那么简单
+
+`<Link to="/about">关于</Link>` 渲染出来确实是一个 `<a>` 标签，但它做了一件关键的事——**拦截了默认的跳转行为**。
+
+具体流程是这样的：
+
+用户点击 `<Link>` → `<a>` 的 click 事件触发 → React Router 调用 `event.preventDefault()` 阻止浏览器的默认行为（发送请求、刷新页面）→ 调用 `history.pushState()` 修改 URL → React Router 内部的路由状态更新 → 触发 React 重渲染 → 匹配新 URL 对应的 `<Route>` → 渲染新组件。
+
+说白了，`<Link>` 就是一个"伪装成超链接的 React 状态更新触发器"。点击它并不是在做导航，而是在改变 React Router 内部的路由状态，只是顺带把地址栏的 URL 也改了。
+
+`<Link>` 还支持 `state` prop，可以在跳转时携带一些不想暴露在 URL 中的数据：
+
+```jsx
+<Link to="/profile" state={{ from: '/settings' }}>
+  个人资料
+</Link>
+```
+
+目标页面通过 `useLocation().state` 取出这个数据。这在"登录后跳转回原页面"这类场景中特别有用——把原页面路径塞进 state，登录成功后读出来跳回去。
+
+## 四、路由匹配：Routes 和 Route
+
+React Router v6 的路由匹配由 `<Routes>` 和 `<Route>` 组合完成。`<Routes>` 接收一组 `<Route>` 子元素，拿到当前 URL 后逐一匹配，找到最佳匹配项并渲染其 `element`。
+
+```jsx
+<Routes>
+  <Route path="/" element={<Home />} />
+  <Route path="/users/:userId" element={<UserProfile />} />
+  <Route path="*" element={<NotFound />} />
+</Routes>
+```
+
+这里有一个很多人会忽略的细节——v6 的匹配算法不是"从上到下找第一个匹配"，而是**按路径的具体程度排序，选最精确的那个**。`/users/me` 会优先匹配 `path="users/me"` 而不是 `path="users/:userId"`，不管它们在 JSX 中的书写顺序。这和 v5 的行为不同——v5 的 `<Switch>` 是严格按书写顺序匹配的，路由顺序写错了就会出 bug。
+
+动态路径参数用 `:paramName` 声明，在组件内通过 `useParams` 读取：
+
+```jsx
+function UserProfile() {
+  const { userId } = useParams();
+  return <h2>用户 ID: {userId}</h2>;
+}
+```
+
+查询参数（URL 中 `?` 后面的部分）通过 `useSearchParams` 读写：
+
+```jsx
+function ProductList() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sortBy = searchParams.get('sort') || 'price';
+
+  function handleSortChange(newSort) {
+    setSearchParams({ sort: newSort });
+  }
+
+  return <div>当前排序: {sortBy}</div>;
+}
+```
+
+`setSearchParams` 的行为和 `useState` 的 setter 类似——调用后 URL 更新，组件重渲染。
+
+## 五、嵌套路由与 Outlet
+
+嵌套路由是 React Router v6 最强大的设计之一。它让"共享布局"变得非常自然——父路由定义公共布局（比如侧边栏、顶部导航），子路由只负责各自的内容区域。
+
+```jsx
+<Routes>
+  <Route path="/dashboard" element={<DashboardLayout />}>
+    <Route index element={<Overview />} />
+    <Route path="settings" element={<Settings />} />
+    <Route path="reports" element={<Reports />} />
+  </Route>
+</Routes>
+```
+
+`DashboardLayout` 组件中通过 `<Outlet>` 指定子路由的渲染位置：
+
+```jsx
+function DashboardLayout() {
+  return (
+    <div style={{ display: 'flex' }}>
+      <Sidebar />
+      <main>
+        <Outlet />
+      </main>
+    </div>
+  );
+}
+```
+
+当 URL 是 `/dashboard` 时，`<Outlet>` 渲染 `<Overview>`（`index` 路由）；当 URL 是 `/dashboard/settings` 时，`<Outlet>` 渲染 `<Settings>`。`DashboardLayout` 里的 `<Sidebar>` 始终在，不会因为子路由切换而重新挂载。
+
+**`<Outlet>` 的本质是一个占位符**，它从 React Router 的内部 Context 中读取当前匹配的子路由元素，然后渲染出来。这和 Vue Router 的 `<router-view>` 是同一个概念。
+
+## 六、NavLink：带激活状态的 Link
+
+`NavLink` 是 `Link` 的增强版——它知道自己指向的路径是否与当前 URL 匹配（是否"激活"），并暴露了 `isActive` 状态，让你可以动态添加样式。
+
+```jsx
+<NavLink
+  to="/messages"
+  className={({ isActive }) => isActive ? 'nav-active' : 'nav-default'}
+>
+  消息
+</NavLink>
+```
+
+默认情况下，`/users` 的 NavLink 在 URL 为 `/users/123` 时也会被视为激活（前缀匹配）。如果只想在完全匹配时才激活，加上 `end` prop：
+
+```jsx
+<NavLink to="/users" end>用户列表</NavLink>
+```
+
+加了 `end` 之后，只有 URL 恰好是 `/users` 时才激活，`/users/123` 不会触发激活状态。这在导航菜单中很常用——"首页"链接通常需要 `end`，否则它在任何路径下都会显示为激活。
+
+## 七、编程式导航与路由守卫
+
+`Link` 和 `NavLink` 是声明式导航——用户点击触发。但有些场景需要在代码逻辑中执行跳转，比如表单提交成功后跳转到结果页。这时用 `useNavigate`：
+
+```jsx
+function LoginForm() {
+  const navigate = useNavigate();
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    const success = await login(formData);
+    if (success) {
+      navigate('/dashboard', { replace: true });
+    }
+  }
+
+  return <form onSubmit={handleSubmit}>...</form>;
+}
+```
+
+`replace: true` 表示替换当前历史记录而不是添加新记录。换句话说，用户登录成功跳到 dashboard 后，点浏览器后退不会回到登录页——因为登录页的历史记录已经被替换掉了。
+
+`navigate(-1)` 等价于浏览器的后退按钮，`navigate(1)` 等价于前进。
+
+### 路由守卫
+
+React Router v6 没有内置导航守卫 API（不像 Vue Router 有 `beforeEach`）。但可以通过封装一个高阶组件来实现路由保护：
+
+```jsx
+function RequireAuth({ children }) {
+  const auth = useAuth();
+  const location = useLocation();
+
+  if (!auth.isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+  return children;
+}
+```
+
+```jsx
+<Route
+  path="/dashboard"
+  element={
+    <RequireAuth>
+      <DashboardLayout />
+    </RequireAuth>
+  }
+/>
+```
+
+未登录用户访问 `/dashboard` 时，`RequireAuth` 会渲染 `<Navigate>`，把用户重定向到登录页，并把原始路径存在 `state` 里。登录成功后可以从 `state.from` 取出来跳回去。
+
+React Router v6.4 还引入了 `loader` 函数，可以在路由渲染之前执行认证检查：
+
+```jsx
+const protectedLoader = async () => {
+  const isAuth = await checkAuthStatus();
+  if (!isAuth) return redirect('/login');
+  return null;
+};
+
+<Route path="/dashboard" element={<Dashboard />} loader={protectedLoader} />
+```
+
+`loader` 的设计思路和 Remix 一脉相承——在组件渲染之前把数据准备好，认证检查不过就直接 redirect，组件压根不会被渲染。
+
+## 八、代码分割：按路由拆分
+
+单页应用有一个天然的性能问题——所有页面的代码打成一个包，首屏加载可能很慢。React Router 配合 `React.lazy` 和 `Suspense` 可以实现按路由做代码分割：
+
+```jsx
+const HomePage = lazy(() => import('./pages/HomePage'));
+const AboutPage = lazy(() => import('./pages/AboutPage'));
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Suspense fallback={<div>加载中...</div>}>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/about" element={<AboutPage />} />
+        </Routes>
+      </Suspense>
+    </BrowserRouter>
+  );
+}
+```
+
+`lazy()` 让 Webpack（或 Vite）在打包时把 `HomePage` 和 `AboutPage` 拆成独立的 chunk。用户访问 `/` 时只下载 `HomePage` 的代码，访问 `/about` 时才下载 `AboutPage` 的代码。`Suspense` 在 chunk 下载期间显示 fallback UI。
+
+**这是 SPA 性能优化中投入产出比最高的一项**——改动很小（每个路由组件改成 `lazy` 导入），但首屏加载体积可以大幅缩减。
+
+## 九、总结
+
+React Router 的底层逻辑并不复杂：BrowserRouter 用 `pushState` + `popstate` 监听 URL 变化，HashRouter 用 `hash` + `hashchange`；`<Link>` 拦截点击事件、阻止默认跳转、用 `pushState` 改 URL；`<Routes>` 拿新 URL 做路径匹配，渲染对应的组件。
+
+v6 的核心改进集中在两点：路由匹配从顺序优先变成了精确度优先（不用再纠结 Route 的书写顺序），嵌套路由通过 `<Outlet>` 实现了自然的布局共享。路由守卫虽然没有内置，但通过组件封装或 `loader` 都能实现——React Router 的设计理念就是"路由也是组件"，能用组件解决的事情就不提供专用 API。
+
+---
+
+**本系列其他文章：**
+- 上一篇：[Redux 核心原理与中间件机制](/posts/react-12/)
+- 下一篇：[React 19 核心特性](/posts/react-14/)
+
+**相关主题：**
+- 代码分割涉及的 Suspense 机制：[React 19 核心特性](/posts/react-14/)
+- 浏览器地址栏与 History API 的关系：[从输入 URL 到页面呈现](/posts/http-01/)

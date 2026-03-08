@@ -1,0 +1,279 @@
+---
+title: 我不知道的 i18next（03）— 复数规则与 CLDR 标准
+description: >-
+  很多人以为复数就是"1 个用单数，2 个及以上用复数"——英语确实如此，但放到阿拉伯语里，复数有 6
+  种形式；放到波兰语里，"2-4"和"5-21"用不同的词形。i18next 的复数处理远不止加个 _plural 后缀那么简单，而且从 v21
+  开始，连后缀的命名方式都彻底变了。
+subtitle: 复数规则与 CLDR 标准
+pubDate: '2023-05-15'
+updatedDate: '2026-03-06'
+tags:
+  - i18next
+  - 国际化
+  - 复数
+  - CLDR
+  - Intl.PluralRules
+lang: zh-CN
+keywords:
+  - i18next
+  - 国际化
+  - 复数
+  - CLDR
+  - Intl.PluralRules
+topic: i18next
+category: i18next
+type: post
+series: i18next
+seriesOrder: 3
+slug: i18next-03
+model: claude-4.6-opus
+optimized_from: 03.复数操作的实现与扩展.mdx
+optimization_type: 深度升级
+style_version: 2026-03-03T00:00:00.000Z
+diagnosis:
+  style_conformity: 3
+  content_depth: 中
+  topic_structure: 保留+升级
+---
+# 我不知道的 i18next（03）— 复数规则与 CLDR 标准
+
+很多人以为复数就是"1 个用单数，2 个及以上用复数"——英语确实如此，但放到阿拉伯语里，复数有 6 种形式；放到波兰语里，"2-4"和"5-21"用不同的词形。i18next 的复数处理远不止加个 `_plural` 后缀那么简单，而且从 v21 开始，**连后缀的命名方式都彻底变了**。
+
+## 一、先看一个会出错的例子
+
+下面这段配置，在 i18next v23+ 环境下运行会发生什么？
+
+```javascript
+i18next.init({
+  lng: 'en',
+  resources: {
+    en: {
+      translation: {
+        items: 'You have {{count}} item',
+        items_plural: 'You have {{count}} items',
+      },
+    },
+  },
+});
+
+console.log(i18next.t('items', { count: 1 }));
+console.log(i18next.t('items', { count: 5 }));
+```
+
+直觉上，输出应该是 `"You have 1 item"` 和 `"You have 5 items"`。
+
+但实际输出是：
+
+```
+"You have 1 item"
+"You have 5 item"    // 没有走 _plural 后缀
+```
+
+**`_plural` 后缀在 i18next v21+ 中已经不是默认格式了。** 新版本使用 CLDR 标准的 `_one` / `_other` 后缀。上面的代码要改成：
+
+```javascript
+{
+  items_one: 'You have {{count}} item',
+  items_other: 'You have {{count}} items',
+}
+```
+
+这是 i18next 近年来最容易踩的坑之一。如果项目从旧版升级，所有复数翻译键都需要迁移。
+
+## 二、旧格式 vs 新格式
+
+i18next 历史上有两种复数键名格式：
+
+**旧格式（JSON v3，i18next v20 及更早）：**
+
+```json
+{
+  "items": "You have {{count}} item",
+  "items_plural": "You have {{count}} items"
+}
+```
+
+只有 `_plural` 一个后缀，所有非单数情况都走 `_plural`。
+
+**新格式（JSON v4，i18next v21+ 默认）：**
+
+```json
+{
+  "items_one": "You have {{count}} item",
+  "items_other": "You have {{count}} items"
+}
+```
+
+后缀直接对应 CLDR 的复数类别：`zero`、`one`、`two`、`few`、`many`、`other`。
+
+换句话说，旧格式是 i18next 自己发明的简化方案，新格式是国际标准。**v24 已经移除了旧 JSON 格式的内置支持。** 如果老项目暂时无法迁移，需要显式声明兼容模式：
+
+```javascript
+i18next.init({
+  compatibilityJSON: 'v3',  // 强制使用旧格式
+  // ...
+});
+```
+
+但这只是过渡方案，不建议长期使用。
+
+## 三、CLDR 复数规则到底是什么
+
+CLDR（Unicode Common Locale Data Repository）为每种语言定义了复数类别。i18next 的新格式就是基于这套规则。
+
+**英语**只有两种类别：
+
+| 数量 | 类别 | 后缀 |
+|------|------|------|
+| 1 | one | `_one` |
+| 其他 | other | `_other` |
+
+**阿拉伯语**有六种：
+
+| 数量 | 类别 | 后缀 |
+|------|------|------|
+| 0 | zero | `_zero` |
+| 1 | one | `_one` |
+| 2 | two | `_two` |
+| 3-10 | few | `_few` |
+| 11-99 | many | `_many` |
+| 100+ | other | `_other` |
+
+**波兰语**有四种：
+
+| 数量 | 类别 | 说明 |
+|------|------|------|
+| 1 | one | 仅数字 1 |
+| 2-4, 22-24... | few | 末位 2-4（但 12-14 除外） |
+| 5-21, 25-31... | many | 其他整数 |
+| 1.5, 2.7... | other | 非整数 |
+
+如果只用旧版的 `_plural`，波兰语的 `few` 和 `many` 完全无法区分。这就是为什么 i18next 要切换到 CLDR 标准——**旧格式从设计上就无法覆盖复杂语言的复数规则**。
+
+## 四、PluralResolver 的工作机制
+
+i18next 内部通过 `PluralResolver` 模块处理复数分类。从 v24 开始，它强制依赖浏览器原生的 `Intl.PluralRules` API：
+
+```javascript
+// i18next 内部的简化逻辑
+function getSuffix(lng, count) {
+  const rule = new Intl.PluralRules(lng);
+  const category = rule.select(count);  // 'one', 'other', 'few', etc.
+  return `_${category}`;
+}
+```
+
+可以直接在浏览器控制台验证：
+
+```javascript
+new Intl.PluralRules('en').select(1);     // 'one'
+new Intl.PluralRules('en').select(5);     // 'other'
+new Intl.PluralRules('ar').select(0);     // 'zero'
+new Intl.PluralRules('ar').select(2);     // 'two'
+new Intl.PluralRules('ar').select(5);     // 'few'
+new Intl.PluralRules('pl').select(3);     // 'few'
+new Intl.PluralRules('pl').select(5);     // 'many'
+```
+
+说白了，i18next 不再自己维护复数规则表，而是把这个工作交给了浏览器的 `Intl` API。这意味着规则会随浏览器更新而更新，不需要 i18next 自己跟进 CLDR 的版本变化。
+
+`t()` 函数在处理带 `count` 参数的调用时，完整路径是：
+
+```
+t('items', { count: 5 })
+  → getSuffix('en', 5)
+  → Intl.PluralRules('en').select(5) → 'other'
+  → 查找 'items_other'
+  → 'You have {{count}} items'
+  → 插值替换 → 'You have 5 items'
+```
+
+## 五、实战：为阿拉伯语配置完整复数
+
+以一个计数器场景为例，展示如何正确配置阿拉伯语的全部六种复数形式：
+
+```json
+// ar/translation.json
+{
+  "messages_zero": "لا توجد رسائل",
+  "messages_one": "رسالة واحدة",
+  "messages_two": "رسالتان",
+  "messages_few": "{{count}} رسائل",
+  "messages_many": "{{count}} رسالة",
+  "messages_other": "{{count}} رسالة"
+}
+```
+
+```javascript
+i18next.init({
+  lng: 'ar',
+  resources: { ar: { translation: { /* 如上 */ } } },
+});
+
+console.log(i18next.t('messages', { count: 0 }));
+// "لا توجد رسائل"
+
+console.log(i18next.t('messages', { count: 1 }));
+// "رسالة واحدة"
+
+console.log(i18next.t('messages', { count: 2 }));
+// "رسالتان"
+
+console.log(i18next.t('messages', { count: 5 }));
+// "5 رسائل"（few 类别）
+
+console.log(i18next.t('messages', { count: 11 }));
+// "11 رسالة"（many 类别）
+```
+
+实际项目中，不需要记住每种语言有多少种复数形式。只需要查 CLDR 规范或者用 `Intl.PluralRules` 验证，然后为每个类别提供对应的翻译键即可。
+
+## 六、迁移指南：从 v3 格式到 v4 格式
+
+如果项目还在用旧的 `_plural` 后缀，迁移步骤如下：
+
+**（1）确认当前格式**
+
+检查 `i18next.init` 配置中是否有 `compatibilityJSON: 'v3'`。如果有，说明项目还在用旧格式。
+
+**（2）批量替换翻译键**
+
+i18next 官方提供了 `i18next-v4-format-converter` 工具：
+
+```bash
+npx i18next-v4-format-converter -i ./locales -o ./locales-v4
+```
+
+这个工具会自动将 `_plural` 后缀转换为 `_one` / `_other`。
+
+**（3）更新初始化配置**
+
+```javascript
+// 迁移前
+i18next.init({
+  compatibilityJSON: 'v3',
+  // ...
+});
+
+// 迁移后：移除 compatibilityJSON 配置
+i18next.init({
+  // ...
+});
+```
+
+**（4）验证特殊语言**
+
+英语的迁移很简单（`_plural` → `_other`），但如果项目支持阿拉伯语、波兰语等复杂语言，需要检查是否补充了 `_zero`、`_few`、`_many` 等之前缺失的键。旧格式根本没有这些后缀，迁移时可能需要找翻译人员补充。
+
+## 七、总结
+
+i18next 的复数处理从"单数/复数二分法"演进到了 CLDR 六类别标准。如果你只记住一句话：**v21+ 不再用 `_plural`，改用 `_one` / `_other` / `_few` / `_many` / `_zero`，底层靠 `Intl.PluralRules` 驱动。** 旧项目需要尽快完成格式迁移，否则升级 i18next 大版本时会静默丢失复数翻译。
+
+---
+
+**本系列其他文章：**
+- 上一篇：[Trans 组件的边界与陷阱](/posts/i18next-02/)
+- 下一篇：[文本膨胀与 RTL 适配](/posts/i18next-04/)
+
+**相关主题：**
+- 如果你对 i18next 的命名空间和资源加载机制感兴趣，可以看：[命名空间与资源加载](/posts/i18next-01/)

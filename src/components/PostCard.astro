@@ -1,7 +1,7 @@
 ---
 import type { CollectionEntry } from 'astro:content';
 import Icon from './Icon.astro';
-import { format } from '../lib/utils';
+import { format, getPostDisplayTitle, getSeriesName, isSeriesIndex } from '../lib/utils';
 
 interface Props {
   post: CollectionEntry<'blog'>;
@@ -11,26 +11,9 @@ interface Props {
 
 const { post, index = 0, showSeries = true } = Astro.props;
 const animationDelay = `${index * 50}ms`;
-
-// 解析系列标题
-const parseTitle = (title: string) => {
-  const match = title.match(/^我不知道的\s*(.+?)\s*[-–—]\s*(.+)$/);
-  if (match) {
-    return {
-      series: match[1],
-      subtitle: match[2],
-      isSeries: true,
-    };
-  }
-  return {
-    series: null,
-    subtitle: title,
-    isSeries: false,
-  };
-};
-
-const titleInfo = parseTitle(post.data.title);
-const seriesName = post.data.series || titleInfo.series;
+const seriesName = getSeriesName(post);
+const displayTitle = getPostDisplayTitle(post);
+const isIndexPost = isSeriesIndex(post);
 ---
 
 <article
@@ -65,7 +48,7 @@ const seriesName = post.data.series || titleInfo.series;
         <div class="mb-2">
           <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono bg-[var(--color-accent)]/10 text-[var(--color-accent)]">
             <Icon name="folder" size={3} />
-            我不知道的 {seriesName}
+            {isIndexPost ? `我不知道的 ${seriesName} / 系列导读` : `我不知道的 ${seriesName}`}
           </span>
         </div>
       )
@@ -73,7 +56,7 @@ const seriesName = post.data.series || titleInfo.series;
 
     <!-- 标题 -->
     <h3 class="font-mono text-base font-medium text-[var(--color-text-primary)] group-hover:text-[var(--color-accent)] transition-colors">
-      {titleInfo.isSeries ? titleInfo.subtitle : post.data.title}
+      {displayTitle}
     </h3>
 
     <!-- 描述 -->

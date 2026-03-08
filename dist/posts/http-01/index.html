@@ -1,0 +1,229 @@
+<!DOCTYPE html><html lang="zh-CN" class="min-h-full"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Astro v5.16.5"><!-- 防闪烁脚本：在 DOM 解析前执行 --><script>
+      (function () {
+        const STORAGE_KEY = 'theme';
+        const stored = localStorage.getItem(STORAGE_KEY);
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        // 根据存储值或系统偏好设置主题
+        if (stored === 'dark' || (stored === 'system' && prefersDark) || (!stored && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      })();
+    </script><!-- 字体预加载 --><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"><title>我不知道的HTTP（01）— 从输入URL到页面呈现 | ?.log</title><meta name="description" content="面试中有一道经典题：&#34;从输入 URL 到页面呈现，中间发生了什么？&#34;"><meta name="keywords" content="HTTP, 网络协议, DNS, TCP, 我不知道的"><link rel="canonical" href="https://example.com/posts/http-01/"><link rel="alternate" type="application/rss+xml" title="RSS" href="/rss.xml"><meta property="og:title" content="我不知道的HTTP（01）— 从输入URL到页面呈现 | ?.log"><meta property="og:description" content="面试中有一道经典题：&#34;从输入 URL 到页面呈现，中间发生了什么？&#34;"><meta property="og:type" content="article"><meta property="og:url" content="https://example.com/posts/http-01/"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="我不知道的HTTP（01）— 从输入URL到页面呈现 | ?.log"><meta name="twitter:description" content="面试中有一道经典题：&#34;从输入 URL 到页面呈现，中间发生了什么？&#34;"><script type="application/ld+json">{JSON.stringify(jsonLd)}</script><link rel="stylesheet" href="/_astro/index.sfjfXeKE.css">
+<link rel="stylesheet" href="/_astro/_slug_.KigR83JL.css"></head> <body class="flex min-h-screen flex-col"> <!-- 跳过链接 --> <a href="#main" class="skip-link">跳到主要内容</a> <!-- 导航栏 - VSCode 标签页风格 --> <header class="
+        fixed inset-x-0 top-0 z-50
+        bg-[var(--color-titlebar)]
+        border-b border-[var(--color-border)]
+        transition-colors duration-200
+      "> <div class="main-container flex h-12 items-center justify-between"> <!-- Logo - 终端风格 --> <a href="/" class="
+            flex items-center gap-2
+            font-mono text-sm font-medium
+            text-[var(--color-text-primary)]
+            transition-opacity hover:opacity-80
+          "> <span class="text-[var(--color-accent)]">~/</span> <span>?.log</span> <span class="text-[var(--color-comment)]">$</span> </a> <!-- 导航标签页 --> <div class="flex items-center"> <nav aria-label="主导航" class="flex items-center"> <a href="/" class="tab font-mono text-xs"> 首页 </a><a href="/posts/" class="tab font-mono text-xs active" aria-current="page"> 文章 </a><a href="/series/" class="tab font-mono text-xs"> 系列 </a><a href="/tags/" class="tab font-mono text-xs"> 标签 </a><a href="/archives/" class="tab font-mono text-xs"> 归档 </a><a href="/about/" class="tab font-mono text-xs"> 关于 </a> </nav> <!-- 工具栏按钮组 --> <div class="flex items-center gap-1 ml-2"> <!-- 搜索按钮 --> <a href="/search/" class="
+                flex items-center justify-center
+                h-7 w-7 rounded
+                text-[var(--color-text-secondary)]
+                bg-[var(--color-surface)]
+                border border-[var(--color-border)]
+                transition-colors
+                hover:bg-[var(--color-surface-hover)]
+                hover:text-[var(--color-text-primary)]
+              " aria-label="搜索" title="搜索 (⌘K)"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:search">   <symbol id="ai:lucide:search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m21 21l-4.34-4.34"/><circle cx="11" cy="11" r="8"/></g></symbol><use href="#ai:lucide:search"></use>  </svg> </a> <!-- 主题切换 --> <button id="theme-toggle" type="button" aria-label="切换主题" class="
+    relative flex h-7 w-7 items-center justify-center
+    rounded
+    bg-[var(--color-surface)]
+    border border-[var(--color-border)]
+    text-[var(--color-text-secondary)]
+    transition-colors
+    hover:bg-[var(--color-surface-hover)]
+    hover:text-[var(--color-text-primary)]
+    focus:outline-none
+  " data-astro-cid-x3pjskd3> <!-- 太阳图标 (亮色模式) --> <svg id="icon-sun" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" data-astro-cid-x3pjskd3></path> </svg> <!-- 月亮图标 (暗色模式) --> <svg id="icon-moon" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" data-astro-cid-x3pjskd3></path> </svg> <!-- 系统图标 (跟随系统) --> <svg id="icon-system" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" data-astro-cid-x3pjskd3></path> </svg> </button> <script type="module">const m="theme",s=["light","dark","system"];function r(){if(typeof localStorage>"u")return"system";const e=localStorage.getItem(m);return s.includes(e)?e:"system"}function l(){return typeof window>"u"?"light":window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}function u(e){return e==="system"?l():e}function d(e){const n=u(e),t=document.documentElement;n==="dark"?t.classList.add("dark"):t.classList.remove("dark"),f(e)}function f(e){const n=document.getElementById("icon-sun"),t=document.getElementById("icon-moon"),o=document.getElementById("icon-system");if(!n||!t||!o)return;[n,t,o].forEach(i=>{i.style.opacity="0",i.style.transform="scale(0.5) rotate(-180deg)"});let c;switch(e){case"light":c=n;break;case"dark":c=t;break;default:c=o}requestAnimationFrame(()=>{c.style.opacity="1",c.style.transform="scale(1) rotate(0deg)"})}function g(){const e=r(),t=(s.indexOf(e)+1)%s.length,o=s[t];localStorage.setItem(m,o),d(o)}function a(){const e=r();d(e),document.getElementById("theme-toggle")?.addEventListener("click",g),window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{r()==="system"&&d("system")})}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",a):a();document.addEventListener("astro:after-swap",a);</script>  </div> </div> </div> </header> <!-- 主内容区 --> <main id="main" class="main-container-wide flex-1 pb-16 pt-20">   <div class="reading-progress-container" aria-hidden="true" data-astro-cid-mu6cnre2> <div class="reading-progress-bar" id="reading-progress" data-astro-cid-mu6cnre2></div> </div> <script type="module">function a(){const e=document.getElementById("reading-progress"),n=document.querySelector("article");if(!e||!n)return;function o(){const r=n.getBoundingClientRect(),s=r.top+window.scrollY,l=r.height,i=window.innerHeight,d=window.scrollY,c=s-i/2,g=s+l-i/2,u=Math.min(Math.max((d-c)/(g-c),0),1);e.style.transform=`scaleX(${u})`}let t=!1;window.addEventListener("scroll",()=>{t||(requestAnimationFrame(()=>{o(),t=!1}),t=!0)}),o()}a();document.addEventListener("astro:after-swap",a);</script>   <div class="relative lg:grid lg:grid-cols-[1fr_220px] lg:gap-8 xl:grid-cols-[1fr_260px]"> <article class="animate-fade-in min-w-0"> <!-- 文章头部 --> <header class="mb-8"> <!-- 返回链接 --> <a href="/posts/" class="
+            group mb-6 inline-flex items-center gap-2
+            text-sm font-medium text-text-secondary
+            transition-colors hover:text-accent
+          "> <svg width="1em" height="1em" class="transition-transform group-hover:-translate-x-1" style="width: 1rem; height: 1rem;" data-icon="lucide:arrow-left">   <symbol id="ai:lucide:arrow-left" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m12 19l-7-7l7-7m7 7H5"/></symbol><use href="#ai:lucide:arrow-left"></use>  </svg> <span>返回文章列表</span> </a> <!-- 元信息 --> <div class="mb-4 flex flex-wrap items-center gap-4 text-sm text-text-secondary"> <!-- 发布日期 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:calendar">   <symbol id="ai:lucide:calendar" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M8 2v4m8-4v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></g></symbol><use href="#ai:lucide:calendar"></use>  </svg> <time datetime="2024-10-09T00:00:00.000Z"> 2024年10月9日 </time> </div> <!-- 阅读时间 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:clock">   <symbol id="ai:lucide:clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="10"/></g></symbol><use href="#ai:lucide:clock"></use>  </svg> <span>13 min read</span> </div> <!-- 更新日期 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:refresh-cw">   <symbol id="ai:lucide:refresh-cw" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9a9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5m5 4a9 9 0 0 1-9 9a9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></g></symbol><use href="#ai:lucide:refresh-cw"></use>  </svg> <span>更新于 2026年3月6日</span> </div> </div> <div class="mb-4 flex flex-wrap items-center gap-2 font-mono text-xs"> <a href="/series/HTTP/" class="
+                  inline-flex items-center gap-1 rounded px-2 py-1
+                  bg-[var(--color-accent)]/10 text-[var(--color-accent)]
+                  transition-colors hover:bg-[var(--color-accent)]/15
+                "> <svg width="1em" height="1em" class style="width: 0.75rem; height: 0.75rem;" data-icon="lucide:folder">   <symbol id="ai:lucide:folder" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol><use href="#ai:lucide:folder"></use>  </svg> <span>我不知道的 HTTP</span> </a> </div> <!-- 标题 --> <h1 class="text-3xl font-bold leading-tight text-text-primary sm:text-4xl"> 我不知道的HTTP（01）— 从输入URL到页面呈现 </h1> <!-- 描述 --> <p class="mt-4 text-lg leading-relaxed text-text-secondary"> 面试中有一道经典题：&quot;从输入 URL 到页面呈现，中间发生了什么？&quot; </p> <!-- 标签 --> <div class="mt-6 flex flex-wrap gap-2 font-mono text-xs" aria-label="标签"> <a href="/tags/HTTP/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"HTTP"</span> </a><a href="/tags/~E7~BD~91~E7~BB~9C~E5~8D~8F~E8~AE~AE/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"网络协议"</span> </a><a href="/tags/DNS/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"DNS"</span> </a><a href="/tags/TCP/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"TCP"</span> </a><a href="/tags/~E6~88~91~E4~B8~8D~E7~9F~A5~E9~81~93~E7~9A~84/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"我不知道的"</span> </a> </div> </header> <!-- 封面图 -->  <!-- 文章内容 --> <div class="
+          prose prose-lg
+          prose-headings:font-bold
+          prose-a:text-accent prose-a:no-underline hover:prose-a:underline
+          prose-img:rounded prose-img:shadow-lg
+          prose-code:before:content-none prose-code:after:content-none
+          max-w-none
+        "> <h1 id="我不知道的http01-从输入url到页面呈现"><a href="#我不知道的http01-从输入url到页面呈现">我不知道的HTTP（01）— 从输入URL到页面呈现</a></h1>
+<h2 id="一问题引入"><a href="#一问题引入">一、问题引入</a></h2>
+<p>面试中有一道经典题：“从输入 URL 到页面呈现，中间发生了什么？”</p>
+<p>很多人以为答案就是”浏览器发请求，服务器返回 HTML，渲染”，三步结束。但实际上，<strong>在第一个字节的 HTTP 数据发出之前，浏览器已经悄悄完成了至少四次网络交互</strong>——DNS 查询、TCP 握手、TLS 握手，中间还可能穿插 CDN 的智能调度。那条看似瞬间完成的”请求”，背后是一条由多个阶段串联起来的完整链路。</p>
+<h2 id="二表面认知大多数人停在这里"><a href="#二表面认知大多数人停在这里">二、表面认知：大多数人停在这里</a></h2>
+<p>让一个前端开发者描述这个过程，回答大概率是：</p>
+<p>“浏览器发 HTTP 请求，服务器返回 HTML，解析渲染。”</p>
+<p>这不算错，但它把”发 HTTP 请求”之前的所有步骤全跳过了。一个更完整的链路是：</p>
+<p><strong>URL 解析 → DNS 查询 → TCP 三次握手 → TLS 握手 → HTTP 请求/响应 → 渲染</strong></p>
+<p>前四步全部发生在”发 HTTP 请求”之前。换句话说，“输入 URL 后直接发 HTTP 请求”是一个非常普遍的认知盲区——浏览器发出的第一个网络包，是 DNS 查询包，不是 HTTP 请求包。</p>
+<p>在进入具体流程之前，有一个前置知识需要简单交代——网络分层模型。</p>
+<p>说白了，网络分层就是把”数据从 A 到 B”这件事拆成几个独立环节，每层只管自己的事。教科书里有 OSI 七层和 TCP/IP 四层两个模型，实际开发中 TCP/IP 四层是真正在用的。</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>TCP/IP 四层</th><th>大致对应 OSI 层</th><th>关键协议</th></tr></thead><tbody><tr><td>应用层</td><td>应用 + 表示 + 会话</td><td>HTTP、DNS、TLS</td></tr><tr><td>传输层</td><td>传输层</td><td>TCP、UDP</td></tr><tr><td>网络层</td><td>网络层</td><td>IP、ICMP</td></tr><tr><td>链路层</td><td>数据链路 + 物理层</td><td>Ethernet、Wi-Fi</td></tr></tbody></table>
+<p>换句话说，OSI 和 TCP/IP 的根本区别在于：OSI 是理论参考模型，TCP/IP 是互联网实际运行的协议栈。面试能说清楚这个区别就够了，不需要把七层全背下来。</p>
+<p>下面进入正题。</p>
+<h2 id="三往下挖逐步拆解请求链路"><a href="#三往下挖逐步拆解请求链路">三、往下挖：逐步拆解请求链路</a></h2>
+<h3 id="31-url-解析"><a href="#31-url-解析">3.1 URL 解析</a></h3>
+<p>浏览器拿到输入内容后，先判断这是一个 URL 还是搜索关键词。如果识别为 URL，解析出协议（<code>https</code>）、域名（<code>www.example.com</code>）、端口（HTTPS 默认 443）、路径和查询参数。</p>
+<p>这一步决定了后续走 HTTP 还是 HTTPS、默认端口还是自定义端口。如果 URL 是 <code>http://</code> 而非 <code>https://</code>，后面就不会有 TLS 握手这一步。</p>
+<h3 id="32-dns-解析域名到-ip-的翻译"><a href="#32-dns-解析域名到-ip-的翻译">3.2 DNS 解析：域名到 IP 的翻译</a></h3>
+<p>域名是给人看的，网络通信需要的是 IP 地址。DNS 解析的任务就是把域名翻译成 IP。</p>
+<p>这里有一个很多人会忽略的细节——DNS 查询并非每次都要跑到远端 DNS 服务器。在那之前，它会依次检查多级缓存，命中任何一级就立即返回：</p>
+<p><strong>（1）</strong> 浏览器自身的 DNS 缓存。Chrome 可以在 <code>chrome://net-internals/#dns</code> 查看当前缓存内容和 TTL。</p>
+<p><strong>（2）</strong> 操作系统缓存。包括 <code>/etc/hosts</code> 文件中的静态映射和系统级 DNS 缓存（macOS 用 <code>dscacheutil</code>，Windows 用 <code>ipconfig /displaydns</code> 可查看）。</p>
+<p><strong>（3）</strong> 路由器缓存。家用路由器通常会缓存最近的查询结果。</p>
+<p><strong>（4）</strong> ISP（运营商）本地 DNS 服务器的缓存。</p>
+<p>只有全部未命中，才会发起递归查询：本地 DNS 服务器依次向根域名服务器（<code>.</code>）→ 顶级域名服务器（<code>.com</code>）→ 权威 DNS 服务器请求，最终拿到目标 IP。</p>
+<p>问题的关键在于——如果网站接入了 CDN，DNS 返回的不是源站 IP，而是一条 CNAME 记录，指向 CDN 厂商的域名（如 <code>xxx.cdnprovider.com</code>）。CDN 的智能 DNS 再根据用户的地理位置和网络状况，返回距离最近的边缘节点 IP。也就是说，<strong>CDN 的介入点就在 DNS 解析这一步</strong>，对浏览器完全透明——浏览器以为自己在直连目标服务器，实际上连接的是附近的 CDN 节点。</p>
+<h3 id="33-数据在网络上怎么走"><a href="#33-数据在网络上怎么走">3.3 数据在网络上怎么走</a></h3>
+<p>拿到 IP 地址后，数据包从本机到目标服务器需要经过若干网络设备。这里涉及两种转发方式。</p>
+<p>在同一个局域网内（比如电脑到路由器），数据包通过 MAC 地址直接转发，这叫二层转发，工作在链路层。一旦跨越网络边界（比如跨运营商、跨城市），路由器就需要根据 IP 地址查找路由表决定下一跳，这叫三层路由，工作在网络层。</p>
+<p>说白了，二层转发和三层路由的区别就是：二层靠 MAC 地址在”邻居”之间直接递，三层靠 IP 地址在不同网络之间接力传递。前端开发者通常不需要关心这一层，但理解它有助于排查”本地能通、线上不通”一类的网络问题。</p>
+<h3 id="34-tcp-三次握手不只是确认网络通不通"><a href="#34-tcp-三次握手不只是确认网络通不通">3.4 TCP 三次握手：不只是”确认网络通不通”</a></h3>
+<p>拿到 IP 后，浏览器需要和服务器建立 TCP 连接。TCP 是可靠传输协议，而”可靠”的前提是双方先同步各自的初始序列号（ISN）。这就是三次握手的核心目的。</p>
+<p>很多人以为三次握手是为了”确认网络通不通”，但实际上它的核心目标是<strong>序列号同步</strong>。</p>
+<p><strong>第一次</strong>：客户端发送 SYN 包，携带自己的初始序列号（如 <code>seq=100</code>），进入 SYN_SENT 状态。</p>
+<p><strong>第二次</strong>：服务端回复 SYN+ACK 包，确认客户端序列号（<code>ack=101</code>），同时携带自己的初始序列号（<code>seq=300</code>），进入 SYN_RECV 状态。</p>
+<p><strong>第三次</strong>：客户端确认服务端序列号（<code>ack=301</code>），双方进入 ESTABLISHED 状态，连接建立。</p>
+<p>有了序列号，后续传输中每个数据包才能被正确排序和确认，丢包才能被发现并重传。为什么不能两次就完事？因为两次握手无法让客户端确认”服务端知道我的序列号”这件事——一个已失效的旧 SYN 包抵达服务端后，服务端会误以为是新连接请求并分配资源，造成资源浪费。</p>
+<h3 id="35-tls-握手加密通道的建立"><a href="#35-tls-握手加密通道的建立">3.5 TLS 握手：加密通道的建立</a></h3>
+<p>如果是 HTTPS（现在绝大多数网站都是），TCP 连接建立后还不能直接发 HTTP 请求。浏览器和服务器之间需要再完成一次 TLS 握手，协商加密算法、交换密钥。</p>
+<p>TLS 1.2 需要额外 2 个 RTT（往返时间），TLS 1.3 优化到了 1 个 RTT，甚至支持 0-RTT 恢复——复用上次会话的密钥直接加密发送数据。</p>
+<p>到这里可以算一笔账：一个全新的 HTTPS 请求，在发出第一个字节的 HTTP 数据之前，至少需要 <strong>1 RTT（DNS）+ 1 RTT（TCP）+ 1<del>2 RTT（TLS）= 3</del>4 个 RTT</strong>。DNS 缓存命中能省掉一个，TLS 1.3 比 1.2 少一个。这就是首次访问一个新网站总比后续访问慢的根本原因。</p>
+<h3 id="36-http-请求与响应"><a href="#36-http-请求与响应">3.6 HTTP 请求与响应</a></h3>
+<p>TLS 握手完成，终于轮到 HTTP 登场。浏览器构造请求报文：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="plaintext"><code><span class="line"><span>GET /index.html HTTP/1.1</span></span>
+<span class="line"><span>Host: www.example.com</span></span>
+<span class="line"><span>User-Agent: Chrome/120.0</span></span>
+<span class="line"><span>Accept: text/html</span></span>
+<span class="line"><span>Cookie: session_id=abc123</span></span></code></pre>
+<p>服务器（或 CDN 边缘节点）处理请求后返回响应。如果 CDN 缓存命中，边缘节点直接返回内容，不需要回源到原始服务器——这也是 CDN 加速的核心逻辑：<strong>把内容放到离用户更近的节点，减少网络往返次数</strong>。</p>
+<p>浏览器收到响应后，根据 <code>Content-Type</code> 判断数据类型。如果是 <code>text/html</code>，将 HTML 交给渲染进程，开始解析和渲染。从这里开始，就进入了浏览器渲染流水线的范畴，不在本篇讨论范围内。</p>
+<h2 id="四这意味着什么用代码观察全链路"><a href="#四这意味着什么用代码观察全链路">四、这意味着什么：用代码观察全链路</a></h2>
+<p>理解这条链路不只是为了面试能答上来。浏览器提供了 <code>PerformanceNavigationTiming</code> API，可以精确测量每个阶段的耗时。</p>
+<p>下面这段代码可以直接在浏览器控制台运行，它会打印出从 DNS 查询到页面加载完成的各阶段毫秒数：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="javascript"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> entry</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> performance.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">getEntriesByType</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;navigation&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">)[</span><span style="color:#005CC5;--shiki-dark:#79B8FF">0</span><span style="color:#24292E;--shiki-dark:#E1E4E8">];</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> stages</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  &#39;DNS 查询&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: entry.domainLookupEnd </span><span style="color:#D73A49;--shiki-dark:#F97583">-</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> entry.domainLookupStart,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  &#39;TCP 连接&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: entry.connectEnd </span><span style="color:#D73A49;--shiki-dark:#F97583">-</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> entry.connectStart,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  &#39;TLS 握手&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: entry.secureConnectionStart </span><span style="color:#D73A49;--shiki-dark:#F97583">&gt;</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 0</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    ?</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> entry.connectEnd </span><span style="color:#D73A49;--shiki-dark:#F97583">-</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> entry.secureConnectionStart </span><span style="color:#D73A49;--shiki-dark:#F97583">:</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 0</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  &#39;TTFB（首字节）&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: entry.responseStart </span><span style="color:#D73A49;--shiki-dark:#F97583">-</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> entry.requestStart,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  &#39;内容下载&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: entry.responseEnd </span><span style="color:#D73A49;--shiki-dark:#F97583">-</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> entry.responseStart,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  &#39;DOM 解析&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: entry.domInteractive </span><span style="color:#D73A49;--shiki-dark:#F97583">-</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> entry.responseEnd,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  &#39;总耗时&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: entry.loadEventEnd </span><span style="color:#D73A49;--shiki-dark:#F97583">-</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> entry.startTime,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">};</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">console.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">table</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(stages);</span></span></code></pre>
+<p>典型输出中，DNS 查询在缓存命中时几乎为 0，TLS 握手通常在 30-80ms，内容下载时间取决于资源体积和带宽。如果 DNS 或 TCP 阶段出现异常高的数值，往往意味着网络链路上的某个环节存在瓶颈。</p>
+<p>如果你只记住一句话，记住这个：<strong><code>performance.getEntriesByType(&#39;navigation&#39;)[0]</code> 是观察网络请求全链路耗时的最直接手段</strong>，比 Network 面板的瀑布图还精确——它给出的是毫秒级数值，而非可视化近似。</p>
+<p>再对比一下旧的 <code>performance.timing</code> API（已标记为 deprecated，但仍可运行）：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="javascript"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> t</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> performance.timing;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">console.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">log</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;DNS:&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, t.domainLookupEnd </span><span style="color:#D73A49;--shiki-dark:#F97583">-</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> t.domainLookupStart, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;ms&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">console.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">log</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;TCP:&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, t.connectEnd </span><span style="color:#D73A49;--shiki-dark:#F97583">-</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> t.connectStart, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;ms&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">console.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">log</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;TTFB:&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, t.responseStart </span><span style="color:#D73A49;--shiki-dark:#F97583">-</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> t.requestStart, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;ms&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span></code></pre>
+<p>两者的区别在于：<code>performance.timing</code> 返回绝对时间戳（从 1970 年起的毫秒数），计算耗时需要手动做差；<code>PerformanceNavigationTiming</code> 返回相对于导航开始的高精度时间，使用更方便也更准确。新项目应该用后者。</p>
+<h2 id="五总结"><a href="#五总结">五、总结</a></h2>
+<p><strong>从输入 URL 到发出 HTTP 请求，中间至少经历了 DNS 查询、TCP 握手、TLS 握手三次网络往返——这些”隐形成本”才是首次加载慢的根本原因。</strong></p>
+<hr/>
+<p><strong>本系列其他文章：</strong></p>
+<ul>
+<li>下一篇：<a href="/posts/http-02/">Cookie到底是怎么工作的</a></li>
+</ul>
+<p><strong>相关主题：</strong></p>
+<ul>
+<li>浏览器拿到 HTML 之后如何渲染？可以看浏览器系列：<a href="/posts/browser-01/">进程、线程与多进程架构</a></li>
+<li>HTTPS 的 TLS 握手细节，见本系列第 04 篇：<a href="/posts/http-04/">HTTPS握手：TLS到底做了什么</a></li>
+</ul> </div> <!-- 文章底部 --> <footer class="mt-12 border-t border-border pt-8"> <!-- 分享提示 --> <div class="code-window"> <div class="code-window-titlebar"> <span class="flex-1 text-center font-mono text-xs text-[var(--color-text-secondary)]">share.ts</span> </div> <div class="p-4 font-mono text-sm"> <p class="syntax-comment">// 觉得这篇文章有帮助？</p> <p class="syntax-comment">// 欢迎分享给更多人</p> <p class="mt-4"> <span class="syntax-keyword">export const</span> <span class="syntax-variable">&nbsp;subscribe</span> <span class="text-[var(--color-text-primary)]">&nbsp;=&nbsp;</span> <a href="/rss.xml" class="syntax-string hover:underline">"/rss.xml"</a> <span class="text-[var(--color-text-primary)]">;</span> </p> </div> </div> </footer> </article> <!-- TOC 侧边栏 - 仅在大屏幕显示 --> <aside class="hidden lg:block"> <nav class="toc-container" aria-label="文章目录" data-astro-cid-xvrfupwn><div class="toc-header" data-astro-cid-xvrfupwn><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-xvrfupwn><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7" data-astro-cid-xvrfupwn></path></svg><span data-astro-cid-xvrfupwn>目录</span></div><ul class="toc-list" data-astro-cid-xvrfupwn><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#一问题引入" class="toc-link" data-slug="一问题引入" data-astro-cid-xvrfupwn>一、问题引入</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#二表面认知大多数人停在这里" class="toc-link" data-slug="二表面认知大多数人停在这里" data-astro-cid-xvrfupwn>二、表面认知：大多数人停在这里</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#三往下挖逐步拆解请求链路" class="toc-link" data-slug="三往下挖逐步拆解请求链路" data-astro-cid-xvrfupwn>三、往下挖：逐步拆解请求链路</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#31-url-解析" class="toc-link" data-slug="31-url-解析" data-astro-cid-xvrfupwn>3.1 URL 解析</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#32-dns-解析域名到-ip-的翻译" class="toc-link" data-slug="32-dns-解析域名到-ip-的翻译" data-astro-cid-xvrfupwn>3.2 DNS 解析：域名到 IP 的翻译</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#33-数据在网络上怎么走" class="toc-link" data-slug="33-数据在网络上怎么走" data-astro-cid-xvrfupwn>3.3 数据在网络上怎么走</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#34-tcp-三次握手不只是确认网络通不通" class="toc-link" data-slug="34-tcp-三次握手不只是确认网络通不通" data-astro-cid-xvrfupwn>3.4 TCP 三次握手：不只是”确认网络通不通”</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#35-tls-握手加密通道的建立" class="toc-link" data-slug="35-tls-握手加密通道的建立" data-astro-cid-xvrfupwn>3.5 TLS 握手：加密通道的建立</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#36-http-请求与响应" class="toc-link" data-slug="36-http-请求与响应" data-astro-cid-xvrfupwn>3.6 HTTP 请求与响应</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#四这意味着什么用代码观察全链路" class="toc-link" data-slug="四这意味着什么用代码观察全链路" data-astro-cid-xvrfupwn>四、这意味着什么：用代码观察全链路</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#五总结" class="toc-link" data-slug="五总结" data-astro-cid-xvrfupwn>五、总结</a></li></ul></nav><script type="module">function s(){const n=document.querySelectorAll(".toc-link"),c=document.querySelectorAll("article h2[id], article h3[id]");if(n.length===0||c.length===0)return;const i=new IntersectionObserver(t=>{t.forEach(o=>{if(o.isIntersecting){const r=o.target.getAttribute("id");n.forEach(e=>{e.classList.toggle("active",e.getAttribute("data-slug")===r)})}})},{rootMargin:"-80px 0px -80% 0px",threshold:0});c.forEach(t=>i.observe(t)),n.forEach(t=>{t.addEventListener("click",o=>{o.preventDefault();const r=t.getAttribute("data-slug"),e=document.getElementById(r||"");if(e){const a=e.getBoundingClientRect().top+window.scrollY-100;window.scrollTo({top:a,behavior:"smooth"})}})})}s();document.addEventListener("astro:after-swap",s);</script> </aside> </div>  <script type="module">function i(){document.querySelectorAll("pre:has(code)").forEach(t=>{if(t.querySelector(".code-header"))return;const s=t.querySelector("code");if(!s)return;const r=Array.from(s.classList).find(a=>a.startsWith("language-")),d=r?r.replace("language-",""):"text",c=document.createElement("div");c.className="code-header";const n=document.createElement("span");n.className="code-lang",n.textContent=d.toUpperCase();const e=document.createElement("button");e.className="code-copy-btn",e.setAttribute("aria-label","复制代码"),e.innerHTML=`
+        <svg class="copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </svg>
+        <svg class="check-icon hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      `,e.addEventListener("click",async()=>{const a=s.textContent||"";try{await navigator.clipboard.writeText(a),e.classList.add("copied"),e.querySelector(".copy-icon")?.classList.add("hidden"),e.querySelector(".check-icon")?.classList.remove("hidden"),setTimeout(()=>{e.classList.remove("copied"),e.querySelector(".copy-icon")?.classList.remove("hidden"),e.querySelector(".check-icon")?.classList.add("hidden")},2e3)}catch(l){console.error("复制失败:",l)}}),c.appendChild(n),c.appendChild(e);const o=document.createElement("div");o.className="code-block-wrapper",t.parentNode?.insertBefore(o,t),o.appendChild(c),o.appendChild(t)})}i();document.addEventListener("astro:after-swap",i);</script>   <button id="back-to-top" class="back-to-top" aria-label="返回顶部" title="返回顶部" data-astro-cid-wlspcwf4> <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-wlspcwf4> <path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" data-astro-cid-wlspcwf4></path> </svg> </button> <script type="module">function o(){const e=document.getElementById("back-to-top");if(!e)return;function i(){window.scrollY>400?e.classList.add("visible"):e.classList.remove("visible")}e.addEventListener("click",()=>{window.scrollTo({top:0,behavior:"smooth"})});let t=!1;window.addEventListener("scroll",()=>{t||(requestAnimationFrame(()=>{i(),t=!1}),t=!0)}),i()}o();document.addEventListener("astro:after-swap",o);</script>   </main> <!-- 页脚 - VSCode 状态栏风格 --> <footer class="
+        border-t border-[var(--color-border)]
+        bg-[var(--color-surface)]
+        py-6
+        text-xs font-mono text-[var(--color-text-secondary)]
+      "> <div class="main-container"> <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"> <!-- 版权信息 --> <p class="text-center sm:text-left"> <span class="syntax-comment">// </span> <span class="syntax-keyword">const</span> <span class="syntax-variable"> copyright</span> <span> = </span> <span class="syntax-string">"2026 NorthSeacoder"</span> </p> <!-- 链接 --> <div class="flex items-center justify-center gap-4 sm:justify-end"> <a href="/rss.xml" class="
+                flex items-center gap-1.5
+                transition-colors
+                hover:text-[var(--color-accent)]
+              " aria-label="RSS 订阅"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:rss">   <symbol id="ai:lucide:rss" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></g></symbol><use href="#ai:lucide:rss"></use>  </svg> <span>RSS</span> </a> <a href="https://github.com/NorthSeacoder" target="_blank" rel="noopener noreferrer" class="
+                flex items-center gap-1.5
+                transition-colors
+                hover:text-[var(--color-accent)]
+              " aria-label="GitHub"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:github">   <symbol id="ai:lucide:github" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5c.08-1.25-.27-2.48-1-3.5c.28-1.15.28-2.35 0-3.5c0 0-1 0-3 1.5c-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.4 5.4 0 0 0 4 9c0 3.5 3 5.5 6 5.5c-.39.49-.68 1.05-.85 1.65S8.93 17.38 9 18v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></g></symbol><use href="#ai:lucide:github"></use>  </svg> <span>GitHub</span> </a> </div> </div> </div> </footer> </body></html>

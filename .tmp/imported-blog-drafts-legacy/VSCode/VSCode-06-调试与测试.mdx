@@ -1,0 +1,253 @@
+---
+title: 我不知道的 VSCode 扩展（06）— 调试与测试
+description: >-
+  VSCode 扩展运行在一个特殊的环境——Extension Host（扩展宿主进程）。它是 VSCode 启动的一个独立 Node.js
+  子进程，专门用来加载和执行所有扩展代码。
+subtitle: 调试与测试
+pubDate: '2024-04-15'
+updatedDate: '2026-03-06'
+tags:
+  - VSCode 扩展
+  - 我不知道的
+  - 调试
+  - Debug
+  - launch.json
+  - vscode-test
+  - 断点
+lang: zh-CN
+keywords:
+  - VSCode 扩展
+  - 我不知道的
+  - 调试
+  - Debug
+  - launch.json
+  - vscode-test
+  - 断点
+topic: VSCode 扩展
+category: VSCode
+type: post
+series: VSCode 扩展
+seriesOrder: 6
+slug: vscode-extension-06
+optimized_from: '06.我不知道的 VSCode 扩展:调试技巧与最佳实践.mdx'
+optimization_type: 深度升级
+style_version: 2026-03-03T00:00:00.000Z
+diagnosis:
+  style_conformity: 2
+  content_depth: 中
+  topic_structure: 保留
+---
+# 我不知道的 VSCode 扩展（06）— 调试与测试
+
+## 一、扩展调试不是"调 Node.js"
+
+VSCode 扩展运行在一个特殊的环境——**Extension Host（扩展宿主进程）**。它是 VSCode 启动的一个独立 Node.js 子进程，专门用来加载和执行所有扩展代码。
+
+这意味着调试扩展不是启动一个普通的 Node.js 进程，而是要启动一个完整的 VSCode 窗口（Extension Development Host），在这个窗口中加载正在开发的扩展，然后用原来的 VSCode 窗口作为调试器去连接它。
+
+很多人以为 F5 启动后弹出的"第二个 VSCode 窗口"是多余的——其实那才是扩展真正运行的地方。
+
+## 二、launch.json：调试配置的核心
+
+### 标准配置
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "extensionHost",
+      "request": "launch",
+      "name": "Launch Extension",
+      "runtimeExecutable": "${execPath}",
+      "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
+      "sourceMaps": true,
+      "outFiles": ["${workspaceFolder}/out/**/*.js"],
+      "preLaunchTask": "npm: watch"
+    }
+  ]
+}
+```
+
+几个关键字段：
+
+**`type: "extensionHost"`** — 固定值，告诉 VSCode 这是一个扩展调试配置，而不是普通的 Node.js 调试。
+
+**`--extensionDevelopmentPath`** — 指向扩展项目的根目录。VSCode 会从这个路径读取 `package.json` 并加载扩展。
+
+**`sourceMaps: true`** — 必须开启。TypeScript 编译后的 JS 文件和源码之间需要 Source Map 才能对应，否则断点设在 `.ts` 文件上不会命中。
+
+**`outFiles`** — 编译输出路径，用于告诉调试器到哪里去找编译后的 JS 和 Source Map 文件。默认模板用 `out` 目录，如果项目的 `tsconfig.json` 配了不同的 `outDir`，这里要对应修改。
+
+**`preLaunchTask`** — 启动调试前先执行的任务。`"npm: watch"` 表示运行 `npm run watch`（通常是 `tsc -watch`），确保 TypeScript 代码在调试前已编译，并且后续修改能自动重新编译。
+
+### Monorepo 场景
+
+如果扩展项目在 Monorepo 的某个子包中：
+
+```json
+{
+  "args": [
+    "--extensionDevelopmentPath=${workspaceFolder}/packages/my-extension"
+  ],
+  "outFiles": [
+    "${workspaceFolder}/packages/my-extension/out/**/*.js"
+  ]
+}
+```
+
+把路径对准子包目录即可。
+
+## 三、断点技巧
+
+### 条件断点
+
+右键点击断点红点 → 选择"编辑断点" → 输入条件表达式：
+
+```
+items.length > 100
+```
+
+只有当表达式为 `true` 时断点才会触发。在循环中调试时特别有用——不需要手动跳过前 99 次迭代。
+
+### 日志断点（Logpoint）
+
+右键点击行号 → 选择"添加日志点" → 输入日志表达式：
+
+```
+Found {items.length} items, first: {items[0].name}
+```
+
+日志点不会暂停执行，只会把表达式求值后输出到调试控制台。说白了就是一个不需要修改代码的 `console.log`，调试完删掉断点就行，不会留下多余的日志代码。
+
+### 异常断点
+
+在调试视图的"断点"面板中，可以开启"未捕获的异常"或"所有异常"断点。当代码抛出异常时，调试器会自动暂停在抛出位置——比看错误日志猜调用栈高效得多。
+
+## 四、调试 Webview
+
+Webview 运行在独立的 Chromium 渲染进程中，VSCode 的扩展调试器管不到它。调试 Webview 中的 JavaScript 需要用 Chrome DevTools。
+
+在 Extension Development Host 窗口中，打开命令面板执行 `Developer: Open Webview Developer Tools`，就会弹出一个 Chrome DevTools 窗口，可以像调试普通网页一样查看 Elements、Console、Sources、Network。
+
+这里有一个很多人会忽略的细节——**Webview 的 DevTools 和扩展代码的 DevTools 是分开的**。扩展代码的调试在 VSCode 调试视图中，Webview 的调试在 Chrome DevTools 中。两者看到的 `console.log` 输出也在不同的地方。
+
+## 五、测试框架：@vscode/test-electron
+
+扩展的单元测试不能用普通的 `jest` 或 `vitest` 直接跑——因为测试代码中如果引用了 `vscode` 模块，需要一个真实的 VSCode 运行时环境。
+
+[`@vscode/test-electron`](https://github.com/microsoft/vscode-test) 是官方提供的测试框架，它会下载一个 VSCode 实例，在其中加载扩展并运行测试。
+
+### 基本结构
+
+```
+my-extension/
+├── src/
+│   └── extension.ts
+├── src/test/
+│   ├── runTest.ts        # 测试入口：下载 VSCode、启动测试
+│   └── suite/
+│       ├── index.ts      # Mocha 入口：注册所有测试文件
+│       └── extension.test.ts  # 具体测试用例
+└── package.json
+```
+
+**`runTest.ts`** — 负责下载 VSCode 二进制文件并启动测试：
+
+```typescript
+import { runTests } from '@vscode/test-electron';
+import * as path from 'path';
+
+async function main() {
+  const extensionDevelopmentPath = path.resolve(__dirname, '../../');
+  const extensionTestsPath = path.resolve(__dirname, './suite/index');
+
+  await runTests({
+    extensionDevelopmentPath,
+    extensionTestsPath,
+  });
+}
+
+main().catch(() => process.exit(1));
+```
+
+**`suite/index.ts`** — Mocha 测试入口：
+
+```typescript
+import * as path from 'path';
+import Mocha from 'mocha';
+import { glob } from 'glob';
+
+export function run(): Promise<void> {
+  const mocha = new Mocha({ ui: 'tdd', color: true });
+  const testsRoot = path.resolve(__dirname, '.');
+
+  return new Promise((resolve, reject) => {
+    glob('**/**.test.js', { cwd: testsRoot }).then((files) => {
+      files.forEach((f) => mocha.addFile(path.resolve(testsRoot, f)));
+      mocha.run((failures) => {
+        if (failures > 0) {
+          reject(new Error(`${failures} tests failed.`));
+        } else {
+          resolve();
+        }
+      });
+    });
+  });
+}
+```
+
+**`extension.test.ts`** — 具体测试：
+
+```typescript
+import * as assert from 'assert';
+import * as vscode from 'vscode';
+
+suite('Extension Test Suite', () => {
+  test('should register hello command', async () => {
+    const commands = await vscode.commands.getCommands(true);
+    assert.ok(commands.includes('my-ext.helloWorld'));
+  });
+
+  test('should show message on command execution', async () => {
+    await vscode.commands.executeCommand('my-ext.helloWorld');
+    // 验证消息框弹出——实际中可能需要 mock
+  });
+});
+```
+
+在 `package.json` 中配置 test 脚本：
+
+```json
+{
+  "scripts": {
+    "test": "node ./out/test/runTest.js"
+  }
+}
+```
+
+### 不需要 VSCode 运行时的逻辑
+
+如果扩展中有不依赖 `vscode` 模块的纯逻辑代码（工具函数、数据处理等），可以直接用 `jest` 或 `vitest` 测试，不需要走 `@vscode/test-electron`。**把可测试的逻辑从扩展入口分离出来**，是提高测试效率的关键。
+
+## 六、调试效率清单
+
+| 技巧 | 场景 |
+|------|------|
+| `preLaunchTask: "npm: watch"` | 修改代码后自动重编译 |
+| 条件断点 | 循环中定位特定迭代 |
+| 日志断点（Logpoint） | 不修改代码输出调试信息 |
+| 异常断点 | 快速定位异常抛出位置 |
+| `Developer: Show Running Extensions` | 查看扩展激活时间和资源占用 |
+| `Developer: Open Webview Developer Tools` | 调试 Webview 中的前端代码 |
+| 分离纯逻辑做单元测试 | 不依赖 VSCode 运行时，测试速度快 |
+
+---
+
+**本系列其他文章：**
+- 上一篇：[生命周期与激活策略](/posts/vscode-extension-05/)
+- 下一篇：[发布与 CI/CD 流水线](/posts/vscode-extension-07/)
+
+**延伸阅读：**
+- [Testing Extensions 官方指南](https://code.visualstudio.com/api/working-with-extensions/testing-extension)
+- [@vscode/test-electron GitHub](https://github.com/microsoft/vscode-test)

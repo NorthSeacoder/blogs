@@ -1,0 +1,218 @@
+<!DOCTYPE html><html lang="zh-CN" class="min-h-full"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Astro v5.16.5"><!-- 防闪烁脚本：在 DOM 解析前执行 --><script>
+      (function () {
+        const STORAGE_KEY = 'theme';
+        const stored = localStorage.getItem(STORAGE_KEY);
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        // 根据存储值或系统偏好设置主题
+        if (stored === 'dark' || (stored === 'system' && prefersDark) || (!stored && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      })();
+    </script><!-- 字体预加载 --><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"><title>我不知道的HTTP（03）— 浏览器缓存：强缓存、协商缓存与整条链路 | ?.log</title><meta name="description" content="很多人以为浏览器缓存就是&#34;强缓存和协商缓存两种&#34;，面试能说出这两个词就算过关。但实际上，缓存不是一个二选一的开关——它是一条从客户端到代理再到源服务器的完整链路，每一级都有自己的缓存策略，每一级都可能返回不同的响应。"><meta name="keywords" content="HTTP, 缓存, Cache-Control, ETag, 我不知道的"><link rel="canonical" href="https://example.com/posts/http-03/"><link rel="alternate" type="application/rss+xml" title="RSS" href="/rss.xml"><meta property="og:title" content="我不知道的HTTP（03）— 浏览器缓存：强缓存、协商缓存与整条链路 | ?.log"><meta property="og:description" content="很多人以为浏览器缓存就是&#34;强缓存和协商缓存两种&#34;，面试能说出这两个词就算过关。但实际上，缓存不是一个二选一的开关——它是一条从客户端到代理再到源服务器的完整链路，每一级都有自己的缓存策略，每一级都可能返回不同的响应。"><meta property="og:type" content="article"><meta property="og:url" content="https://example.com/posts/http-03/"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="我不知道的HTTP（03）— 浏览器缓存：强缓存、协商缓存与整条链路 | ?.log"><meta name="twitter:description" content="很多人以为浏览器缓存就是&#34;强缓存和协商缓存两种&#34;，面试能说出这两个词就算过关。但实际上，缓存不是一个二选一的开关——它是一条从客户端到代理再到源服务器的完整链路，每一级都有自己的缓存策略，每一级都可能返回不同的响应。"><script type="application/ld+json">{JSON.stringify(jsonLd)}</script><link rel="stylesheet" href="/_astro/index.sfjfXeKE.css">
+<link rel="stylesheet" href="/_astro/_slug_.KigR83JL.css"></head> <body class="flex min-h-screen flex-col"> <!-- 跳过链接 --> <a href="#main" class="skip-link">跳到主要内容</a> <!-- 导航栏 - VSCode 标签页风格 --> <header class="
+        fixed inset-x-0 top-0 z-50
+        bg-[var(--color-titlebar)]
+        border-b border-[var(--color-border)]
+        transition-colors duration-200
+      "> <div class="main-container flex h-12 items-center justify-between"> <!-- Logo - 终端风格 --> <a href="/" class="
+            flex items-center gap-2
+            font-mono text-sm font-medium
+            text-[var(--color-text-primary)]
+            transition-opacity hover:opacity-80
+          "> <span class="text-[var(--color-accent)]">~/</span> <span>?.log</span> <span class="text-[var(--color-comment)]">$</span> </a> <!-- 导航标签页 --> <div class="flex items-center"> <nav aria-label="主导航" class="flex items-center"> <a href="/" class="tab font-mono text-xs"> 首页 </a><a href="/posts/" class="tab font-mono text-xs active" aria-current="page"> 文章 </a><a href="/series/" class="tab font-mono text-xs"> 系列 </a><a href="/tags/" class="tab font-mono text-xs"> 标签 </a><a href="/archives/" class="tab font-mono text-xs"> 归档 </a><a href="/about/" class="tab font-mono text-xs"> 关于 </a> </nav> <!-- 工具栏按钮组 --> <div class="flex items-center gap-1 ml-2"> <!-- 搜索按钮 --> <a href="/search/" class="
+                flex items-center justify-center
+                h-7 w-7 rounded
+                text-[var(--color-text-secondary)]
+                bg-[var(--color-surface)]
+                border border-[var(--color-border)]
+                transition-colors
+                hover:bg-[var(--color-surface-hover)]
+                hover:text-[var(--color-text-primary)]
+              " aria-label="搜索" title="搜索 (⌘K)"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:search">   <symbol id="ai:lucide:search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m21 21l-4.34-4.34"/><circle cx="11" cy="11" r="8"/></g></symbol><use href="#ai:lucide:search"></use>  </svg> </a> <!-- 主题切换 --> <button id="theme-toggle" type="button" aria-label="切换主题" class="
+    relative flex h-7 w-7 items-center justify-center
+    rounded
+    bg-[var(--color-surface)]
+    border border-[var(--color-border)]
+    text-[var(--color-text-secondary)]
+    transition-colors
+    hover:bg-[var(--color-surface-hover)]
+    hover:text-[var(--color-text-primary)]
+    focus:outline-none
+  " data-astro-cid-x3pjskd3> <!-- 太阳图标 (亮色模式) --> <svg id="icon-sun" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" data-astro-cid-x3pjskd3></path> </svg> <!-- 月亮图标 (暗色模式) --> <svg id="icon-moon" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" data-astro-cid-x3pjskd3></path> </svg> <!-- 系统图标 (跟随系统) --> <svg id="icon-system" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" data-astro-cid-x3pjskd3></path> </svg> </button> <script type="module">const m="theme",s=["light","dark","system"];function r(){if(typeof localStorage>"u")return"system";const e=localStorage.getItem(m);return s.includes(e)?e:"system"}function l(){return typeof window>"u"?"light":window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}function u(e){return e==="system"?l():e}function d(e){const n=u(e),t=document.documentElement;n==="dark"?t.classList.add("dark"):t.classList.remove("dark"),f(e)}function f(e){const n=document.getElementById("icon-sun"),t=document.getElementById("icon-moon"),o=document.getElementById("icon-system");if(!n||!t||!o)return;[n,t,o].forEach(i=>{i.style.opacity="0",i.style.transform="scale(0.5) rotate(-180deg)"});let c;switch(e){case"light":c=n;break;case"dark":c=t;break;default:c=o}requestAnimationFrame(()=>{c.style.opacity="1",c.style.transform="scale(1) rotate(0deg)"})}function g(){const e=r(),t=(s.indexOf(e)+1)%s.length,o=s[t];localStorage.setItem(m,o),d(o)}function a(){const e=r();d(e),document.getElementById("theme-toggle")?.addEventListener("click",g),window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{r()==="system"&&d("system")})}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",a):a();document.addEventListener("astro:after-swap",a);</script>  </div> </div> </div> </header> <!-- 主内容区 --> <main id="main" class="main-container-wide flex-1 pb-16 pt-20">   <div class="reading-progress-container" aria-hidden="true" data-astro-cid-mu6cnre2> <div class="reading-progress-bar" id="reading-progress" data-astro-cid-mu6cnre2></div> </div> <script type="module">function a(){const e=document.getElementById("reading-progress"),n=document.querySelector("article");if(!e||!n)return;function o(){const r=n.getBoundingClientRect(),s=r.top+window.scrollY,l=r.height,i=window.innerHeight,d=window.scrollY,c=s-i/2,g=s+l-i/2,u=Math.min(Math.max((d-c)/(g-c),0),1);e.style.transform=`scaleX(${u})`}let t=!1;window.addEventListener("scroll",()=>{t||(requestAnimationFrame(()=>{o(),t=!1}),t=!0)}),o()}a();document.addEventListener("astro:after-swap",a);</script>   <div class="relative lg:grid lg:grid-cols-[1fr_220px] lg:gap-8 xl:grid-cols-[1fr_260px]"> <article class="animate-fade-in min-w-0"> <!-- 文章头部 --> <header class="mb-8"> <!-- 返回链接 --> <a href="/posts/" class="
+            group mb-6 inline-flex items-center gap-2
+            text-sm font-medium text-text-secondary
+            transition-colors hover:text-accent
+          "> <svg width="1em" height="1em" class="transition-transform group-hover:-translate-x-1" style="width: 1rem; height: 1rem;" data-icon="lucide:arrow-left">   <symbol id="ai:lucide:arrow-left" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m12 19l-7-7l7-7m7 7H5"/></symbol><use href="#ai:lucide:arrow-left"></use>  </svg> <span>返回文章列表</span> </a> <!-- 元信息 --> <div class="mb-4 flex flex-wrap items-center gap-4 text-sm text-text-secondary"> <!-- 发布日期 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:calendar">   <symbol id="ai:lucide:calendar" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M8 2v4m8-4v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></g></symbol><use href="#ai:lucide:calendar"></use>  </svg> <time datetime="2024-10-09T00:00:00.000Z"> 2024年10月9日 </time> </div> <!-- 阅读时间 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:clock">   <symbol id="ai:lucide:clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="10"/></g></symbol><use href="#ai:lucide:clock"></use>  </svg> <span>14 min read</span> </div> <!-- 更新日期 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:refresh-cw">   <symbol id="ai:lucide:refresh-cw" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9a9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5m5 4a9 9 0 0 1-9 9a9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></g></symbol><use href="#ai:lucide:refresh-cw"></use>  </svg> <span>更新于 2026年3月6日</span> </div> </div> <div class="mb-4 flex flex-wrap items-center gap-2 font-mono text-xs"> <a href="/series/HTTP/" class="
+                  inline-flex items-center gap-1 rounded px-2 py-1
+                  bg-[var(--color-accent)]/10 text-[var(--color-accent)]
+                  transition-colors hover:bg-[var(--color-accent)]/15
+                "> <svg width="1em" height="1em" class style="width: 0.75rem; height: 0.75rem;" data-icon="lucide:folder">   <symbol id="ai:lucide:folder" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol><use href="#ai:lucide:folder"></use>  </svg> <span>我不知道的 HTTP</span> </a> </div> <!-- 标题 --> <h1 class="text-3xl font-bold leading-tight text-text-primary sm:text-4xl"> 我不知道的HTTP（03）— 浏览器缓存：强缓存、协商缓存与整条链路 </h1> <!-- 描述 --> <p class="mt-4 text-lg leading-relaxed text-text-secondary"> 很多人以为浏览器缓存就是&quot;强缓存和协商缓存两种&quot;，面试能说出这两个词就算过关。但实际上，缓存不是一个二选一的开关——它是一条从客户端到代理再到源服务器的完整链路，每一级都有自己的缓存策略，每一级都可能返回不同的响应。 </p> <!-- 标签 --> <div class="mt-6 flex flex-wrap gap-2 font-mono text-xs" aria-label="标签"> <a href="/tags/HTTP/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"HTTP"</span> </a><a href="/tags/~E7~BC~93~E5~AD~98/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"缓存"</span> </a><a href="/tags/Cache-Control/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"Cache-Control"</span> </a><a href="/tags/ETag/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"ETag"</span> </a><a href="/tags/~E6~88~91~E4~B8~8D~E7~9F~A5~E9~81~93~E7~9A~84/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"我不知道的"</span> </a> </div> </header> <!-- 封面图 -->  <!-- 文章内容 --> <div class="
+          prose prose-lg
+          prose-headings:font-bold
+          prose-a:text-accent prose-a:no-underline hover:prose-a:underline
+          prose-img:rounded prose-img:shadow-lg
+          prose-code:before:content-none prose-code:after:content-none
+          max-w-none
+        "> <h1 id="我不知道的http03-浏览器缓存强缓存协商缓存与整条链路"><a href="#我不知道的http03-浏览器缓存强缓存协商缓存与整条链路">我不知道的HTTP（03）— 浏览器缓存：强缓存、协商缓存与整条链路</a></h1>
+<h2 id="一问题引入"><a href="#一问题引入">一、问题引入</a></h2>
+<p>很多人以为浏览器缓存就是”强缓存和协商缓存两种”，面试能说出这两个词就算过关。但实际上，缓存不是一个二选一的开关——<strong>它是一条从客户端到代理再到源服务器的完整链路</strong>，每一级都有自己的缓存策略，每一级都可能返回不同的响应。</p>
+<p>把缓存理解成”两种类型”，就像把交通理解成”红灯和绿灯”——知道了规则，但看不见整条路。</p>
+<h2 id="二表面认知大多数人停在这里"><a href="#二表面认知大多数人停在这里">二、表面认知：大多数人停在这里</a></h2>
+<p>让一个前端开发者解释浏览器缓存，回答大概率是：</p>
+<p>“强缓存直接用本地的，不发请求；协商缓存要问一下服务器，服务器说没变就用缓存。”</p>
+<p>这个说法不算错，但它有两个盲区。</p>
+<p>盲区一：它把缓存简化成了客户端和服务器之间的事，忽略了中间可能存在的代理层（CDN、Nginx 反向代理）。现实世界中，绝大多数请求根本到不了源服务器——CDN 边缘节点就把活干完了。</p>
+<p>盲区二：它把 <code>Cache-Control</code> 的几个指令混为一谈。<code>no-cache</code> 和 <code>no-store</code> 差一个单词，含义完全不同；<code>must-revalidate</code> 看名字像”必须重新验证”，但它只在缓存过期后才生效。这三个指令的区别，是面试中被问最多的缓存知识点。</p>
+<h2 id="三往下挖缓存链路与控制机制"><a href="#三往下挖缓存链路与控制机制">三、往下挖：缓存链路与控制机制</a></h2>
+<h3 id="31-cache-control缓存的控制中枢"><a href="#31-cache-control缓存的控制中枢">3.1 Cache-Control：缓存的控制中枢</a></h3>
+<p><code>Cache-Control</code> 是 HTTP 缓存体系的核心响应头，它告诉浏览器和中间代理：这个响应能不能缓存、缓存多久、过期了怎么办。</p>
+<p>说白了，<code>Cache-Control</code> 就是一组指令的集合，每条指令回答一个具体问题。最关键的三条指令经常被混淆，需要逐个拆开看。</p>
+<p><code>no-store</code>：完全禁止缓存。浏览器和代理都不允许存储这个响应的任何副本，每次请求都必须从源服务器获取完整响应。适用于支付页面、密码修改等场景。</p>
+<p><code>no-cache</code>：允许缓存，但每次使用前必须向服务器验证。浏览器会存储响应副本，但在使用之前一定会发一个条件请求确认资源是否有更新。名字里带个”no”，但它不是”不缓存”，而是”不跳过验证”。</p>
+<p><code>must-revalidate</code>：缓存在有效期内可以直接使用，<strong>过期后必须向服务器验证</strong>，不能使用过期的缓存副本。和 <code>no-cache</code> 的区别在于：<code>no-cache</code> 每次都验证，<code>must-revalidate</code> 只在过期后才验证。</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>指令</th><th>是否存储</th><th>何时验证</th><th>典型场景</th></tr></thead><tbody><tr><td><code>no-store</code></td><td>否</td><td>不适用</td><td>支付页面、敏感数据</td></tr><tr><td><code>no-cache</code></td><td>是</td><td>每次使用前</td><td>HTML 入口文件、API 响应</td></tr><tr><td><code>must-revalidate</code></td><td>是</td><td>过期后</td><td>需要一致性保证的静态资源</td></tr></tbody></table>
+<p>这里有一个很多人会忽略的细节——<code>max-age</code> 的计时起点是<strong>响应生成的时间</strong>，不是浏览器收到响应的时间。如果响应在代理服务器上缓存了 30 秒才转发到浏览器，那浏览器拿到的 <code>max-age=60</code> 实际上只剩 30 秒有效期。HTTP 通过 <code>Age</code> 响应头传递这个信息：<code>Age: 30</code> 表示响应已在中间缓存中停留了 30 秒。</p>
+<h3 id="32-强缓存根本不发请求"><a href="#32-强缓存根本不发请求">3.2 强缓存：根本不发请求</a></h3>
+<p>当浏览器判断本地缓存仍在有效期内（<code>max-age</code> 未过期），就直接使用缓存副本，不会向服务器发送任何请求。这就是强缓存。</p>
+<p>在 Chrome DevTools 的 Network 面板中，强缓存命中的请求状态码是 <code>200</code>，但 Size 列显示 <code>(from disk cache)</code> 或 <code>(from memory cache)</code>——内存缓存速度更快但随标签页关闭而消失，磁盘缓存持久但读取稍慢。一般来说，小文件倾向于内存缓存，大文件倾向于磁盘缓存，具体策略由浏览器自行决定。</p>
+<p>问题的关键在于——强缓存虽然性能最好（零网络开销），但一旦缓存了就无法主动让用户获取最新版本。这就是为什么静态资源通常在文件名中加入内容哈希（如 <code>style.a3b2c1.css</code>）：内容变了文件名就变了，浏览器会当作新资源请求，老缓存自然失效。</p>
+<h3 id="33-协商缓存问一下再决定"><a href="#33-协商缓存问一下再决定">3.3 协商缓存：问一下再决定</a></h3>
+<p>当缓存过期，或者响应头设置了 <code>no-cache</code>，浏览器不会直接丢弃本地副本，而是带着验证信息向服务器”协商”：这个资源变了没有？</p>
+<p>验证机制有两种，可以单独使用也可以组合使用。</p>
+<p><strong>基于时间</strong>：服务器在响应中返回 <code>Last-Modified</code> 头（资源最后修改时间），浏览器下次请求时通过 <code>If-Modified-Since</code> 头带上这个时间。服务器对比后，如果资源没有变化，返回 <code>304 Not Modified</code>（不带响应体），浏览器继续使用本地缓存。</p>
+<p><strong>基于内容</strong>：服务器在响应中返回 <code>ETag</code> 头（资源的唯一标识，通常是内容的哈希值），浏览器下次请求时通过 <code>If-None-Match</code> 头带上这个值。服务器对比后，ETag 一致则返回 304。</p>
+<p>下面这段代码演示了一个最简的协商缓存服务端实现，可以直接用 Node.js 运行：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="javascript"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> http</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> require</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;http&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> crypto</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> require</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;crypto&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> content</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> &#39;&lt;h1&gt;Hello&lt;/h1&gt;&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> etag</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> crypto.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">createHash</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;md5&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">).</span><span style="color:#6F42C1;--shiki-dark:#B392F0">update</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(content).</span><span style="color:#6F42C1;--shiki-dark:#B392F0">digest</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;hex&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">http.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">createServer</span><span style="color:#24292E;--shiki-dark:#E1E4E8">((</span><span style="color:#E36209;--shiki-dark:#FFAB70">req</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#E36209;--shiki-dark:#FFAB70">res</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) </span><span style="color:#D73A49;--shiki-dark:#F97583">=&gt;</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  if</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> (req.headers[</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;if-none-match&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">] </span><span style="color:#D73A49;--shiki-dark:#F97583">===</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> etag) {</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    res.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">writeHead</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#005CC5;--shiki-dark:#79B8FF">304</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    res.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">end</span><span style="color:#24292E;--shiki-dark:#E1E4E8">();</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    return</span><span style="color:#24292E;--shiki-dark:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  res.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">writeHead</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#005CC5;--shiki-dark:#79B8FF">200</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, {</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">    &#39;Content-Type&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;text/html&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">    &#39;ETag&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: etag,</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">    &#39;Cache-Control&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;no-cache&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  });</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  res.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">end</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(content);</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}).</span><span style="color:#6F42C1;--shiki-dark:#B392F0">listen</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#005CC5;--shiki-dark:#79B8FF">3000</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span></code></pre>
+<p>第一次访问返回 200 和完整内容；第二次访问时浏览器自动带上 <code>If-None-Match</code> 头，服务器对比 ETag 后返回 304——在 DevTools 的 Network 面板中，304 响应的 Size 列只有几十字节（只有响应头没有响应体），Time 列也明显短于完整响应。这就是协商缓存节省带宽的直观体现。</p>
+<p>换句话说，<code>ETag</code> 和 <code>Last-Modified</code> 的根本区别在于：<code>Last-Modified</code> 精度只到秒，一秒内的多次修改无法区分；<code>ETag</code> 基于内容生成，只要内容变了就一定能检测到。当两者同时存在时，<code>ETag</code> 优先级更高。</p>
+<h3 id="34-整条缓存链路不只是浏览器的事"><a href="#34-整条缓存链路不只是浏览器的事">3.4 整条缓存链路：不只是浏览器的事</a></h3>
+<p>缓存不只发生在浏览器端。一个完整的 HTTP 缓存链路是：<strong>客户端（浏览器） → 代理（CDN / 反向代理） → 源服务器</strong>，每一级都可以缓存，每一级都有自己的策略。</p>
+<p><code>Cache-Control</code> 的一些指令专门用来控制代理行为。</p>
+<p><code>public</code> 和 <code>private</code>：<code>public</code> 允许代理缓存这个响应（CDN 就能缓存它），<code>private</code> 限定只有浏览器可以缓存。包含用户个人数据的响应应该用 <code>private</code>，避免被共享代理缓存后泄露给其他用户。</p>
+<p><code>s-maxage</code>：专门给代理用的过期时间，覆盖 <code>max-age</code>。比如 <code>Cache-Control: max-age=60, s-maxage=3600</code> 意味着浏览器缓存 1 分钟，CDN 缓存 1 小时。这在实际部署中非常常用——CDN 长缓存减少回源次数，浏览器短缓存保证用户能较快看到更新。</p>
+<p>一个典型请求经过缓存链路的完整路径是这样的：浏览器检查本地缓存，命中且未过期就直接使用（强缓存）；未命中或过期，请求到达 CDN 边缘节点；CDN 检查自己的缓存，命中则返回；CDN 也未命中，才回源到服务器获取最新响应，并沿链路逐级更新缓存。</p>
+<p>如果你只记住一句话，记住这个：<strong>绝大多数用户请求不需要到达源服务器——浏览器缓存和 CDN 缓存联合起来，已经覆盖了大部分场景。</strong></p>
+<h3 id="35-两个值得关注的新指令"><a href="#35-两个值得关注的新指令">3.5 两个值得关注的新指令</a></h3>
+<p><code>immutable</code>：告诉浏览器这个资源在有效期内绝对不会变化，用户按 F5 刷新页面时也不需要发起条件请求验证。没有 <code>immutable</code> 时，即使 <code>max-age</code> 未过期，刷新操作仍然可能触发条件请求。适合文件名中已包含内容哈希的静态资源。</p>
+<p><code>stale-while-revalidate</code>：允许浏览器在缓存刚过期的一段窗口期内，先返回过期的缓存让用户不必等待，同时在后台异步去服务器获取最新版本。比如 <code>Cache-Control: max-age=3600, stale-while-revalidate=60</code> 表示缓存 1 小时有效，过期后 60 秒内允许先用旧的、后台更新。对实时性要求不高的场景，这个策略能显著减少用户等待时间。</p>
+<h2 id="四这意味着什么实际项目中的缓存策略"><a href="#四这意味着什么实际项目中的缓存策略">四、这意味着什么：实际项目中的缓存策略</a></h2>
+<p>理解了缓存链路和控制机制，可以总结出一套实际项目中常用的策略搭配。</p>
+<p><strong>（1）</strong> HTML 入口文件：设置 <code>Cache-Control: no-cache</code>。每次都验证，保证用户总能拿到最新的 HTML，而 HTML 中引用的资源 URL 包含哈希值，自然会指向正确的版本。</p>
+<p><strong>（2）</strong> 带哈希的静态资源（JS、CSS、图片）：设置 <code>Cache-Control: max-age=31536000, immutable</code>。一年长缓存，内容变了文件名就变了，不需要验证。这是目前最被广泛采用的静态资源缓存方案。</p>
+<p><strong>（3）</strong> API 响应：根据业务需求选择——<code>no-store</code>（敏感数据）、<code>no-cache</code>（需要实时性）、或短时间的 <code>max-age</code>（允许一定延迟）。</p>
+<p><strong>（4）</strong> CDN 层面：通过 <code>s-maxage</code> 控制 CDN 缓存时长，通常比浏览器的 <code>max-age</code> 更长。HTML 在 CDN 上可以设较短的 <code>s-maxage</code>（比如 60 秒），既利用了 CDN 分发优势，又不会让用户看到太旧的内容。</p>
+<p>说白了，缓存策略的核心思路就是一句话：<strong>能长缓存的用哈希文件名 + 长 <code>max-age</code>，不能长缓存的用 <code>no-cache</code> + ETag 验证，敏感数据用 <code>no-store</code> 彻底不存。</strong></p>
+<h2 id="五总结"><a href="#五总结">五、总结</a></h2>
+<p><strong>浏览器缓存不是”强缓存和协商缓存”的二选一，而是一条从浏览器到 CDN 到源服务器的完整链路——<code>Cache-Control</code> 的每一条指令，都在决定这条链路上哪一级响应、何时响应、如何响应。</strong></p>
+<hr/>
+<p><strong>本系列其他文章：</strong></p>
+<ul>
+<li>上一篇：<a href="/posts/http-02/">Cookie到底是怎么工作的</a></li>
+<li>下一篇：<a href="/posts/http-04/">HTTPS握手：TLS到底做了什么</a></li>
+</ul>
+<p><strong>相关主题：</strong></p>
+<ul>
+<li>CDN 的缓存与 DNS 智能调度如何配合？见本系列第 01 篇：<a href="/posts/http-01/">从输入URL到页面呈现</a></li>
+<li>HTTP/2 的多路复用对缓存策略有什么影响？见本系列第 05 篇：<a href="/posts/http-05/">从HTTP/1.1到HTTP/3：队头阻塞是如何被消灭的</a></li>
+</ul> </div> <!-- 文章底部 --> <footer class="mt-12 border-t border-border pt-8"> <!-- 分享提示 --> <div class="code-window"> <div class="code-window-titlebar"> <span class="flex-1 text-center font-mono text-xs text-[var(--color-text-secondary)]">share.ts</span> </div> <div class="p-4 font-mono text-sm"> <p class="syntax-comment">// 觉得这篇文章有帮助？</p> <p class="syntax-comment">// 欢迎分享给更多人</p> <p class="mt-4"> <span class="syntax-keyword">export const</span> <span class="syntax-variable">&nbsp;subscribe</span> <span class="text-[var(--color-text-primary)]">&nbsp;=&nbsp;</span> <a href="/rss.xml" class="syntax-string hover:underline">"/rss.xml"</a> <span class="text-[var(--color-text-primary)]">;</span> </p> </div> </div> </footer> </article> <!-- TOC 侧边栏 - 仅在大屏幕显示 --> <aside class="hidden lg:block"> <nav class="toc-container" aria-label="文章目录" data-astro-cid-xvrfupwn><div class="toc-header" data-astro-cid-xvrfupwn><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-xvrfupwn><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7" data-astro-cid-xvrfupwn></path></svg><span data-astro-cid-xvrfupwn>目录</span></div><ul class="toc-list" data-astro-cid-xvrfupwn><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#一问题引入" class="toc-link" data-slug="一问题引入" data-astro-cid-xvrfupwn>一、问题引入</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#二表面认知大多数人停在这里" class="toc-link" data-slug="二表面认知大多数人停在这里" data-astro-cid-xvrfupwn>二、表面认知：大多数人停在这里</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#三往下挖缓存链路与控制机制" class="toc-link" data-slug="三往下挖缓存链路与控制机制" data-astro-cid-xvrfupwn>三、往下挖：缓存链路与控制机制</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#31-cache-control缓存的控制中枢" class="toc-link" data-slug="31-cache-control缓存的控制中枢" data-astro-cid-xvrfupwn>3.1 Cache-Control：缓存的控制中枢</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#32-强缓存根本不发请求" class="toc-link" data-slug="32-强缓存根本不发请求" data-astro-cid-xvrfupwn>3.2 强缓存：根本不发请求</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#33-协商缓存问一下再决定" class="toc-link" data-slug="33-协商缓存问一下再决定" data-astro-cid-xvrfupwn>3.3 协商缓存：问一下再决定</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#34-整条缓存链路不只是浏览器的事" class="toc-link" data-slug="34-整条缓存链路不只是浏览器的事" data-astro-cid-xvrfupwn>3.4 整条缓存链路：不只是浏览器的事</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#35-两个值得关注的新指令" class="toc-link" data-slug="35-两个值得关注的新指令" data-astro-cid-xvrfupwn>3.5 两个值得关注的新指令</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#四这意味着什么实际项目中的缓存策略" class="toc-link" data-slug="四这意味着什么实际项目中的缓存策略" data-astro-cid-xvrfupwn>四、这意味着什么：实际项目中的缓存策略</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#五总结" class="toc-link" data-slug="五总结" data-astro-cid-xvrfupwn>五、总结</a></li></ul></nav><script type="module">function s(){const n=document.querySelectorAll(".toc-link"),c=document.querySelectorAll("article h2[id], article h3[id]");if(n.length===0||c.length===0)return;const i=new IntersectionObserver(t=>{t.forEach(o=>{if(o.isIntersecting){const r=o.target.getAttribute("id");n.forEach(e=>{e.classList.toggle("active",e.getAttribute("data-slug")===r)})}})},{rootMargin:"-80px 0px -80% 0px",threshold:0});c.forEach(t=>i.observe(t)),n.forEach(t=>{t.addEventListener("click",o=>{o.preventDefault();const r=t.getAttribute("data-slug"),e=document.getElementById(r||"");if(e){const a=e.getBoundingClientRect().top+window.scrollY-100;window.scrollTo({top:a,behavior:"smooth"})}})})}s();document.addEventListener("astro:after-swap",s);</script> </aside> </div>  <script type="module">function i(){document.querySelectorAll("pre:has(code)").forEach(t=>{if(t.querySelector(".code-header"))return;const s=t.querySelector("code");if(!s)return;const r=Array.from(s.classList).find(a=>a.startsWith("language-")),d=r?r.replace("language-",""):"text",c=document.createElement("div");c.className="code-header";const n=document.createElement("span");n.className="code-lang",n.textContent=d.toUpperCase();const e=document.createElement("button");e.className="code-copy-btn",e.setAttribute("aria-label","复制代码"),e.innerHTML=`
+        <svg class="copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </svg>
+        <svg class="check-icon hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      `,e.addEventListener("click",async()=>{const a=s.textContent||"";try{await navigator.clipboard.writeText(a),e.classList.add("copied"),e.querySelector(".copy-icon")?.classList.add("hidden"),e.querySelector(".check-icon")?.classList.remove("hidden"),setTimeout(()=>{e.classList.remove("copied"),e.querySelector(".copy-icon")?.classList.remove("hidden"),e.querySelector(".check-icon")?.classList.add("hidden")},2e3)}catch(l){console.error("复制失败:",l)}}),c.appendChild(n),c.appendChild(e);const o=document.createElement("div");o.className="code-block-wrapper",t.parentNode?.insertBefore(o,t),o.appendChild(c),o.appendChild(t)})}i();document.addEventListener("astro:after-swap",i);</script>   <button id="back-to-top" class="back-to-top" aria-label="返回顶部" title="返回顶部" data-astro-cid-wlspcwf4> <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-wlspcwf4> <path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" data-astro-cid-wlspcwf4></path> </svg> </button> <script type="module">function o(){const e=document.getElementById("back-to-top");if(!e)return;function i(){window.scrollY>400?e.classList.add("visible"):e.classList.remove("visible")}e.addEventListener("click",()=>{window.scrollTo({top:0,behavior:"smooth"})});let t=!1;window.addEventListener("scroll",()=>{t||(requestAnimationFrame(()=>{i(),t=!1}),t=!0)}),i()}o();document.addEventListener("astro:after-swap",o);</script>   </main> <!-- 页脚 - VSCode 状态栏风格 --> <footer class="
+        border-t border-[var(--color-border)]
+        bg-[var(--color-surface)]
+        py-6
+        text-xs font-mono text-[var(--color-text-secondary)]
+      "> <div class="main-container"> <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"> <!-- 版权信息 --> <p class="text-center sm:text-left"> <span class="syntax-comment">// </span> <span class="syntax-keyword">const</span> <span class="syntax-variable"> copyright</span> <span> = </span> <span class="syntax-string">"2026 NorthSeacoder"</span> </p> <!-- 链接 --> <div class="flex items-center justify-center gap-4 sm:justify-end"> <a href="/rss.xml" class="
+                flex items-center gap-1.5
+                transition-colors
+                hover:text-[var(--color-accent)]
+              " aria-label="RSS 订阅"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:rss">   <symbol id="ai:lucide:rss" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></g></symbol><use href="#ai:lucide:rss"></use>  </svg> <span>RSS</span> </a> <a href="https://github.com/NorthSeacoder" target="_blank" rel="noopener noreferrer" class="
+                flex items-center gap-1.5
+                transition-colors
+                hover:text-[var(--color-accent)]
+              " aria-label="GitHub"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:github">   <symbol id="ai:lucide:github" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5c.08-1.25-.27-2.48-1-3.5c.28-1.15.28-2.35 0-3.5c0 0-1 0-3 1.5c-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.4 5.4 0 0 0 4 9c0 3.5 3 5.5 6 5.5c-.39.49-.68 1.05-.85 1.65S8.93 17.38 9 18v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></g></symbol><use href="#ai:lucide:github"></use>  </svg> <span>GitHub</span> </a> </div> </div> </div> </footer> </body></html>

@@ -4,34 +4,11 @@
  */
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import CodeWindow from '../../components/CodeWindow.astro';
-import Icon from '../../components/Icon.astro';
 import { getCollection } from 'astro:content';
-import { filterDrafts, sortPosts } from '../../lib/utils';
+import { filterDrafts, getPostDisplayTitle, groupSeriesPosts, sortPosts } from '../../lib/utils';
 
 const posts = sortPosts(filterDrafts(await getCollection('blog')));
-
-// 统计系列
-const seriesMap = new Map<string, { count: number; posts: typeof posts }>();
-
-posts.forEach((post) => {
-  let seriesName = post.data.series;
-
-  // 如果没有 series 字段，从标题解析
-  if (!seriesName) {
-    const match = post.data.title.match(/^我不知道的\s*(.+?)\s*[-–—]/);
-    if (match) seriesName = match[1];
-  }
-
-  if (seriesName) {
-    const existing = seriesMap.get(seriesName) || { count: 0, posts: [] };
-    existing.count++;
-    existing.posts.push(post);
-    seriesMap.set(seriesName, existing);
-  }
-});
-
-// 按文章数量排序
-const series = Array.from(seriesMap.entries()).sort((a, b) => b[1].count - a[1].count);
+const series = groupSeriesPosts(posts);
 ---
 
 <BaseLayout title="系列" description="按系列浏览文章">
@@ -48,10 +25,10 @@ const series = Array.from(seriesMap.entries()).sort((a, b) => b[1].count - a[1].
     <!-- 系列列表 -->
     {series.length > 0 ? (
       <div class="space-y-4">
-        {series.map(([name, data], index) => (
-          <CodeWindow filename={`${name.toLowerCase().replace(/\s+/g, '-')}.ts`}>
+        {series.map((group) => (
+          <CodeWindow filename={`${group.name.toLowerCase().replace(/\s+/g, '-')}.ts`}>
             <div class="font-mono text-sm">
-              <p class="syntax-comment">// 我不知道的 {name}</p>
+              <p class="syntax-comment">// 我不知道的 {group.name}</p>
               <p class="mt-2">
                 <span class="syntax-keyword">export const</span>
                 <span class="syntax-variable"> series</span>
@@ -60,42 +37,60 @@ const series = Array.from(seriesMap.entries()).sort((a, b) => b[1].count - a[1].
               <p class="pl-4">
                 <span class="syntax-variable">name</span>
                 <span class="text-[var(--color-text-primary)]">: </span>
-                <span class="syntax-string">"我不知道的 {name}"</span>
+                <span class="syntax-string">"我不知道的 {group.name}"</span>
                 <span class="text-[var(--color-text-primary)]">,</span>
               </p>
               <p class="pl-4">
                 <span class="syntax-variable">count</span>
                 <span class="text-[var(--color-text-primary)]">: </span>
-                <span class="syntax-number">{data.count}</span>
+                <span class="syntax-number">{group.posts.length}</span>
                 <span class="text-[var(--color-text-primary)]">,</span>
               </p>
+              {
+                group.indexPost && (
+                  <p class="pl-4">
+                    <span class="syntax-variable">guide</span>
+                    <span class="text-[var(--color-text-primary)]">: </span>
+                    <a href={`/posts/${group.indexPost.slug}/`} class="syntax-string hover:underline">
+                      "{group.indexPost.data.title}"
+                    </a>
+                    <span class="text-[var(--color-text-primary)]">,</span>
+                  </p>
+                )
+              }
+              {
+                group.indexPost?.data.description && (
+                  <p class="pl-4">
+                    <span class="syntax-variable">description</span>
+                    <span class="text-[var(--color-text-primary)]">: </span>
+                    <span class="syntax-string">"{group.indexPost.data.description}"</span>
+                    <span class="text-[var(--color-text-primary)]">,</span>
+                  </p>
+                )
+              }
               <p class="pl-4">
                 <span class="syntax-variable">posts</span>
                 <span class="text-[var(--color-text-primary)]">: [</span>
               </p>
 
-              {data.posts.slice(0, 3).map((post) => {
-                const match = post.data.title.match(/[-–—]\s*(.+)$/);
-                const subtitle = match ? match[1] : post.data.title;
-                return (
-                  <a
-                    href={`/posts/${post.slug}/`}
-                    class="
-                      block pl-8 py-1
-                      transition-colors
-                      hover:bg-[var(--color-surface-hover)]
-                      rounded
-                    "
-                  >
-                    <span class="syntax-string">"{subtitle}"</span>
-                    <span class="text-[var(--color-text-primary)]">,</span>
-                  </a>
-                );
-              })}
+              {group.posts.slice(0, 3).map((post) => (
+                <a
+                  href={`/posts/${post.slug}/`}
+                  class="
+                    block pl-8 py-1
+                    transition-colors
+                    hover:bg-[var(--color-surface-hover)]
+                    rounded
+                  "
+                >
+                  <span class="syntax-string">"{getPostDisplayTitle(post)}"</span>
+                  <span class="text-[var(--color-text-primary)]">,</span>
+                </a>
+              ))}
 
-              {data.count > 3 && (
+              {group.posts.length > 3 && (
                 <p class="pl-8 text-[var(--color-text-muted)]">
-                  // ... 还有 {data.count - 3} 篇
+                  // ... 还有 {group.posts.length - 3} 篇
                 </p>
               )}
 
@@ -103,7 +98,7 @@ const series = Array.from(seriesMap.entries()).sort((a, b) => b[1].count - a[1].
               <p class="text-[var(--color-text-primary)]">{'}'};</p>
 
               <a
-                href={`/series/${encodeURIComponent(name)}/`}
+                href={`/series/${encodeURIComponent(group.name)}/`}
                 class="
                   mt-3 inline-flex items-center gap-1
                   text-[var(--color-accent)]

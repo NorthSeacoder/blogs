@@ -1,0 +1,142 @@
+---
+title: 我不知道的 React（01）— 核心与渲染层的解耦
+description: >-
+  执行 npm install react 之后，大多数人会紧跟一条 npm install
+  react-dom，然后再也不会想起这件事。两个包装完，开始写组件，一切理所当然。
+subtitle: 核心与渲染层的解耦
+pubDate: '2022-05-20'
+updatedDate: '2026-03-06'
+tags:
+  - React
+  - ReactDOM
+  - 虚拟DOM
+  - 调和
+  - 平台抽象
+lang: zh-CN
+keywords:
+  - React
+  - ReactDOM
+  - 虚拟DOM
+  - 调和
+  - 平台抽象
+topic: React
+category: React
+type: post
+series: React
+seriesOrder: 1
+slug: react-01
+model: claude-4.6-opus
+optimized_from: 02.React&ReactDOM.mdx
+optimization_type: 深度升级
+style_version: 2026-03-03T00:00:00.000Z
+diagnosis:
+  style_conformity: 8
+  content_depth: 深
+  topic_structure: 保留
+---
+# 我不知道的 React（01）— 核心与渲染层的解耦
+
+## 一、两个包，一个被忽略的事实
+
+执行 `npm install react` 之后，大多数人会紧跟一条 `npm install react-dom`，然后再也不会想起这件事。两个包装完，开始写组件，一切理所当然。
+
+但如果停下来想一秒——**为什么 React 要拆成两个包？**
+
+很多人以为 React 就是一个整体框架，`react` 和 `react-dom` 只是出于工程组织方便才分开发布的。但实际上，这两个包的分离是 React 架构中最核心的设计决策之一，它直接决定了 React 能跨平台、能支持 Server Components、能让 React Native 共享同一套组件模型。
+
+如果你只记住一句话，记住这个：**`react` 负责"算出界面应该长什么样"，`react-dom` 负责"把界面画到浏览器上"。** 计算和渲染，职责完全分离。
+
+## 二、两个包各自做什么
+
+先看 `react` 包。它是整个 React 体系的大脑，负责三件事：定义组件模型、管理状态和副作用、构建与比较虚拟 DOM。
+
+当你写一个函数组件，调用 `useState` 管理状态，用 `useEffect` 处理副作用时，这些能力全部来自 `react` 包。它维护着组件树的结构，追踪每个组件的状态变化，并在状态更新时生成新的虚拟 DOM 树。然后它把新旧两棵虚拟 DOM 树做比较（这个过程叫做调和 Reconciliation），算出哪些节点需要更新、哪些需要删除、哪些需要新增。
+
+这里有一个很多人会忽略的细节——**`react` 包本身不知道浏览器 DOM 是什么**。它输出的只是一份"变更指令清单"，描述了"这个节点的文本要从 A 改成 B"、"这个位置要插入一个新节点"这类抽象操作，但它不会也不能去调用 `document.createElement`。
+
+再看 `react-dom` 包。它是 React 在浏览器环境下的渲染器，接收 `react` 包输出的变更指令，翻译成真实的 DOM 操作。首次渲染时，它把整棵虚拟 DOM 树转化为真实 DOM 节点挂载到页面上；后续更新时，它只执行最小化的 DOM 变更，避免整页重绘。除此之外，`react-dom` 还承担了浏览器事件系统的工作——它在根节点上做事件代理，将原生事件封装成跨浏览器一致的合成事件（SyntheticEvent），再分发给组件树中对应的处理函数。
+
+说白了，`react` 和 `react-dom` 的关系就是**编译器和目标平台**的关系。`react` 相当于一个通用的前端编译器，输出中间表示（虚拟 DOM diff）；`react-dom` 相当于 Web 平台的后端，把中间表示翻译成平台原语（DOM API）。
+
+## 三、为什么要分离：平台抽象
+
+理解了两个包的职责之后，分离的动机就清楚了。
+
+如果 `react` 包内部直接调用 `document.createElement` 来操作 DOM，那它就被绑死在浏览器上了。但 React 的目标远不止浏览器——React Native 要渲染 iOS 和 Android 的原生视图，`react-three-fiber` 要渲染 3D 场景，`react-pdf` 要生成 PDF 文档，`ink` 甚至要把 React 组件渲染到终端里。
+
+**所有这些渲染目标共享同一套组件模型、同一套 Hooks、同一套调和算法。** 它们的区别仅仅在于最后一步：拿到变更指令后调用什么平台 API。
+
+这就是 React 的平台抽象策略：核心逻辑与渲染实现解耦。`react` 定义"是什么"，渲染器定义"怎么画"。换一个渲染器，就换了一个目标平台，但组件代码一行不用改。
+
+下面这个实验可以直观地看到两个包的边界。先只导入 `react`，不导入 `react-dom`：
+
+```jsx
+import React, { useState, createElement } from 'react';
+
+function Counter() {
+  const [count, setCount] = useState(0);
+  return createElement('div', null,
+    createElement('p', null, `当前计数: ${count}`),
+    createElement('button', { onClick: () => setCount(count + 1) }, '加一')
+  );
+}
+
+// Counter 组件可以正常定义、状态逻辑完整
+// 但它无法渲染到任何地方——没有渲染器
+console.log(typeof Counter); // "function"
+```
+
+组件定义完全成立，`useState` 正常注册，虚拟 DOM 树可以生成。但没有 `react-dom`，这棵树永远不会变成页面上的像素。再加上渲染器：
+
+```jsx
+import { createRoot } from 'react-dom/client';
+
+const root = createRoot(document.getElementById('root'));
+root.render(createElement(Counter));
+// 现在 react-dom 接管了：创建真实 DOM、挂载、监听事件
+```
+
+**`createRoot` 和 `render` 是渲染器的入口。** 从这一刻起，`react-dom` 开始读取 `react` 内部的虚拟 DOM 树，将其翻译成浏览器能理解的 DOM 节点。如果把 `react-dom` 换成 `react-native`，同一个 `Counter` 组件会被翻译成原生的 `<View>` 和 `<Text>`，逻辑完全不变。
+
+## 四、调和过程：两个包的协作桥梁
+
+`react` 和 `react-dom` 并不是完全独立运行的——它们通过调和过程紧密协作。
+
+当一次 `setState` 触发更新时，流程是这样的：`react` 包重新执行组件函数，生成新的虚拟 DOM 树，然后和上一次的虚拟 DOM 树做 diff，找出变更集。这一步完全在 `react` 包内部完成，不涉及任何 DOM 操作。
+
+diff 完成后，`react` 把变更集交给 `react-dom`。`react-dom` 拿到这些指令，在提交阶段（Commit Phase）一次性地把所有变更应用到真实 DOM 上。**之所以是"一次性"，是为了避免中间状态导致用户看到半更新的界面。**
+
+换句话说，调和过程可以拆成两个阶段，而这两个阶段恰好对应两个包的边界：
+
+**Render Phase（渲染阶段）**：`react` 包负责。可以被中断、可以重做，不产生任何副作用。它的输出是一份变更清单。
+
+**Commit Phase（提交阶段）**：`react-dom` 负责。同步执行，不可中断。它读取变更清单，调用 DOM API 完成真实更新。
+
+这种分阶段设计为后来的 Fiber 架构和并发渲染打下了基础。Render Phase 可以被拆成多个工作单元分时执行，遇到高优先级任务（比如用户输入）可以暂停让路，而 Commit Phase 保持原子性，保证 DOM 更新不会出现撕裂。关于 Fiber 的细节，下一篇会深入展开。
+
+## 五、这意味着什么
+
+理解了核心与渲染层的分离，有几个直接的实际影响。
+
+**性能优化的方向更清晰了。** 当应用卡顿时，瓶颈可能出现在两个不同的阶段：要么是 `react` 包的调和计算太慢（组件树太深、diff 量太大），要么是 `react-dom` 的 DOM 操作太多（频繁触发回流重绘）。React DevTools 的 Profiler 可以帮你区分瓶颈在哪个阶段。`React.memo`、`useMemo`、`useCallback` 解决的是 Render Phase 的问题——减少不必要的虚拟 DOM 计算。而批量更新、减少 DOM 层级解决的是 Commit Phase 的问题。
+
+**事件系统的行为更好理解了。** 既然事件是 `react-dom` 在根节点上做代理，而不是直接绑在每个元素上，那在 Portals 场景下事件为什么还会沿着 React 组件树冒泡（而非 DOM 树）就说得通了——因为事件分发逻辑在 `react-dom` 里，它按照 `react` 维护的组件树结构来分发，不关心 DOM 节点实际挂在哪里。
+
+**对 Server Components 的理解有了地基。** React Server Components 能在服务端运行，正是因为 `react` 包不依赖浏览器。服务端的渲染器把虚拟 DOM 序列化成传输格式发送到客户端，客户端的 `react-dom` 再接手做水合（Hydration）。整个流程的可行性，根基就在于核心逻辑和渲染实现的解耦。
+
+## 六、总结
+
+**React 的双包设计不是工程分包的产物，而是架构层面的刻意为之。**
+
+`react` 包是平台无关的计算引擎，负责组件模型、状态管理和虚拟 DOM 调和。`react-dom` 是浏览器平台的渲染实现，负责 DOM 操作和事件系统。两者通过 Render Phase 和 Commit Phase 的分界线协作——前者输出变更指令，后者执行平台操作。
+
+这种分离让同一套组件代码可以运行在浏览器、移动端、服务端、甚至终端里。理解这个架构，是深入理解 Fiber、并发渲染、Server Components 等后续主题的前提。
+
+---
+
+**本系列其他文章：**
+- 下一篇：[Fiber 架构 — 可中断渲染与优先级调度](/posts/react-02/)
+
+**相关主题：**
+- V8 系列：[从源码到执行：引擎的完整旅程](/posts/v8-01/)
+- 浏览器系列：[进程、线程与多进程架构](/posts/browser-01/)

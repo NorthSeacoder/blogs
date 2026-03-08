@@ -2,9 +2,9 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import CodeWindow from '../../components/CodeWindow.astro';
 import { getCollection } from 'astro:content';
-import { filterDrafts } from '../../lib/utils';
+import { filterContentPosts, filterDrafts, getTagPath } from '../../lib/utils';
 
-const posts = filterDrafts(await getCollection('blog'));
+const posts = filterContentPosts(filterDrafts(await getCollection('blog')));
 const tagMap = new Map<string, number>();
 posts.forEach((post) => {
   post.data.tags?.forEach((tag) => {
@@ -14,8 +14,8 @@ posts.forEach((post) => {
 const tags = Array.from(tagMap.entries()).sort(([a], [b]) => a.localeCompare(b));
 ---
 
-<BaseLayout title="标签" description="查看所有标签与文章数量。">
-  <div class="animate-fade-in max-w-3xl mx-auto">
+<BaseLayout title="标签" description="查看所有标签与文章数量。" wide>
+  <div class="animate-fade-in mx-auto max-w-5xl">
     <!-- 页面标题 -->
     <div class="mb-6">
       <h1 class="font-mono text-sm text-[var(--color-text-secondary)]">
@@ -29,25 +29,36 @@ const tags = Array.from(tagMap.entries()).sort(([a], [b]) => a.localeCompare(b))
     <CodeWindow filename="all-tags.ts">
       <div class="font-mono text-sm leading-relaxed">
         <p class="syntax-comment">// 共 {tags.length} 个标签</p>
-        <p class="mt-2"><span class="syntax-keyword">const</span><span class="syntax-variable">&nbsp;tags</span><span class="text-[var(--color-text-primary)]">&nbsp;=&nbsp;{'{'}</span></p>
+        <p class="mt-2">
+          <span class="syntax-keyword">const</span><span class="syntax-variable">&nbsp;tags</span
+          ><span class="text-[var(--color-text-primary)]">&nbsp;=&nbsp;[</span>
+        </p>
 
-        {tags.length > 0 ? (
-          tags.map(([tag, count], index) => (
-            <p class="pl-4">
-              <a
-                href={`/tags/${tag}/`}
-                class="inline-flex items-baseline gap-0 hover:text-[var(--color-accent)] transition-colors"
-              >
-                <span class="syntax-string">"{tag}"</span><span class="text-[var(--color-text-primary)]">:</span>&nbsp;<span class="syntax-number">{count}</span>
-              </a>
-              <span class="text-[var(--color-text-primary)]">{index < tags.length - 1 ? ',' : ''}</span>
-            </p>
-          ))
-        ) : (
-          <p class="pl-4 syntax-comment">// 暂无标签</p>
-        )}
+        {
+          tags.length > 0 ? (
+            <div class="mt-3 grid gap-x-8 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
+              {tags.map(([tag, count], index) => (
+                <p class="min-w-0 pl-4">
+                  <a
+                    href={getTagPath(tag)}
+                    class="inline-flex max-w-full items-baseline gap-0 transition-colors hover:text-[var(--color-accent)]"
+                  >
+                    <span class="syntax-string break-words">"{tag}"</span>
+                    <span class="text-[var(--color-text-primary)]">:</span>&nbsp;
+                    <span class="syntax-number whitespace-nowrap">{count}</span>
+                  </a>
+                  <span class="text-[var(--color-text-primary)]">
+                    {index < tags.length - 1 ? ',' : ''}
+                  </span>
+                </p>
+              ))}
+            </div>
+          ) : (
+            <p class="syntax-comment pl-4">// 暂无标签</p>
+          )
+        }
 
-        <p class="text-[var(--color-text-primary)]">{'}'}</span><span class="text-[var(--color-text-primary)]">;</span></p>
+        <p class="mt-4 text-[var(--color-text-primary)]">];</p>
       </div>
     </CodeWindow>
   </div>

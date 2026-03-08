@@ -13,8 +13,9 @@
     "preview": "astro preview",
     "lint": "eslint .",
     "format": "prettier . --write",
-    "validate": "tsx scripts/validate-frontmatter.ts",
-    "validate:watch": "tsx watch scripts/validate-frontmatter.ts"
+    "import:drafts": "node scripts/import-blog-drafts.mjs",
+    "validate": "node scripts/validate-frontmatter.mjs",
+    "validate:watch": "node --watch scripts/validate-frontmatter.mjs"
   },
   "dependencies": {
     "@astrojs/mdx": "4.3.4",

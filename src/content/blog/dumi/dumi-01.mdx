@@ -1,0 +1,261 @@
+---
+title: 我不知道的 dumi（01）— 从 Markdown 到文档站点：SSG 流程与约定式路由
+description: >-
+  用 dumi 写组件文档，最让人觉得"神奇"的体验之一是：在 docs/ 目录下放一个 guide.md，启动 dumi dev，浏览器里就出现了一个
+  /guide 页面，还带侧边栏导航。不需要配路由，不需要写页面组件，甚至不需要改任何配置。
+subtitle: 从 Markdown 到文档站点
+pubDate: '2025-01-06'
+updatedDate: '2026-03-06'
+tags:
+  - dumi
+  - Umi
+  - SSG
+  - 路由
+  - Markdown
+  - 前端架构
+  - 我不知道的
+lang: zh-CN
+keywords:
+  - dumi
+  - Umi
+  - SSG
+  - 路由
+  - Markdown
+  - 前端架构
+  - 我不知道的
+topic: dumi
+category: 前端架构
+type: post
+series: dumi
+seriesOrder: 1
+slug: dumi-01
+model: claude-4.6-opus
+---
+# 我不知道的 dumi — 从 Markdown 到文档站点
+
+## 一、放一个 .md 文件，路由就有了？
+
+用 dumi 写组件文档，最让人觉得"神奇"的体验之一是：在 `docs/` 目录下放一个 `guide.md`，启动 `dumi dev`，浏览器里就出现了一个 `/guide` 页面，还带侧边栏导航。不需要配路由，不需要写页面组件，甚至不需要改任何配置。
+
+但这背后并不是"魔法"——从 Markdown 文件到可交互的文档页面，dumi 经历了一条完整的构建链路：文件扫描、路由生成、Markdown 解析（AST 转换）、代码块编译、静态 HTML 输出。这条链路的每一环，都建立在 Umi 框架的基础能力之上。
+
+---
+
+## 二、dumi 和 Umi 的关系：不是"基于"，而是"寄生"
+
+很多人知道 dumi 基于 Umi，但"基于"这个词太笼统了。更准确的说法是：**dumi 是 Umi 的一个 preset（预设插件集）**，它没有自己的构建引擎、路由系统、插件机制——这些全部复用 Umi 的。
+
+dumi 做的事情是在 Umi 的框架上注入一组专门为"组件文档"场景设计的插件：
+
+```javascript
+// .umirc.ts — dumi 的配置文件，本质就是 Umi 配置
+import { defineConfig } from 'dumi';
+export default defineConfig({
+  resolve: { includes: ['docs', 'src'] },
+  themeConfig: { name: 'My Lib' }
+});
+```
+
+`resolve.includes` 告诉 dumi 从哪些目录扫描文档文件。除此之外，Umi 的所有配置（路由、构建、代理、环境变量）在 dumi 中都可以直接使用。
+
+说白了，dumi 就是一个"文档专用的 Umi 配置包"。理解了这一点，很多 dumi 的行为就不难解释了——因为底层逻辑全是 Umi 的。
+
+---
+
+## 三、文件到路由：约定式路由的完整流程
+
+dumi 的路由生成遵循"约定大于配置"的原则。整个流程可以拆分为四步：
+
+### 第一步：文件扫描
+
+启动时，dumi 通过 Umi 内置的 `glob` 模块扫描 `resolve.includes` 指定目录下的所有 `.md`/`.mdx` 文件，忽略 `node_modules`、以 `_` 开头的文件等。
+
+扫描结果是一个文件路径列表：
+
+```
+docs/
+├── index.md         → /
+├── guide.md         → /guide
+├── guide/
+│   ├── index.md     → /guide
+│   └── advanced.md  → /guide/advanced
+└── components/
+    └── button.md    → /components/button
+```
+
+### 第二步：元数据解析
+
+对每个 Markdown 文件，dumi 用 `gray-matter` 库解析文件头部的 YAML frontmatter：
+
+```markdown
+---
+title: 快速上手
+order: 1
+nav: 指南
+---
+# 内容...
+```
+
+这里的 `title`、`order`、`nav` 就是路由的元数据。`order` 决定侧边栏排序，`nav` 决定文件归属到哪个顶部导航分组。
+
+这里有一个很多人会忽略的细节——**如果不写 frontmatter，dumi 会从文件的第一个 `#` 标题中提取 title**。也就是说 frontmatter 不是必须的，但要精确控制路由行为（排序、分组、路径别名），就需要显式声明。
+
+### 第三步：路由对象生成
+
+解析完文件路径和元数据后，dumi 通过 Umi 的 `api.modifyRoutes` 钩子将这些信息注入到路由系统中。每个 Markdown 文件对应一个路由对象：
+
+```javascript
+{
+  path: '/guide',
+  component: 'docs/guide.md',
+  exact: true,
+  meta: {
+    title: '快速上手',
+    order: 1,
+    nav: '指南',
+    filePath: 'docs/guide.md'
+  }
+}
+```
+
+对多级嵌套目录，dumi 会自动生成嵌套路由结构。子目录下的 `index.md` 作为该层级的默认页面。
+
+### 第四步：路由优先级
+
+当路径存在冲突时（比如 `docs/guide.md` 和 `docs/guide/index.md` 都映射到 `/guide`），dumi 的优先级规则是：
+
+**（1）** `index.md` 作为目录入口，优先级高于同名文件
+
+**（2）** `order` 值小的路由在侧边栏中排在前面
+
+**（3）** 精确路径匹配优先于模糊匹配
+
+---
+
+## 四、Markdown 解析：unified 生态的组装
+
+路由确定了"哪些页面存在"，接下来的问题是"每个页面长什么样"。dumi 的 Markdown 解析基于 `unified` 生态——一条从 Markdown 文本到 React 组件的转换管线。
+
+核心流程：
+
+**（1）** `remark` 将 Markdown 文本解析为 MDAST（Markdown 抽象语法树）
+
+**（2）** dumi 的自定义 remark 插件识别代码块中的 JSX/TSX，标记为"需要动态渲染"
+
+**（3）** `rehype` 将 MDAST 转换为 HAST（HTML 抽象语法树）
+
+**（4）** `rehype-react` 将 HAST 转换为 React 元素
+
+**（5）** 最终输出的 React 组件就是这个页面的内容
+
+这里最关键的一步是**代码块处理**。普通的 Markdown 代码块会被渲染为静态高亮代码，但在 dumi 中，带有特定标记（如 ` ```jsx ` 或 ` ```tsx `）的代码块会被编译为可交互的组件预览：
+
+```javascript
+function processCodeBlock(content, meta) {
+  if (meta.lang === 'jsx' || meta.lang === 'tsx') {
+    const compiled = sucrase.transform(content, {
+      transforms: ['jsx', 'typescript']
+    });
+    return createLivePreview(compiled.code);
+  }
+  return createStaticHighlight(content, meta.lang);
+}
+```
+
+`sucrase` 是一个轻量级的 JavaScript/TypeScript 编译器，比 Babel 更快但功能更少——对于文档中的组件预览场景，这个取舍是合理的。
+
+换句话说，dumi 的 Markdown 不是普通的 Markdown——**代码块既是文档，也是可运行的组件实例**。这是 dumi 区别于 VitePress、Docusaurus 等通用文档工具的核心差异。
+
+---
+
+## 五、构建输出：esbuild 加速与静态 HTML
+
+解析完成后，dumi 的构建流程与 Umi 一致：
+
+**开发模式**（`dumi dev`）：使用 Webpack/Mako 进行增量编译，代码修改后热更新。Markdown 文件变动时，只重新解析变动的文件，不需要全量重建。
+
+**生产模式**（`dumi build`）：输出静态 HTML + CSS + JS 文件。每个路由对应一个 HTML 文件，可以直接部署到 CDN 或 GitHub Pages。
+
+Umi 4 引入了对 esbuild 和 Mako（字节跳动开源的 Rust 构建工具）的支持，显著提升了构建速度。dumi 作为 Umi 的 preset，自动继承了这些优化：
+
+```javascript
+// .umirc.ts
+export default defineConfig({
+  mako: {},  // 启用 Mako 构建
+});
+```
+
+---
+
+## 六、插件系统：在构建流程中"插针"
+
+dumi 的可扩展性来自 Umi 的插件系统。几个常用的扩展点：
+
+**`api.modifyRoutes`**：修改路由表。比如为所有路由添加多语言前缀：
+
+```typescript
+export default (api: IApi) => {
+  api.modifyRoutes((routes) => {
+    const enRoutes = routes.map(route => ({
+      ...route,
+      path: `/en${route.path}`,
+      meta: { ...route.meta, lang: 'en' }
+    }));
+    return [...routes, ...enRoutes];
+  });
+};
+```
+
+**`api.onGenerateFiles`**：在构建阶段生成临时文件。比如自动从 TypeScript 类型定义中提取组件 API 文档。
+
+**`api.modifyTsConfig`**：修改 TypeScript 配置。
+
+这些钩子的执行时机都在 Umi 的构建流水线中有明确的位置。说白了，**dumi 的插件就是 Umi 的插件**——任何 Umi 插件教程中学到的技巧，在 dumi 中都适用。
+
+---
+
+## 七、与 Storybook 的路线差异
+
+dumi 和 Storybook 都是组件文档工具，但技术路线截然不同：
+
+**dumi 是 Markdown 驱动**：文档和组件预览写在 `.md` 文件中，构建时通过 SSG 输出静态站点。
+
+**Storybook 是 Story 驱动**：每个组件的展示状态写在 `.stories.js` 中，运行时动态渲染。
+
+| 维度 | dumi | Storybook |
+|------|------|-----------|
+| 文档格式 | Markdown/MDX | `.stories.js/ts` |
+| 构建方式 | SSG（静态输出） | 动态运行时 |
+| 组件预览 | 代码块即预览 | Story 配置 |
+| 启动速度 | 快（esbuild/Mako） | 较慢（Webpack） |
+| 中文生态 | 好（蚂蚁出品） | 一般 |
+| 交互测试 | 弱 | 强（addon 丰富） |
+
+如果项目是国内的组件库，文档以中文为主，且需要"写完 Markdown 就有文档站"的体验——dumi 是更自然的选择。如果项目需要丰富的交互测试（视觉回归、无障碍测试）和国际化生态——Storybook 更合适。
+
+问题的关键在于——**它们解决的不完全是同一个问题**。dumi 偏向"文档"，Storybook 偏向"组件开发工作台"。在大型项目中，两者共存也不少见。
+
+---
+
+## 八、总结
+
+dumi 的"自动路由 + Markdown 即组件预览"的能力，底层是一条 Umi 框架上的完整构建链路：
+
+**文件扫描 → frontmatter 元数据解析 → 路由对象生成 → unified 管线解析 Markdown → sucrase 编译代码块 → 静态 HTML 输出**
+
+如果你只记住一句话：**dumi 不是一个独立的文档工具，而是 Umi 的一个 preset——它的路由、构建、插件机制全部来自 Umi。** 搞清楚这一点，dumi 中遇到的大部分问题，都可以在 Umi 的文档和社区中找到答案。
+
+---
+
+**延伸阅读：**
+- [dumi 官方文档](https://d.umijs.org/)
+- [Umi 插件开发指南](https://umijs.org/docs/guides/plugins)
+- [unified 生态介绍](https://unifiedjs.com/)
+
+---
+
+**本系列其他文章：**
+- 下一篇：[跨框架组件渲染：dumi 如何让 React 组件跑在 Vue 文档里](/posts/dumi-02/)
+
+**相关主题：**
+- 如果你对前端打包工具的原理感兴趣，可以看：[我不知道的打包工具系列](/series/%E6%89%93%E5%8C%85%E5%B7%A5%E5%85%B7/)

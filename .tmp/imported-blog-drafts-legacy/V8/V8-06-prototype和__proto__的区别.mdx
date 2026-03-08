@@ -1,0 +1,250 @@
+---
+title: 我不知道的 V8（06）— prototype 和 __proto__ 的本质区别
+description: >-
+  prototype 和 proto 的混淆是 JavaScript
+  原型系统里最常见的误解之一。很多人知道"它们都和原型有关"，但说不清楚谁属于谁、谁在什么时候起作用。这两个属性在 V8
+  内部分属不同的数据结构，服务于不同的目的——厘清这一点，原型链就从"需要记忆的规则"变成了…
+subtitle: prototype 和 __proto__ 的本质区别
+pubDate: '2024-03-02'
+updatedDate: '2026-03-04'
+tags:
+  - V8
+  - prototype
+  - __proto__
+  - 原型链
+  - JSFunction
+  - JSObject
+lang: zh-CN
+keywords:
+  - V8
+  - prototype
+  - __proto__
+  - 原型链
+  - JSFunction
+  - JSObject
+topic: V8
+category: V8
+type: post
+series: V8
+seriesOrder: 6
+slug: v8-06
+model: claude-sonnet-4.6
+optimized_from: '008.我不知道的 V8:prototype 和 __proto__ 的本质区别.mdx'
+optimization_type: 深度升级
+style_version: 2026-03-03T00:00:00.000Z
+diagnosis:
+  style_conformity: 4
+  content_depth: 中-深
+  topic_structure: 保留，代码注释改为第三人称
+---
+# 我不知道的 V8（06）— prototype 和 __proto__ 的本质区别
+
+`prototype` 和 `__proto__` 的混淆是 JavaScript 原型系统里最常见的误解之一。很多人知道"它们都和原型有关"，但说不清楚谁属于谁、谁在什么时候起作用。这两个属性在 V8 内部分属不同的数据结构，服务于不同的目的——厘清这一点，原型链就从"需要记忆的规则"变成了"自然推论"。
+
+## 一、基本事实
+
+**`prototype`：只属于函数，是构造模板**
+
+```javascript
+function Person(name) {
+  this.name = name;
+}
+Person.prototype.sayHello = function() {
+  return `Hello, ${this.name}!`;
+};
+
+console.log(typeof Person.prototype);  // "object"
+```
+
+每个函数创建时，V8 自动为它生成一个 `prototype` 属性，指向一个普通对象（默认只有 `constructor` 属性）。这个对象是"模板"：通过 `new` 创建的实例，会以它为原型。
+
+**`__proto__`：属于所有对象，是原型链接**
+
+```javascript
+const p = new Person("V8");
+console.log(p.__proto__ === Person.prototype);  // true
+```
+
+`__proto__` 是每个对象内部的 `[[Prototype]]` 槽位，指向该对象的原型。查找属性时，V8 沿着 `__proto__` 形成的链条向上查找，直到 `null`。
+
+## 二、V8 内部结构
+
+两者在 V8 的 C++ 层有不同的归属：
+
+- **`prototype`** 存储在 `JSFunction` 对象的属性槽中，是函数对象的普通属性。修改 `prototype` 只影响后续通过这个构造函数创建的实例。
+
+- **`__proto__`** 是 `JSObject` 的内部槽（`[[Prototype]]`），不是普通属性。JavaScript 层通过访问器（getter/setter）暴露它，底层由 C++ 直接管理。推荐使用 `Object.getPrototypeOf()` 替代 `__proto__`（更符合规范，更明确）：
+
+```javascript
+const p = new Person("V8");
+Object.getPrototypeOf(p) === Person.prototype;  // true
+```
+
+## 三、new 操作符做了什么
+
+`new` 是把 `prototype` 和 `__proto__` 联系起来的操作符。理解 `new` 的实现，两个属性的关系就清楚了：
+
+```javascript
+// 手动实现 new 操作符的逻辑
+function myNew(Constructor, ...args) {
+  // 步骤 1：创建新对象，将 __proto__ 指向构造函数的 prototype
+  const obj = Object.create(Constructor.prototype);
+
+  // 步骤 2：执行构造函数，this 绑定到新对象
+  const result = Constructor.apply(obj, args);
+
+  // 步骤 3：如果构造函数返回了对象，使用该对象；否则使用 obj
+  return (typeof result === "object" && result !== null) ? result : obj;
+}
+
+// 验证：行为和 new 一致
+const p1 = new Person("V8");
+const p2 = myNew(Person, "V8");
+
+console.log(p1.sayHello());               // "Hello, V8!"
+console.log(p2.sayHello());               // "Hello, V8!"
+console.log(p1.__proto__ === Person.prototype); // true
+console.log(p2.__proto__ === Person.prototype); // true
+```
+
+三个步骤对应的逻辑：
+1. `Object.create(Constructor.prototype)` → 创建一个以 `prototype` 为 `__proto__` 的新对象
+2. `Constructor.apply(obj, args)` → 运行构造函数，在新对象上设置实例属性
+3. 返回值处理 → 构造函数可以用返回值覆盖 `new` 创建的对象（下一节会解释这个设计）
+
+## 四、构造函数返回值的特殊行为
+
+大多数构造函数不显式返回值，`new` 的结果就是创建的那个对象。但如果构造函数显式返回一个对象，这个返回值会**替代** `new` 通常创建的那个对象：
+
+```javascript
+function SpecialFactory(name) {
+  this.name = name;
+
+  // 显式返回另一个对象
+  return { specialName: name.toUpperCase() };
+}
+
+const s = new SpecialFactory("v8");
+console.log(s.name);         // undefined（不是 SpecialFactory 实例的属性）
+console.log(s.specialName);  // "V8"
+console.log(s instanceof SpecialFactory); // false
+```
+
+规则：构造函数返回**非原始类型**时，`new` 的结果是这个返回值，而非内部创建的对象。返回**原始类型**（数字、字符串、布尔值）时忽略，还是用内部创建的对象。
+
+这个特性在实际开发中有几个用途：
+
+```javascript
+// 单例模式：确保只创建一个实例
+let _instance = null;
+function Singleton() {
+  if (_instance) return _instance;
+  _instance = this;
+  this.id = Math.random();
+}
+const a = new Singleton();
+const b = new Singleton();
+console.log(a === b); // true
+
+// 工厂模式：根据参数返回不同类型的实例
+function UserFactory(type, data) {
+  if (type === "admin") return new AdminUser(data);
+  return new RegularUser(data);
+}
+```
+
+## 五、原型链的查找路径
+
+属性查找沿 `__proto__` 链逐级进行：
+
+```javascript
+function Animal(type) {
+  this.type = type;
+}
+Animal.prototype.describe = function() {
+  return `This is a ${this.type}`;
+};
+
+const dog = new Animal("dog");
+console.log(dog.describe()); // "This is a dog"
+```
+
+V8 查找 `dog.describe` 的路径：
+
+```
+1. dog 自身：有 type，没有 describe → 继续
+2. dog.__proto__（= Animal.prototype）：有 describe → 返回
+```
+
+内存布局：
+
+```
+Animal (JSFunction)
+  └── prototype → { describe: [Function], constructor: Animal }
+                    └── __proto__ → Object.prototype
+                                       └── __proto__ → null
+
+dog (JSObject)
+  ├── type = "dog"（快属性，offset 0）
+  └── __proto__ → Animal.prototype
+```
+
+每一级的查找，V8 都会检查是否命中内联缓存（IC）。如果 `dog` 和其他 `Animal` 实例都共享相同的隐藏类，IC 能直接缓存"在 `Animal.prototype` 的 offset N 找到 `describe`"这个结论，后续查找接近 O(1)。
+
+## 六、常见误区
+
+**误区一：`__proto__` 是 `prototype` 的别名**
+
+不是。修改函数的 `prototype` 不会改变已有实例的 `__proto__`：
+
+```javascript
+function Foo() {}
+const f = new Foo();
+
+Foo.prototype = { x: 1 };  // 修改 prototype，指向新对象
+
+console.log(f.x);          // undefined
+// f.__proto__ 在 new 时就固定了，指向的是旧的 prototype 对象
+// 修改 Foo.prototype 改变的是"新实例会以哪个对象为原型"，不影响 f
+```
+
+**误区二：普通对象有 `prototype` 属性**
+
+```javascript
+const obj = {};
+console.log(obj.prototype); // undefined
+console.log(obj.__proto__); // Object.prototype
+```
+
+`prototype` 是函数专属的。普通对象只有 `__proto__`（即 `[[Prototype]]`），默认指向 `Object.prototype`。
+
+**误区三：直接修改 `__proto__` 性能没影响**
+
+```javascript
+const p = new Person("V8");
+p.__proto__ = { sayHello: () => "Hi!" };
+// V8 需要重新计算原型链，内联缓存失效
+// 短期内对 p 的属性访问会变慢
+```
+
+需要改变原型链时，`Object.create` 在创建对象时设置原型，比后期修改 `__proto__` 对 V8 更友好。
+
+## 七、总结
+
+| | `prototype` | `__proto__`（`[[Prototype]]`） |
+|---|---|---|
+| 归属 | 只有函数对象有 | 所有对象都有 |
+| 作用 | `new` 时，新实例的 `__proto__` 指向它 | 原型链查找的跳转链接 |
+| 修改影响 | 影响后续创建的新实例 | 影响当前对象的原型链和内联缓存 |
+| 推荐访问方式 | 直接 `fn.prototype` | `Object.getPrototypeOf(obj)` |
+
+`prototype` 是"构造函数提供的模板"，`__proto__` 是"对象持有的对原型的引用"。`new` 把两者连接起来：新建对象 → 设置 `__proto__` = 构造函数的 `prototype` → 运行构造函数。
+
+理解这个连接关系，原型继承、`instanceof` 的判断逻辑、为什么修改 `prototype` 不影响已有实例——都可以从这里推导出来。
+
+---
+
+**本系列其他文章：**
+- 上一篇：[为什么不建议使用 delete](/posts/v8-05/)
+- 下一篇：[字典模式下的非线性优化与限制](/posts/v8-08/)
+- 延伸阅读：[隐藏类与快慢属性：对象性能的核心](/posts/v8-04/)

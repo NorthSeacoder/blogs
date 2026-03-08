@@ -1,0 +1,252 @@
+---
+title: 我不知道的 Pixi.js（10）— 插件与扩展生态
+description: >-
+  Pixi.js 的核心只负责渲染——把像素高效地画到屏幕上。骨骼动画、粒子系统、UI 组件这些能力都由插件提供。v8
+  的插件生态经历了一次大规模迁移，部分老插件已经适配了新架构，部分还在路上。这篇文章梳理 v8 生态中最常用的几个插件，并拆解自定义插件的开发方式。
+subtitle: 插件与扩展生态
+pubDate: '2024-07-10'
+updatedDate: '2026-03-06'
+tags:
+  - Pixi.js
+  - 我不知道的
+  - Spine
+  - 粒子系统
+  - 插件开发
+lang: zh-CN
+keywords:
+  - Pixi.js
+  - 我不知道的
+  - Spine
+  - 粒子系统
+  - 插件开发
+topic: Pixi.js
+category: Pixi.js
+type: post
+series: Pixi.js
+seriesOrder: 10
+slug: pixi-10
+model: claude-4.6-opus
+---
+Pixi.js 的核心只负责渲染——把像素高效地画到屏幕上。骨骼动画、粒子系统、UI 组件这些能力都由插件提供。v8 的插件生态经历了一次大规模迁移，部分老插件已经适配了新架构，部分还在路上。这篇文章梳理 v8 生态中最常用的几个插件，并拆解自定义插件的开发方式。
+
+---
+
+## 一、v8 插件生态现状
+
+截至 2026 年初，v8 的核心插件迁移状态：
+
+| 插件 | v8 状态 | 包名 |
+|------|--------|------|
+| Spine 骨骼动画 | 已迁移 | `@pixi-spine/all` |
+| 滤镜库 | 已迁移 | `pixi-filters` |
+| UI 组件 | 已迁移 | `@pixi/ui` |
+| Sound 音频 | 已迁移 | `@pixi/sound` |
+| GIF 支持 | 已迁移 | `@pixi/gif` |
+| React 绑定 | 迁移中 | `@pixi/react` |
+| 粒子系统 | 需替换 | `@barvian/particle-emitter` |
+
+这里有一个很多人会忽略的细节——v7 时代流行的 `pixi-particles` 包（`@pixi/particle-emitter`）在 v8 中已不再维护。社区分支 `@barvian/particle-emitter` 提供了 v8 兼容版本，但 API 有部分变化。选择粒子方案前先确认版本兼容性。
+
+---
+
+## 二、Spine 骨骼动画：从数据到动态渲染
+
+Spine 是 2D 游戏中最常用的骨骼动画工具。它的核心思想是用骨架（Skeleton）驱动皮肤（Skin），通过插值计算让角色动起来，而不是逐帧替换图片。
+
+v8 的 Spine 插件使用方式：
+
+```javascript
+import '@pixi-spine/all'; // 注册 Spine 资源解析器
+import { Assets } from 'pixi.js';
+import { Spine } from '@pixi-spine/all';
+
+// 加载 Spine 数据（JSON + Atlas + 图集）
+await Assets.load('character.json');
+
+const spine = Spine.from({ skeleton: 'character.json', atlas: 'character.atlas' });
+spine.state.setAnimation(0, 'idle', true); // 循环播放 idle 动画
+spine.position.set(400, 500);
+
+app.stage.addChild(spine);
+```
+
+Spine 渲染的底层流程：每帧 Ticker 触发时，Spine 插件更新骨架状态（计算每块骨骼的当前位置和旋转）→ 根据骨骼位置变换关联的纹理区域 → 生成顶点数据提交给 Pixi.js 的渲染管线。
+
+换句话说，Spine 角色在 Pixi.js 眼里就是一组动态变化的纹理区域，和普通 Sprite 一样走批处理和 Draw Call 流程。一个 Spine 角色可能由十几个"部件 Sprite"组成，每个部件是图集中的一个区域。
+
+**Spine 和逐帧动画的区别：**
+
+```javascript
+// 逐帧动画：10 帧走路 = 10 张纹理，切换时纹理变化
+// 内存占用 = 10 帧的像素总量
+// Draw Call：每次纹理切换可能打断批处理
+
+// Spine 动画：1 套骨架 + 1 张图集 = 所有动作
+// 内存占用 = 1 张图集
+// Draw Call：图集不变，不会打断批处理
+```
+
+说白了，Spine 动画用更少的纹理实现了更多的动作变化。但代价是 CPU 需要每帧计算骨骼变换，对于 bone 数量多（100+）的复杂角色，这个计算成本不可忽视。
+
+---
+
+## 三、粒子系统：大量小对象的管理
+
+粒子系统用来实现烟雾、火焰、雪花、爆炸等效果。核心思想是管理大量短生命周期的小对象，每个粒子有位置、速度、透明度、缩放等属性，每帧更新后渲染。
+
+使用 v8 兼容的粒子库：
+
+```javascript
+import { Emitter } from '@barvian/particle-emitter';
+import { Container } from 'pixi.js';
+
+const particleContainer = new Container();
+app.stage.addChild(particleContainer);
+
+const emitter = new Emitter(particleContainer, {
+  lifetime: { min: 0.5, max: 1.5 },
+  frequency: 0.05,
+  emitterLifetime: -1, // 无限发射
+  pos: { x: 400, y: 300 },
+  behaviors: [
+    {
+      type: 'alpha',
+      config: { alpha: { list: [{ value: 1, time: 0 }, { value: 0, time: 1 }] } },
+    },
+    {
+      type: 'scale',
+      config: { scale: { list: [{ value: 0.5, time: 0 }, { value: 0.1, time: 1 }] } },
+    },
+    {
+      type: 'moveSpeed',
+      config: { speed: { list: [{ value: 200, time: 0 }, { value: 50, time: 1 }] } },
+    },
+    {
+      type: 'textureSingle',
+      config: { texture: 'particle.png' },
+    },
+  ],
+});
+
+app.ticker.add(() => {
+  emitter.update(app.ticker.deltaMS * 0.001);
+});
+```
+
+粒子系统的性能瓶颈通常在两个地方：
+
+**（1）粒子数量**：每个粒子都是一个渲染对象。如果同时存在 5000 个粒子，就需要处理 5000 个 Sprite 的批处理。好在它们共享同一张纹理，只要纹理不切换，可以合并成很少的 Draw Call。
+
+**（2）更新计算**：每帧要更新每个粒子的位置、透明度、缩放。5000 个粒子就是 5000 次属性计算。这个计算在 CPU 上进行，是粒子系统的主要性能上限。
+
+如果你只记住一句话：**粒子数量的上限不取决于 GPU 渲染能力，而取决于 CPU 的逐粒子更新开销**。控制 `maxParticles` 和粒子生命周期是调优的关键。
+
+---
+
+## 四、@pixi/ui：交互式 UI 组件
+
+游戏和互动应用经常需要按钮、滑块、进度条等 UI 组件。`@pixi/ui` 提供了一套基于 Pixi.js 的 UI 组件库：
+
+```javascript
+import { FancyButton, Slider, ProgressBar } from '@pixi/ui';
+
+// 按钮
+const button = new FancyButton({
+  defaultView: 'button-normal.png',
+  hoverView: 'button-hover.png',
+  pressedView: 'button-pressed.png',
+  text: new Text({ text: 'Start', style: { fill: 'white' } }),
+});
+button.onPress.connect(() => startGame());
+
+// 滑块
+const slider = new Slider({
+  bg: 'slider-bg.png',
+  fill: 'slider-fill.png',
+  slider: 'slider-handle.png',
+  min: 0,
+  max: 100,
+  value: 50,
+});
+slider.onChange.connect((value) => setVolume(value));
+```
+
+和 DOM UI 相比，Pixi.js UI 的优势是和渲染场景完全同层——不需要处理 DOM 和 Canvas 的层级关系，也不需要在两套坐标系之间转换。劣势是没有浏览器原生的无障碍（accessibility）支持，也没有文本选择、输入框等 DOM 原生能力。
+
+---
+
+## 五、自定义扩展：怎么写一个 Pixi.js 插件
+
+Pixi.js v8 的插件架构基于"扩展注册"模式。如果你需要扩展渲染管线（比如添加一种新的可渲染对象类型），可以通过 `extensions` API 注册：
+
+```javascript
+import { extensions, ExtensionType } from 'pixi.js';
+
+class MyCustomRenderer {
+  static extension = {
+    type: ExtensionType.WebGLPipes, // 或 WebGPUPipes
+    name: 'myCustomRenderer',
+  };
+
+  constructor(renderer) {
+    this.renderer = renderer;
+  }
+
+  render(element) {
+    // 自定义渲染逻辑
+  }
+}
+
+extensions.add(MyCustomRenderer);
+```
+
+但大多数场景不需要深入渲染管线。更常见的插件形式是自定义 `Container` 子类：
+
+```javascript
+import { Container, Sprite, Ticker } from 'pixi.js';
+
+class FloatingText extends Container {
+  constructor(text, style) {
+    super();
+    this._text = new Text({ text, style });
+    this._text.anchor.set(0.5);
+    this.addChild(this._text);
+    this._elapsed = 0;
+  }
+
+  update(ticker) {
+    this._elapsed += ticker.deltaMS;
+    this.y = Math.sin(this._elapsed * 0.003) * 10;
+    this.alpha = Math.max(0, 1 - this._elapsed / 2000);
+
+    if (this.alpha <= 0) {
+      this.removeFromParent();
+      this.destroy();
+    }
+  }
+}
+
+// 使用
+const floater = new FloatingText('+100', { fill: 'gold', fontSize: 24 });
+floater.position.set(200, 300);
+stage.addChild(floater);
+app.ticker.add((ticker) => floater.update(ticker));
+```
+
+问题的关键在于——**自定义组件的 `destroy()` 方法需要清理所有子对象和事件监听**。Pixi.js 的 `Container.destroy({ children: true })` 会递归销毁所有子节点，但不会自动解绑 Ticker 回调。忘记解绑会导致"销毁后回调仍在执行"的错误。
+
+---
+
+## 总结
+
+Pixi.js 的核心专注渲染，复杂功能靠插件生态支撑。v8 已迁移的核心插件包括 Spine（骨骼动画，用少量纹理实现多动作）、pixi-filters（滤镜扩展）、@pixi/ui（交互组件）、@pixi/sound（音频）。粒子系统需注意版本兼容（原 `pixi-particles` 已不维护）。自定义扩展最常见的模式是继承 `Container` 封装可复用组件，注意销毁时清理所有资源和回调。
+
+---
+
+**本系列其他文章：**
+- 上一篇：[物理引擎的集成实践](/posts/pixi-09/)
+
+**延伸阅读：**
+- [PixiJS Ecosystem](https://pixijs.com/ecosystem)
+- [@pixi/ui Documentation](https://pixijs.io/ui/)
+- [Spine Runtime for PixiJS](https://github.com/pixijs/spine)

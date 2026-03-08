@@ -1,0 +1,214 @@
+---
+title: 我不知道的 React（10）— 受控与非受控组件的选择之道
+description: React 处理表单的方式和原生 HTML 有一个根本性的分歧：表单数据的"真相源"（Source of Truth）在哪里？
+subtitle: 受控与非受控组件的选择之道
+pubDate: '2022-05-20'
+updatedDate: '2026-03-06'
+tags:
+  - React
+  - 受控组件
+  - 非受控组件
+  - 表单
+  - state
+  - ref
+  - 我不知道的
+lang: zh-CN
+keywords:
+  - React
+  - 受控组件
+  - 非受控组件
+  - 表单
+  - state
+  - ref
+  - 我不知道的
+topic: React
+category: React
+type: post
+series: React
+seriesOrder: 10
+slug: react-10
+model: claude-4.6-opus
+---
+# 我不知道的 React（10）— 受控与非受控组件的选择之道
+
+React 处理表单的方式和原生 HTML 有一个根本性的分歧：**表单数据的"真相源"（Source of Truth）在哪里？**
+
+在原生 HTML 中，答案很简单——在 DOM 里。`<input>` 元素自己维护当前值，浏览器负责显示和更新，JavaScript 需要的时候去 DOM 上读就行了。但 React 的核心理念是"UI 是状态的函数"，它希望所有驱动 UI 的数据都在 React 的 state 中。
+
+这两种理念碰撞，就产生了受控组件和非受控组件两种模式。
+
+## 一、受控组件：React 接管一切
+
+受控组件的核心思路是：**表单元素的值完全由 React state 决定，用户的每一次输入都通过事件处理函数更新 state，state 变化触发 re-render，re-render 把新的值写回 DOM。**
+
+```jsx
+function ControlledInput() {
+  const [value, setValue] = useState('');
+
+  return (
+    <input
+      value={value}
+      onChange={e => setValue(e.target.value)}
+    />
+  );
+}
+```
+
+这段代码看起来很简单，但它背后有一个关键的单向数据流循环：用户输入 → 触发 onChange → 更新 state → 触发 re-render → input 显示新值。**数据永远是从 state 流向 DOM，而不是从 DOM 流向 state。** React 的 state 是唯一的真相源。
+
+说白了，受控组件就是 React 对表单元素的"完全接管"。用户敲一个字母，这个字母不是直接显示在输入框里的——它先触发 onChange，onChange 更新 state，state 变化导致 re-render，re-render 时 React 把新的 `value` 写入 input。虽然这一切发生在毫秒级，用户感知不到延迟，但流程上确实经过了 React 的状态管理。
+
+这种模式的威力在于：因为每一次输入都经过 React，所以可以在 onChange 里做任何事情。
+
+```jsx
+function PhoneInput() {
+  const [phone, setPhone] = useState('');
+
+  function handleChange(e) {
+    const raw = e.target.value.replace(/\D/g, '');
+    if (raw.length <= 11) {
+      setPhone(raw);
+    }
+  }
+
+  return <input value={phone} onChange={handleChange} />;
+}
+```
+
+这个电话号码输入框只接受数字，最多 11 位。用户输入字母时，`handleChange` 过滤掉了非数字字符，state 不变，input 的值也不变——**React 拒绝了这次输入**。这种"拦截式"的控制在非受控组件中做不到，因为 DOM 会先显示用户输入的内容，然后你才能去纠正。
+
+## 二、非受控组件：让 DOM 自己管
+
+非受控组件的思路完全反过来：**不用 state 追踪表单值，让 DOM 自己维护当前状态，需要的时候通过 ref 去读。**
+
+```jsx
+function UncontrolledInput() {
+  const inputRef = useRef(null);
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    console.log(inputRef.current.value);
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input ref={inputRef} defaultValue="初始值" />
+      <button type="submit">提交</button>
+    </form>
+  );
+}
+```
+
+这里有一个很多人会忽略的细节——用的是 `defaultValue` 而不是 `value`。在 React 中，`value` 属性意味着受控模式，React 会强制 input 的值始终等于传入的 `value`。而 `defaultValue` 只设置初始值，之后 input 的值完全由 DOM 自己管理。
+
+非受控组件的数据流更像传统的 HTML 表单：浏览器负责 input 的输入显示和值存储，React 只在需要时（比如表单提交）通过 ref 去"问一下" DOM 当前的值是什么。
+
+## 三、两种模式的根本区别
+
+很多人以为受控和非受控的区别只是"用 state 还是用 ref"，但实际上区别在更底层。
+
+**受控组件的数据流是同步的、连续的。** 每一次输入变化都经过 React 的 state → render 循环，React 对表单数据的变化有完全的感知和控制。
+
+**非受控组件的数据流是离散的。** React 只在特定时刻（比如提交）才去读取 DOM 的当前值，中间过程 React 完全不参与。
+
+换句话说，受控组件是"React 实时追踪"模式，非受控组件是"React 按需查询"模式。这个区别直接决定了它们各自的能力边界。
+
+受控组件能做到的事情：实时验证输入格式、根据输入内容动态启用/禁用提交按钮、强制转换输入格式（比如自动大写）、根据输入联动其他 UI 元素（如搜索建议列表）。这些都需要在每次输入时获得通知并做出响应。
+
+非受控组件做不到这些——因为 React 在输入过程中不知道发生了什么。但如果不需要实时响应，非受控组件的代码更简洁，也避免了每次按键都触发 re-render 的开销。
+
+## 四、文件上传：天生的非受控组件
+
+有一种表单元素在 React 中只能以非受控模式工作：`<input type="file">`。
+
+```jsx
+function FileUpload() {
+  const fileRef = useRef(null);
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    const file = fileRef.current.files[0];
+    if (file) {
+      console.log('选中文件:', file.name);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input type="file" ref={fileRef} />
+      <button type="submit">上传</button>
+    </form>
+  );
+}
+```
+
+**文件输入框的 `value` 是只读的，由浏览器安全策略控制，JavaScript 无法通过程序设置它。** 所以它天然只能是非受控的——你不可能把文件路径存到 state 里再通过 `value` 回写到 input。这是一个由浏览器安全模型决定的硬约束。
+
+## 五、受控组件的性能考量
+
+受控组件有一个被频繁讨论的问题：每次按键都触发 state 更新，state 更新触发 re-render，如果表单很复杂（几十个字段的长表单），每按一个键就重渲染整个表单，性能会不会有问题？
+
+在大多数场景下，答案是不会。React 的 re-render 机制配合虚拟 DOM diff，足以应对常规的表单场景。但在两种情况下确实需要注意。
+
+**第一种，表单内包含计算量大的派生渲染。** 比如表单中有一个区域会根据输入实时渲染一个复杂的图表或者执行大量数据过滤，每次按键触发的 re-render 都会重新执行这些计算。这时候应该用 `useMemo` 缓存计算结果，或者把重渲染的区域用 `React.memo` 隔离开。
+
+**第二种，大量输入框的大型表单。** 每个 input 的 onChange 都触发整个表单组件的 re-render，几十个 input 会导致可感知的卡顿。解决思路是拆分——把每个表单字段封装成独立的组件，各自管理自己的 state，只在提交时收集所有值。
+
+```jsx
+function FormField({ name, onValueReady }) {
+  const [value, setValue] = useState('');
+
+  useEffect(() => {
+    onValueReady(name, value);
+  }, [value]);
+
+  return <input value={value} onChange={e => setValue(e.target.value)} />;
+}
+```
+
+问题的关键在于：**受控组件的性能问题不在"受控"本身，而在受控导致的 re-render 范围过大。** 把 re-render 范围缩小到单个字段，性能就不再是问题。
+
+## 六、混合策略：取长补短
+
+在实际项目中，受控和非受控并不是非此即彼的选择。一个表单完全可以混用两种模式。
+
+比如一个用户注册表单：用户名和密码字段需要实时验证（密码强度、用户名是否已被占用），适合受控模式；而头像上传是文件类型，只能非受控；"个人简介"字段不需要实时校验，只在提交时读取就够了，用非受控可以减少不必要的 re-render。
+
+说白了，选择受控还是非受控，取决于一个判断：**这个字段在用户输入过程中，是否需要 React 参与处理？** 需要实时验证、实时格式化、实时联动，就用受控。只需要最终值，用非受控。
+
+还有一种常见的过渡模式：组件同时支持受控和非受控两种用法。很多 UI 组件库（如 Ant Design、MUI）的 Input 组件都采用这种设计——传了 `value` 就是受控模式，只传 `defaultValue` 就是非受控模式。实现方式是在组件内部判断 `value` 是否是 `undefined`：
+
+```jsx
+function SmartInput({ value, defaultValue, onChange }) {
+  const [internalValue, setInternalValue] = useState(defaultValue ?? '');
+  const isControlled = value !== undefined;
+  const currentValue = isControlled ? value : internalValue;
+
+  function handleChange(e) {
+    if (!isControlled) {
+      setInternalValue(e.target.value);
+    }
+    onChange?.(e);
+  }
+
+  return <input value={currentValue} onChange={handleChange} />;
+}
+```
+
+如果你只记住一句话：**受控组件把表单数据纳入 React 的状态管理，提供实时控制力但引入渲染开销；非受控组件让 DOM 自己管理数据，代码简洁但放弃了实时感知。** 大多数场景下 React 推荐受控模式，但理解两者的区别才能在复杂表单中做出合理的取舍。
+
+## 七、总结
+
+受控与非受控组件的根本区别不是"用 state 还是用 ref"，而是"数据的真相源在 React 还是在 DOM"。受控组件通过 state → render 的单向数据流实现对表单的完全控制，适用于需要实时验证、格式化、联动的场景。非受控组件让 DOM 自行维护表单值，适用于简单表单和文件上传等场景。
+
+在实际项目中，两者可以混用。性能问题的核心不在受控模式本身，而在 re-render 范围的控制。理解了这两种模式背后的数据流差异，选择就不再是难题。
+
+---
+
+**本系列其他文章：**
+- 上一篇：[Portals 与事件冒泡的真相](/posts/react-09/)
+- 下一篇：[ErrorBoundary 的工作原理与局限性](/posts/react-11/)
+
+**相关主题：**
+- 核心 Hooks 详解：[useEffect、useRef 等核心 Hooks](/posts/react-06/)
+- useState 底层机制：[批量更新与 Hook 底层机制](/posts/react-05/)

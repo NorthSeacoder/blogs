@@ -1,0 +1,227 @@
+---
+title: 我不知道的 Pixi.js（04）— 滤镜系统的设计原理
+description: >-
+  给 Sprite 加个模糊效果只需要两行代码，但 Pixi.js 在背后做了大量工作：创建临时渲染目标、把对象先画到离屏缓冲区、运行 Shader
+  处理像素、再把结果贴回主画布。v8 的滤镜系统还要同时支持 WebGL 和 WebGPU 两套 Shader 语言，复杂度比表面看…
+subtitle: 滤镜系统的设计原理
+pubDate: '2024-07-04'
+updatedDate: '2026-03-06'
+tags:
+  - Pixi.js
+  - 我不知道的
+  - Filter
+  - GLSL
+  - WebGPU
+  - Shader
+lang: zh-CN
+keywords:
+  - Pixi.js
+  - 我不知道的
+  - Filter
+  - GLSL
+  - WebGPU
+  - Shader
+topic: Pixi.js
+category: Pixi.js
+type: post
+series: Pixi.js
+seriesOrder: 4
+slug: pixi-04
+model: claude-4.6-opus
+optimized_from: '04.不知道的 Pixi.js:滤镜系统的设计原理.mdx'
+optimization_type: 深度升级
+style_version: 2026-03-03T00:00:00.000Z
+diagnosis:
+  style_conformity: 3
+  content_depth: 中
+  topic_structure: 保留
+---
+给 Sprite 加个模糊效果只需要两行代码，但 Pixi.js 在背后做了大量工作：创建临时渲染目标、把对象先画到离屏缓冲区、运行 Shader 处理像素、再把结果贴回主画布。v8 的滤镜系统还要同时支持 WebGL 和 WebGPU 两套 Shader 语言，复杂度比表面看到的高得多。
+
+---
+
+## 一、滤镜的基本使用：两行代码背后的流程
+
+滤镜的使用很直观——创建滤镜实例，挂到对象的 `filters` 数组上：
+
+```javascript
+import { Sprite, BlurFilter } from 'pixi.js';
+
+const sprite = new Sprite(texture);
+sprite.filters = [new BlurFilter({ strength: 8 })];
+```
+
+但这两行代码触发了什么？
+
+**（1）** 渲染器检测到 `sprite.filters` 不为空，暂停主画布的绘制。
+
+**（2）** 创建一个与 sprite 尺寸匹配的临时渲染目标（RenderTarget），把 sprite 先渲染到这个离屏缓冲区。
+
+**（3）** 以离屏缓冲区作为输入纹理，运行 BlurFilter 的 Shader，处理每个像素。
+
+**（4）** 把处理后的结果写回主画布的对应位置。
+
+说白了，滤镜的本质是"绕了一圈画"。没有滤镜时直接画到主画布；有滤镜时先画到临时画布，加工后再贴回来。这就是为什么滤镜有性能成本——每个滤镜至少增加一次 RenderTarget 切换和一次全屏绘制。
+
+---
+
+## 二、RenderTarget：滤镜的临时画布
+
+RenderTarget 是滤镜系统的核心基础设施。它本质上是一个 GPU 帧缓冲区（Framebuffer），可以像普通画布一样接收绘制指令，区别是它的内容不直接显示在屏幕上。
+
+当多个滤镜叠加时（比如先模糊后调色），Pixi.js 使用"乒乓"策略：
+
+```
+原始渲染 → RenderTarget A（滤镜 1 输入）
+滤镜 1 处理 → RenderTarget B（滤镜 2 输入）
+滤镜 2 处理 → 主画布
+```
+
+两个 RenderTarget 交替作为输入和输出，避免了"自己读自己写"的冲突。这和图形学中的 ping-pong buffer 是同一个概念。
+
+这里有一个很多人会忽略的细节——**Pixi.js 会复用 RenderTarget**。创建和销毁帧缓冲区的开销很大，引擎内部维护了一个 RenderTarget 池，用完了还回去，下次需要时直接取。这就是为什么第一帧可能略慢（冷启动分配缓冲区），后续帧会更快。
+
+---
+
+## 三、v8 的双后端 Shader：GlProgram 和 GpuProgram
+
+v7 的 Filter 只需要写一段 GLSL 片段着色器就行。v8 因为同时支持 WebGL 和 WebGPU，Filter 的构造方式发生了根本变化——需要分别提供两套 Shader。
+
+对比 v7 和 v8 的自定义滤镜写法：
+
+```javascript
+// v7 — 只需要 GLSL 片段着色器
+const filter = new PIXI.Filter(null, `
+  varying vec2 vTextureCoord;
+  uniform sampler2D uSampler;
+  void main() {
+    vec4 color = texture2D(uSampler, vTextureCoord);
+    gl_FragColor = vec4(1.0 - color.rgb, color.a);
+  }
+`);
+```
+
+```javascript
+// v8 — 需要同时提供 WebGL 和 WebGPU 版本
+import { Filter, GlProgram, GpuProgram } from 'pixi.js';
+
+const glProgram = GlProgram.from({
+  fragment: `
+    in vec2 vTextureCoord;
+    uniform sampler2D uTexture;
+    out vec4 finalColor;
+    void main() {
+      vec4 color = texture(uTexture, vTextureCoord);
+      finalColor = vec4(1.0 - color.rgb, color.a);
+    }
+  `,
+});
+
+const gpuProgram = GpuProgram.from({
+  fragment: {
+    source: `
+      @group(0) @binding(1) var uTexture: texture_2d<f32>;
+      @group(0) @binding(2) var uSampler: sampler;
+      @fragment
+      fn main(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
+        let color = textureSample(uTexture, uSampler, uv);
+        return vec4<f32>(1.0 - color.rgb, color.a);
+      }
+    `,
+  },
+});
+
+const invertFilter = new Filter({
+  glProgram,
+  gpuProgram,
+  resources: {},
+});
+```
+
+换句话说，v8 的 Filter 从"一种着色器语言"变成了"两种着色器语言"。`GlProgram` 接受 GLSL 300 es（注意不再是 GLSL 100，`texture2D` 变成了 `texture`，`gl_FragColor` 变成了 `out` 变量），`GpuProgram` 接受 WGSL（WebGPU 的着色器语言）。
+
+如果你只想支持 WebGL（比如兼容性要求高），可以只传 `glProgram`，省略 `gpuProgram`。反之亦然。但在 WebGPU 环境下如果没有 `gpuProgram`，滤镜会静默失效。
+
+---
+
+## 四、Uniform：Shader 的外部参数
+
+Shader 的行为需要外部参数控制，比如模糊半径、颜色偏移量。这些参数通过 Uniform 传递。
+
+v8 的 Uniform 传递方式也做了调整：
+
+```javascript
+import { Filter, GlProgram, UniformGroup } from 'pixi.js';
+
+const filter = new Filter({
+  glProgram: GlProgram.from({
+    fragment: `
+      in vec2 vTextureCoord;
+      uniform sampler2D uTexture;
+      uniform float uTime;
+      uniform float uIntensity;
+      out vec4 finalColor;
+      void main() {
+        vec4 color = texture(uTexture, vTextureCoord);
+        float wave = sin(vTextureCoord.x * 20.0 + uTime) * uIntensity;
+        finalColor = vec4(color.rgb + wave, color.a);
+      }
+    `,
+  }),
+  resources: {
+    uniforms: new UniformGroup({
+      uTime: { value: 0, type: 'f32' },
+      uIntensity: { value: 0.1, type: 'f32' },
+    }),
+  },
+});
+
+// 每帧更新 uniform 值
+app.ticker.add(() => {
+  filter.resources.uniforms.uniforms.uTime = performance.now() * 0.001;
+});
+```
+
+问题的关键在于——Uniform 的更新是否触发 GPU 重新上传数据。Pixi.js 内部使用脏标记追踪 Uniform 变化，只有值真正改变时才会重新上传到 GPU。但如果每帧都改（比如 `uTime`），那每帧都会触发一次上传。对于需要高频更新的 Uniform，这是不可避免的开销。
+
+---
+
+## 五、内置滤镜和 @pixi/filter-* 生态
+
+Pixi.js 核心包内置了几个基础滤镜：
+
+- **BlurFilter**：高斯模糊，分为水平和垂直两遍处理（separable blur）
+- **AlphaFilter**：调整透明度
+- **ColorMatrixFilter**：颜色矩阵变换（亮度、对比度、饱和度、灰度等）
+- **NoiseFilter**：添加噪点
+
+更多滤镜在 `pixi-filters` 包中提供，v8 已经完成迁移：
+
+```javascript
+import { GlowFilter, OutlineFilter } from 'pixi-filters';
+
+sprite.filters = [
+  new GlowFilter({ distance: 15, outerStrength: 2, color: 0xff0000 }),
+  new OutlineFilter({ thickness: 3, color: 0x000000 }),
+];
+```
+
+这里有一个很多人会忽略的细节——**滤镜的叠加顺序影响最终效果**。`filters` 数组中靠前的滤镜先执行，靠后的滤镜基于前者的输出继续处理。先模糊后发光和先发光后模糊，效果完全不同。
+
+另一个性能相关的要点：滤镜应用在 Container 上时，Container 的所有子节点都会先渲染到同一个 RenderTarget，然后整体做滤镜处理。这比给每个子节点单独加滤镜高效得多。
+
+---
+
+## 总结
+
+Pixi.js 的滤镜系统本质是一个离屏渲染 + Shader 处理的管线。对象先画到临时 RenderTarget，Shader 处理像素后再贴回主画布。v8 的关键变化是双后端 Shader 支持（GLSL 300 es + WGSL），自定义滤镜需要同时编写两套着色器代码。性能上，每个滤镜至少增加一次 RenderTarget 切换，多滤镜叠加用 ping-pong 策略交替缓冲。
+
+---
+
+**本系列其他文章：**
+- 上一篇：[交互事件的底层实现](/posts/pixi-03/)
+- 下一篇：[动画系统的 Ticker 解析](/posts/pixi-05/)
+
+**延伸阅读：**
+- [PixiJS Filter Documentation](https://pixijs.download/release/docs/filters.Filter.html)
+- [pixi-filters GitHub](https://github.com/pixijs/filters)

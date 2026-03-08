@@ -1,0 +1,223 @@
+---
+title: 我不知道的 V8（13）— 宏任务的调度逻辑：事件循环的主干
+description: >-
+  setTimeout(fn, 0) 的 fn 为什么不是"立即"执行，而是"稍后"执行？为什么两个延时相同的 setTimeout
+  之间还有顺序关系？这些问题的答案在 V8 的事件循环设计里，宏任务（Macrotasks）是这套设计的核心单元。
+subtitle: 宏任务的调度逻辑：事件循环的主干
+pubDate: '2024-03-12'
+updatedDate: '2026-03-04'
+tags:
+  - V8
+  - 宏任务
+  - 事件循环
+  - setTimeout
+  - 任务队列
+  - 调度
+lang: zh-CN
+keywords:
+  - V8
+  - 宏任务
+  - 事件循环
+  - setTimeout
+  - 任务队列
+  - 调度
+topic: V8
+category: V8
+type: post
+series: V8
+seriesOrder: 13
+slug: v8-13
+model: claude-sonnet-4.6
+optimized_from: '018.我不知道的 V8:宏任务的调度逻辑.mdx'
+optimization_type: 深度升级
+style_version: 2026-03-03T00:00:00.000Z
+diagnosis:
+  style_conformity: 4
+  content_depth: 中
+  topic_structure: 保留，去除emoji和向前一步桥接
+---
+# 我不知道的 V8（13）— 宏任务的调度逻辑：事件循环的主干
+
+`setTimeout(fn, 0)` 的 `fn` 为什么不是"立即"执行，而是"稍后"执行？为什么两个延时相同的 `setTimeout` 之间还有顺序关系？这些问题的答案在 V8 的事件循环设计里，宏任务（Macrotasks）是这套设计的核心单元。
+
+## 一、宏任务包括哪些
+
+宏任务是事件循环里"主干"级别的任务类型，每个宏任务代表一次完整的代码执行周期。常见的宏任务来源：
+
+- `setTimeout`、`setInterval` 的回调
+- DOM 事件处理函数（如 `click`、`scroll`）
+- I/O 回调（Node.js 中的文件、网络操作）
+- `setImmediate`（Node.js 专有）
+- 页面的初始 JavaScript 执行（`<script>` 标签加载执行）
+
+微任务（`Promise.then`、`queueMicrotask`）不是宏任务——它们的执行时机不同，在每个宏任务结束后立即清空。
+
+## 二、事件循环的完整节奏
+
+V8 的事件循环（结合浏览器的任务调度器）执行顺序：
+
+```
+初始执行
+  ↓
+1. 执行当前宏任务（同步代码）
+2. 执行过程中产生的所有微任务（清空微任务队列）
+3. 浏览器渲染（如有需要）
+4. 取出下一个宏任务，回到步骤 1
+```
+
+用代码验证这个顺序：
+
+```javascript
+console.log("1. 同步代码开始");
+
+setTimeout(() => {
+  console.log("4. 宏任务（setTimeout）");
+  Promise.resolve().then(() => {
+    console.log("5. 宏任务内部的微任务");
+  });
+}, 0);
+
+Promise.resolve().then(() => {
+  console.log("3. 微任务（Promise.then）");
+});
+
+console.log("2. 同步代码结束");
+
+// 输出顺序：
+// 1. 同步代码开始
+// 2. 同步代码结束
+// 3. 微任务（Promise.then）
+// 4. 宏任务（setTimeout）
+// 5. 宏任务内部的微任务
+```
+
+## 三、宏任务队列的管理机制
+
+宏任务由浏览器（或 Node.js 的 libuv）的任务调度器管理，而不是 V8 直接管理。V8 只是"执行代码"的引擎，任务的调度和排队由外部运行时负责。
+
+以 `setTimeout(fn, 0)` 为例：
+
+```
+调用 setTimeout(fn, 0)
+  → 浏览器的 Web API（定时器模块）接管
+  → 0ms 后（实际最小延迟约 4ms），将 fn 包装成任务推入宏任务队列
+  → V8 的当前宏任务和所有微任务清空后
+  → 事件循环从宏任务队列取出 fn
+  → V8 执行 fn
+```
+
+**宏任务队列是 FIFO（先进先出）**：两个都延时 0ms 的 `setTimeout`，先注册的先执行：
+
+```javascript
+setTimeout(() => console.log("First"), 0);
+setTimeout(() => console.log("Second"), 0);
+// 始终输出：First → Second
+```
+
+## 四、setTimeout 的时序误区
+
+**`setTimeout(fn, 0)` 不意味着"立即"**
+
+即使延时设为 0，`fn` 也不能在当前同步代码执行期间运行。它必须等当前宏任务（包括微任务）全部完成，才能成为下一个宏任务：
+
+```javascript
+console.log("start");
+setTimeout(() => console.log("timeout"), 0);
+
+// 即使这个循环运行 1 秒，timeout 也不会在它结束前执行
+const start = Date.now();
+while (Date.now() - start < 1000) {}
+
+console.log("end");
+// 输出：start → end → timeout（1 秒后）
+```
+
+**延时是"最短等待时间"，不是"精确执行时间"**
+
+宏任务队列里如果已经有很多任务在排队，`fn` 要等到前面所有任务都完成才能执行，实际延迟会比设定值更长。
+
+**浏览器的最小延时约为 4ms**
+
+即使设置 `setTimeout(fn, 0)`，浏览器规范要求最小延迟约 4ms（嵌套 `setTimeout` 超过 5 层后更为明显）。
+
+## 五、宏任务与渲染的关系
+
+浏览器的渲染（重绘、回流）发生在每个宏任务结束后（不是每帧必然发生，由浏览器决定）。这个设计意味着：
+
+```javascript
+// 在一个宏任务里连续修改 DOM
+button.addEventListener("click", () => {
+  div.style.background = "red";     // 修改 1
+  div.style.width = "200px";        // 修改 2
+  div.style.height = "200px";       // 修改 3
+  // 这三次修改都在同一个宏任务里
+  // 浏览器只在宏任务结束后统一渲染，不会中间渲染三次
+});
+```
+
+这是 JavaScript 单线程模型的优点：一个宏任务里的多次 DOM 修改，浏览器会合并成一次渲染，避免闪烁。
+
+但如果一个宏任务执行时间过长（如超过 16ms），浏览器就无法在 60fps 的节奏下及时渲染，造成卡顿：
+
+```javascript
+// Bad Case：长宏任务阻塞渲染
+button.addEventListener("click", () => {
+  // 处理 10000 个数据项——这可能需要 50ms+
+  for (let i = 0; i < 10000; i++) {
+    heavyProcess(data[i]);
+  }
+  updateUI();
+});
+
+// Better：分批执行，让渲染穿插进来
+function processBatch(data, start) {
+  const batchSize = 100;
+  const end = Math.min(start + batchSize, data.length);
+
+  for (let i = start; i < end; i++) {
+    heavyProcess(data[i]);
+  }
+
+  if (end < data.length) {
+    setTimeout(() => processBatch(data, end), 0); // 下一个宏任务继续
+  } else {
+    updateUI();
+  }
+}
+processBatch(data, 0);
+```
+
+## 六、Node.js 的宏任务优先级
+
+浏览器里所有宏任务的优先级大体相同（除了不同队列有区分，如 requestAnimationFrame 有特殊处理）。Node.js 里的宏任务有更明确的优先级分层：
+
+```javascript
+// Node.js 宏任务优先级（由高到低）：
+// 1. process.nextTick（技术上是微任务，但优先级高于 Promise）
+// 2. Promise.then（微任务）
+// 3. setImmediate（宏任务，当前轮循环结束后）
+// 4. setTimeout(fn, 0)（宏任务，下一轮循环）
+// 5. I/O 回调
+
+setImmediate(() => console.log("setImmediate"));
+setTimeout(() => console.log("setTimeout"), 0);
+// Node.js 中输出顺序可能是：setImmediate → setTimeout
+// 但在 I/O 回调内部，setImmediate 总是先于 setTimeout
+```
+
+## 七、总结
+
+宏任务是事件循环的基本执行单元，每次事件循环从队列里取一个宏任务执行，完成后清空微任务，然后进入下一个宏任务。
+
+理解这套节奏，能解释：
+- 为什么 `setTimeout(fn, 0)` 不是"立即"执行（等待当前宏任务 + 微任务完成）
+- 为什么同一宏任务里的多次 DOM 修改不会导致多次渲染（宏任务结束才渲染）
+- 为什么长时间执行的同步代码会让页面卡顿（占用宏任务，阻塞渲染）
+- 如何用 `setTimeout` 分批处理长任务，让渲染穿插其中
+
+---
+
+**本系列其他文章：**
+- 上一篇：[内联缓存的秘密](/posts/v8-12/)
+- 下一篇：[微任务：执行时机、优先级与底层实现](/posts/v8-14/)
+- 相关：[async/await 的实现原理](/posts/v8-16/)

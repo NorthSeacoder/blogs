@@ -1,0 +1,232 @@
+<!DOCTYPE html><html lang="zh-CN" class="min-h-full"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Astro v5.16.5"><!-- 防闪烁脚本：在 DOM 解析前执行 --><script>
+      (function () {
+        const STORAGE_KEY = 'theme';
+        const stored = localStorage.getItem(STORAGE_KEY);
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        // 根据存储值或系统偏好设置主题
+        if (stored === 'dark' || (stored === 'system' && prefersDark) || (!stored && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      })();
+    </script><!-- 字体预加载 --><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"><title>我不知道的 React（04）— 生命周期演进与 Render 触发机制 | ?.log</title><meta name="description" content="React 的类组件生命周期曾经是面试高频题，很多人能背出从 componentWillMount 到 componentWillUnmount 的完整流程。但从 React 16.3 开始，三个 Will* 系列方法被标记为 UNSAFE_，到 React 18 已经不建议使…"><meta name="keywords" content="React, 生命周期, render, Hooks, useEffect, 性能优化, 我不知道的"><link rel="canonical" href="https://example.com/posts/react-04/"><link rel="alternate" type="application/rss+xml" title="RSS" href="/rss.xml"><meta property="og:title" content="我不知道的 React（04）— 生命周期演进与 Render 触发机制 | ?.log"><meta property="og:description" content="React 的类组件生命周期曾经是面试高频题，很多人能背出从 componentWillMount 到 componentWillUnmount 的完整流程。但从 React 16.3 开始，三个 Will* 系列方法被标记为 UNSAFE_，到 React 18 已经不建议使…"><meta property="og:type" content="article"><meta property="og:url" content="https://example.com/posts/react-04/"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="我不知道的 React（04）— 生命周期演进与 Render 触发机制 | ?.log"><meta name="twitter:description" content="React 的类组件生命周期曾经是面试高频题，很多人能背出从 componentWillMount 到 componentWillUnmount 的完整流程。但从 React 16.3 开始，三个 Will* 系列方法被标记为 UNSAFE_，到 React 18 已经不建议使…"><script type="application/ld+json">{JSON.stringify(jsonLd)}</script><link rel="stylesheet" href="/_astro/index.sfjfXeKE.css">
+<link rel="stylesheet" href="/_astro/_slug_.KigR83JL.css"></head> <body class="flex min-h-screen flex-col"> <!-- 跳过链接 --> <a href="#main" class="skip-link">跳到主要内容</a> <!-- 导航栏 - VSCode 标签页风格 --> <header class="
+        fixed inset-x-0 top-0 z-50
+        bg-[var(--color-titlebar)]
+        border-b border-[var(--color-border)]
+        transition-colors duration-200
+      "> <div class="main-container flex h-12 items-center justify-between"> <!-- Logo - 终端风格 --> <a href="/" class="
+            flex items-center gap-2
+            font-mono text-sm font-medium
+            text-[var(--color-text-primary)]
+            transition-opacity hover:opacity-80
+          "> <span class="text-[var(--color-accent)]">~/</span> <span>?.log</span> <span class="text-[var(--color-comment)]">$</span> </a> <!-- 导航标签页 --> <div class="flex items-center"> <nav aria-label="主导航" class="flex items-center"> <a href="/" class="tab font-mono text-xs"> 首页 </a><a href="/posts/" class="tab font-mono text-xs active" aria-current="page"> 文章 </a><a href="/series/" class="tab font-mono text-xs"> 系列 </a><a href="/tags/" class="tab font-mono text-xs"> 标签 </a><a href="/archives/" class="tab font-mono text-xs"> 归档 </a><a href="/about/" class="tab font-mono text-xs"> 关于 </a> </nav> <!-- 工具栏按钮组 --> <div class="flex items-center gap-1 ml-2"> <!-- 搜索按钮 --> <a href="/search/" class="
+                flex items-center justify-center
+                h-7 w-7 rounded
+                text-[var(--color-text-secondary)]
+                bg-[var(--color-surface)]
+                border border-[var(--color-border)]
+                transition-colors
+                hover:bg-[var(--color-surface-hover)]
+                hover:text-[var(--color-text-primary)]
+              " aria-label="搜索" title="搜索 (⌘K)"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:search">   <symbol id="ai:lucide:search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m21 21l-4.34-4.34"/><circle cx="11" cy="11" r="8"/></g></symbol><use href="#ai:lucide:search"></use>  </svg> </a> <!-- 主题切换 --> <button id="theme-toggle" type="button" aria-label="切换主题" class="
+    relative flex h-7 w-7 items-center justify-center
+    rounded
+    bg-[var(--color-surface)]
+    border border-[var(--color-border)]
+    text-[var(--color-text-secondary)]
+    transition-colors
+    hover:bg-[var(--color-surface-hover)]
+    hover:text-[var(--color-text-primary)]
+    focus:outline-none
+  " data-astro-cid-x3pjskd3> <!-- 太阳图标 (亮色模式) --> <svg id="icon-sun" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" data-astro-cid-x3pjskd3></path> </svg> <!-- 月亮图标 (暗色模式) --> <svg id="icon-moon" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" data-astro-cid-x3pjskd3></path> </svg> <!-- 系统图标 (跟随系统) --> <svg id="icon-system" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" data-astro-cid-x3pjskd3></path> </svg> </button> <script type="module">const m="theme",s=["light","dark","system"];function r(){if(typeof localStorage>"u")return"system";const e=localStorage.getItem(m);return s.includes(e)?e:"system"}function l(){return typeof window>"u"?"light":window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}function u(e){return e==="system"?l():e}function d(e){const n=u(e),t=document.documentElement;n==="dark"?t.classList.add("dark"):t.classList.remove("dark"),f(e)}function f(e){const n=document.getElementById("icon-sun"),t=document.getElementById("icon-moon"),o=document.getElementById("icon-system");if(!n||!t||!o)return;[n,t,o].forEach(i=>{i.style.opacity="0",i.style.transform="scale(0.5) rotate(-180deg)"});let c;switch(e){case"light":c=n;break;case"dark":c=t;break;default:c=o}requestAnimationFrame(()=>{c.style.opacity="1",c.style.transform="scale(1) rotate(0deg)"})}function g(){const e=r(),t=(s.indexOf(e)+1)%s.length,o=s[t];localStorage.setItem(m,o),d(o)}function a(){const e=r();d(e),document.getElementById("theme-toggle")?.addEventListener("click",g),window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{r()==="system"&&d("system")})}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",a):a();document.addEventListener("astro:after-swap",a);</script>  </div> </div> </div> </header> <!-- 主内容区 --> <main id="main" class="main-container-wide flex-1 pb-16 pt-20">   <div class="reading-progress-container" aria-hidden="true" data-astro-cid-mu6cnre2> <div class="reading-progress-bar" id="reading-progress" data-astro-cid-mu6cnre2></div> </div> <script type="module">function a(){const e=document.getElementById("reading-progress"),n=document.querySelector("article");if(!e||!n)return;function o(){const r=n.getBoundingClientRect(),s=r.top+window.scrollY,l=r.height,i=window.innerHeight,d=window.scrollY,c=s-i/2,g=s+l-i/2,u=Math.min(Math.max((d-c)/(g-c),0),1);e.style.transform=`scaleX(${u})`}let t=!1;window.addEventListener("scroll",()=>{t||(requestAnimationFrame(()=>{o(),t=!1}),t=!0)}),o()}a();document.addEventListener("astro:after-swap",a);</script>   <div class="relative lg:grid lg:grid-cols-[1fr_220px] lg:gap-8 xl:grid-cols-[1fr_260px]"> <article class="animate-fade-in min-w-0"> <!-- 文章头部 --> <header class="mb-8"> <!-- 返回链接 --> <a href="/posts/" class="
+            group mb-6 inline-flex items-center gap-2
+            text-sm font-medium text-text-secondary
+            transition-colors hover:text-accent
+          "> <svg width="1em" height="1em" class="transition-transform group-hover:-translate-x-1" style="width: 1rem; height: 1rem;" data-icon="lucide:arrow-left">   <symbol id="ai:lucide:arrow-left" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m12 19l-7-7l7-7m7 7H5"/></symbol><use href="#ai:lucide:arrow-left"></use>  </svg> <span>返回文章列表</span> </a> <!-- 元信息 --> <div class="mb-4 flex flex-wrap items-center gap-4 text-sm text-text-secondary"> <!-- 发布日期 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:calendar">   <symbol id="ai:lucide:calendar" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M8 2v4m8-4v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></g></symbol><use href="#ai:lucide:calendar"></use>  </svg> <time datetime="2022-05-20T00:00:00.000Z"> 2022年5月20日 </time> </div> <!-- 阅读时间 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:clock">   <symbol id="ai:lucide:clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="10"/></g></symbol><use href="#ai:lucide:clock"></use>  </svg> <span>12 min read</span> </div> <!-- 更新日期 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:refresh-cw">   <symbol id="ai:lucide:refresh-cw" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9a9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5m5 4a9 9 0 0 1-9 9a9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></g></symbol><use href="#ai:lucide:refresh-cw"></use>  </svg> <span>更新于 2026年3月6日</span> </div> </div> <div class="mb-4 flex flex-wrap items-center gap-2 font-mono text-xs"> <a href="/series/React/" class="
+                  inline-flex items-center gap-1 rounded px-2 py-1
+                  bg-[var(--color-accent)]/10 text-[var(--color-accent)]
+                  transition-colors hover:bg-[var(--color-accent)]/15
+                "> <svg width="1em" height="1em" class style="width: 0.75rem; height: 0.75rem;" data-icon="lucide:folder">   <symbol id="ai:lucide:folder" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol><use href="#ai:lucide:folder"></use>  </svg> <span>我不知道的 React</span> </a> </div> <!-- 标题 --> <h1 class="text-3xl font-bold leading-tight text-text-primary sm:text-4xl"> 我不知道的 React（04）— 生命周期演进与 Render 触发机制 </h1> <!-- 描述 --> <p class="mt-4 text-lg leading-relaxed text-text-secondary"> React 的类组件生命周期曾经是面试高频题，很多人能背出从 componentWillMount 到 componentWillUnmount 的完整流程。但从 React 16.3 开始，三个 Will* 系列方法被标记为 UNSAFE_，到 React 18 已经不建议使… </p> <!-- 标签 --> <div class="mt-6 flex flex-wrap gap-2 font-mono text-xs" aria-label="标签"> <a href="/tags/React/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"React"</span> </a><a href="/tags/~E7~94~9F~E5~91~BD~E5~91~A8~E6~9C~9F/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"生命周期"</span> </a><a href="/tags/render/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"render"</span> </a><a href="/tags/Hooks/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"Hooks"</span> </a><a href="/tags/useEffect/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"useEffect"</span> </a><a href="/tags/~E6~80~A7~E8~83~BD~E4~BC~98~E5~8C~96/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"性能优化"</span> </a><a href="/tags/~E6~88~91~E4~B8~8D~E7~9F~A5~E9~81~93~E7~9A~84/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"我不知道的"</span> </a> </div> </header> <!-- 封面图 -->  <!-- 文章内容 --> <div class="
+          prose prose-lg
+          prose-headings:font-bold
+          prose-a:text-accent prose-a:no-underline hover:prose-a:underline
+          prose-img:rounded prose-img:shadow-lg
+          prose-code:before:content-none prose-code:after:content-none
+          max-w-none
+        "> <h1 id="我不知道的-react04-生命周期演进与-render-触发机制"><a href="#我不知道的-react04-生命周期演进与-render-触发机制">我不知道的 React（04）— 生命周期演进与 Render 触发机制</a></h1>
+<p>React 的类组件生命周期曾经是面试高频题，很多人能背出从 <code>componentWillMount</code> 到 <code>componentWillUnmount</code> 的完整流程。但从 React 16.3 开始，三个 <code>Will*</code> 系列方法被标记为 <code>UNSAFE_</code>，到 React 18 已经不建议使用。</p>
+<p>为什么要废弃它们？标准答案是”不安全”，但具体不安全在哪里，和 Fiber 架构到底有什么关系，很多人说不清楚。另一个更普遍的误区是把 <code>render</code> 等同于 DOM 更新——这个认知偏差直接影响性能优化的方向。</p>
+<h2 id="一那些被废弃的生命周期"><a href="#一那些被废弃的生命周期">一、那些被废弃的生命周期</a></h2>
+<p>被废弃的主要是三个方法：<code>componentWillMount</code>、<code>componentWillUpdate</code>、<code>componentWillReceiveProps</code>。</p>
+<p>它们有一个共同特征：都带 <code>Will</code>，都在某件事”即将发生”之前执行。在 React 15 的同步渲染时代，这没什么问题——渲染是线性的，<code>Will</code> 之后必然跟着 <code>Did</code>，一一对应。</p>
+<p><strong>但 Fiber 打破了这个假设。</strong></p>
+<p>很多人以为 <code>componentWillMount</code> 是发请求的好时机——毕竟名字叫”组件将要挂载”，提前发请求不是能更快拿到数据吗？但实际上，在 Fiber 架构下，这个方法可能被调用多次，也可能被调用后又不执行对应的 <code>componentDidMount</code>。在这里发请求，可能产生重复请求、状态不一致、甚至内存泄漏。</p>
+<h2 id="二fiber-与生命周期的矛盾"><a href="#二fiber-与生命周期的矛盾">二、Fiber 与生命周期的矛盾</a></h2>
+<p>问题的关键在于 Fiber 引入的<strong>两阶段渲染模型</strong>。</p>
+<p>React 的更新过程分成两个截然不同的阶段：Render Phase 和 Commit Phase。Render Phase 负责计算变化（调用组件函数、Diff 虚拟 DOM），Commit Phase 负责把变化应用到真实 DOM。</p>
+<p>在 React 15 中，整个过程是同步的，一旦开始就必须走完。但 Fiber 让 Render Phase 变成了<strong>可中断的</strong>。浏览器需要处理用户输入？Render Phase 暂停，让出主线程。用户交互处理完了？Render Phase 从断点恢复，或者干脆从头再来。</p>
+<p>说白了，Render Phase 的执行不再是”有且仅有一次”。</p>
+<p>那些 <code>Will*</code> 方法恰好都在 Render Phase 执行。当渲染被中断并重新开始时，它们就会被再次调用。下面这个例子展示了这个问题：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="jsx"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">class</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> UserProfile</span><span style="color:#D73A49;--shiki-dark:#F97583"> extends</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> React</span><span style="color:#24292E;--shiki-dark:#E1E4E8">.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">Component</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">  componentWillMount</span><span style="color:#24292E;--shiki-dark:#E1E4E8">() {</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">    // 危险：Fiber 下可能触发多次</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">    fetchUserData</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#005CC5;--shiki-dark:#79B8FF">this</span><span style="color:#24292E;--shiki-dark:#E1E4E8">.props.userId);</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">  componentDidMount</span><span style="color:#24292E;--shiki-dark:#E1E4E8">() {</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">    // 安全：Commit Phase 只执行一次</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">    fetchUserData</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#005CC5;--shiki-dark:#79B8FF">this</span><span style="color:#24292E;--shiki-dark:#E1E4E8">.props.userId);</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<p><code>componentWillMount</code> 里的请求可能发出两次甚至更多次，而 <code>componentDidMount</code> 只会在 DOM 真正挂载后执行一次。很多人会忽略的细节是：即便在 React 15 中，<code>componentWillMount</code> 里发请求也没有性能优势——请求是异步的，不可能在 <code>render</code> 之前拿到数据。所以把请求放在 <code>componentDidMount</code> 才是正确选择，这与 Fiber 无关。</p>
+<p>同样的道理适用于 <code>componentWillReceiveProps</code>。它经常被用来”根据新 Props 派生 State”，但在 Fiber 下也面临多次调用的风险。更重要的是，这种”收到 Props 就更新 State”的模式本身就容易导致状态来源混乱。</p>
+<h2 id="三现代替代方案"><a href="#三现代替代方案">三、现代替代方案</a></h2>
+<p>React 提供了三种机制来替代被废弃的方法，但它们不是简单的”改了个名字”。</p>
+<p><strong><code>static getDerivedStateFromProps</code></strong> 替代了 <code>componentWillReceiveProps</code> 的派生状态场景。它是一个静态方法，拿不到 <code>this</code>，只能根据传入的 <code>props</code> 和 <code>state</code> 返回新的状态对象或 <code>null</code>。这个设计是刻意的——强制开发者把派生状态写成纯函数，不允许产生副作用。</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="jsx"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">class</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> SearchResults</span><span style="color:#D73A49;--shiki-dark:#F97583"> extends</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> React</span><span style="color:#24292E;--shiki-dark:#E1E4E8">.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">Component</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  static</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> getDerivedStateFromProps</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#E36209;--shiki-dark:#FFAB70">props</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#E36209;--shiki-dark:#FFAB70">state</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    if</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> (props.query </span><span style="color:#D73A49;--shiki-dark:#F97583">!==</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> state.prevQuery) {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">      return</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> { prevQuery: props.query, results: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">null</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> };</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    }</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    return</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> null</span><span style="color:#24292E;--shiki-dark:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<p>这段代码做的事情很简单：当搜索词变了，清空旧结果。因为它是纯函数，Render Phase 调用多少次都不会有副作用。</p>
+<p><strong><code>getSnapshotBeforeUpdate</code></strong> 替代了 <code>componentWillUpdate</code> 中读取 DOM 信息的场景。它在 DOM 更新前被调用（但属于 Commit Phase），返回值会传给 <code>componentDidUpdate</code>，常见用途是记录滚动位置。</p>
+<p><strong><code>useEffect</code></strong> 是函数组件中处理副作用的核心手段。但必须说清楚一点：<strong><code>useEffect</code> 不是 <code>componentDidMount</code> 的翻版</strong>。</p>
+<p>换句话说，<code>componentDidMount</code> 在 DOM 挂载后同步执行，而 <code>useEffect</code> 是在浏览器完成绘制之后异步执行的。这意味着 <code>useEffect</code> 不会阻塞页面渲染，但也意味着它执行的时机更晚。对于大多数副作用来说，这个差异无关紧要；但如果需要在绘制前同步读取或修改 DOM（比如测量布局），应该用 <code>useLayoutEffect</code>。</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="jsx"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">function</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> UserProfile</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({ </span><span style="color:#E36209;--shiki-dark:#FFAB70">userId</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> }) {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  const</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> [</span><span style="color:#005CC5;--shiki-dark:#79B8FF">user</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">setUser</span><span style="color:#24292E;--shiki-dark:#E1E4E8">] </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> useState</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#005CC5;--shiki-dark:#79B8FF">null</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">  useEffect</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(() </span><span style="color:#D73A49;--shiki-dark:#F97583">=&gt;</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    let</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> cancelled </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> false</span><span style="color:#24292E;--shiki-dark:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">    fetchUser</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(userId).</span><span style="color:#6F42C1;--shiki-dark:#B392F0">then</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#E36209;--shiki-dark:#FFAB70">data</span><span style="color:#D73A49;--shiki-dark:#F97583"> =&gt;</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">      if</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> (</span><span style="color:#D73A49;--shiki-dark:#F97583">!</span><span style="color:#24292E;--shiki-dark:#E1E4E8">cancelled) </span><span style="color:#6F42C1;--shiki-dark:#B392F0">setUser</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(data);</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    });</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    return</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> () </span><span style="color:#D73A49;--shiki-dark:#F97583">=&gt;</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> { cancelled </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> true</span><span style="color:#24292E;--shiki-dark:#E1E4E8">; };</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  }, [userId]);</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<p>这段代码展示了 <code>useEffect</code> 的关键特征：通过依赖数组 <code>[userId]</code> 声明”何时重新执行”，通过返回的清理函数避免过期请求更新状态。这和类组件生命周期的思维方式完全不同——不再是”挂载时做什么、更新时做什么”，而是”这个副作用依赖什么数据”。</p>
+<h2 id="四render-的本质不是-dom-更新而是-ui-描述"><a href="#四render-的本质不是-dom-更新而是-ui-描述">四、Render 的本质：不是 DOM 更新，而是 UI 描述</a></h2>
+<p>这是一个很容易搞混的概念。很多人以为组件 <code>render</code> 了，DOM 就更新了。</p>
+<p><strong>但 render 只是生成一棵新的虚拟 DOM 树，描述界面”应该长什么样”。真正的 DOM 操作发生在后面的 Commit Phase。</strong></p>
+<p>无论是类组件的 <code>render()</code> 方法还是函数组件的函数体本身，它们的职责都是同一个：接收 <code>props</code> 和 <code>state</code>，返回 React 元素（本质上是普通的 JavaScript 对象）。这个过程纯粹是计算，不涉及任何 DOM 操作。</p>
+<p>React 拿到这棵新树后，会和上一次的树做 Diff，找出最小差异，然后在 Commit Phase 只更新那些真正变了的 DOM 节点。</p>
+<p>如果你只记住一句话：<strong>render 的成本是 JavaScript 计算，不是 DOM 操作。</strong> 不必要的 render 浪费的是 CPU 时间（虚拟 DOM 创建和 Diff），不是 DOM 重绘时间。当然，当组件树很大时，这个计算开销也不容小觑。</p>
+<h2 id="五什么会触发-re-render"><a href="#五什么会触发-re-render">五、什么会触发 re-render</a></h2>
+<p>一个组件会在以下五种情况下重新渲染。</p>
+<p><strong>第一，首次挂载。</strong> 组件第一次出现在组件树中，必然需要一次完整的 render。</p>
+<p><strong>第二，自身状态变更。</strong> 调用 <code>setState</code> 或 <code>useState</code> 的更新函数后，React 会安排一次 re-render。</p>
+<p><strong>第三，Props 变化。</strong> 当父组件传入的 props 发生变化（引用不同），子组件会 re-render。</p>
+<p><strong>第四，Context 变化。</strong> 如果组件消费了某个 Context，当该 Context 的值更新时，所有消费它的组件都会 re-render，不管它们是否真正用到了变化的那部分数据。</p>
+<p><strong>第五，也是最容易被低估的：父组件重渲染。</strong></p>
+<p>很多人以为子组件只有在 props 变了的时候才会 re-render。但实际上，<strong>只要父组件 re-render，它的所有子组件默认都会 re-render，即使 props 完全没变</strong>。</p>
+<p>下面这个例子能直观地说明问题：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="jsx"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">function</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> Parent</span><span style="color:#24292E;--shiki-dark:#E1E4E8">() {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  const</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> [</span><span style="color:#005CC5;--shiki-dark:#79B8FF">count</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">setCount</span><span style="color:#24292E;--shiki-dark:#E1E4E8">] </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> useState</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#005CC5;--shiki-dark:#79B8FF">0</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  console.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">log</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;Parent render&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  return</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> (</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">div</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">      &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">button</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> onClick</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8">{() </span><span style="color:#D73A49;--shiki-dark:#F97583">=&gt;</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> setCount</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#E36209;--shiki-dark:#FFAB70">c</span><span style="color:#D73A49;--shiki-dark:#F97583"> =&gt;</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> c </span><span style="color:#D73A49;--shiki-dark:#F97583">+</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 1</span><span style="color:#24292E;--shiki-dark:#E1E4E8">)}&gt;+1&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">button</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">      &lt;</span><span style="color:#005CC5;--shiki-dark:#79B8FF">Child</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> name</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&quot;固定值&quot;</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> /&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    &lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">div</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  );</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">function</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> Child</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({ </span><span style="color:#E36209;--shiki-dark:#FFAB70">name</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> }) {</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  console.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">log</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;Child render&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  return</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">span</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;{name}&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">span</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<p>每次点击按钮，<code>Parent</code> 的 <code>count</code> 变化导致 re-render。虽然传给 <code>Child</code> 的 <code>name</code> 始终是 <code>&quot;固定值&quot;</code>，但控制台会同时打印 <code>Parent render</code> 和 <code>Child render</code>。</p>
+<p>这就是 React 的默认行为：<strong>父组件 re-render 时，React 不会检查子组件的 props 是否变化，而是直接递归渲染整棵子树。</strong> React 团队认为，对于大多数应用来说，虚拟 DOM 的 Diff 成本足够低，不值得在每个组件上都做 props 比较。</p>
+<h2 id="六这意味着什么"><a href="#六这意味着什么">六、这意味着什么</a></h2>
+<p>理解了 render 的触发机制，性能优化的方向就清楚了：<strong>减少不必要的 render 次数，或者降低单次 render 的计算量。</strong></p>
+<p><code>React.memo</code> 可以包裹函数组件，让它在 props 没有变化（浅比较）时跳过 re-render：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="jsx"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> Child</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> React.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">memo</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#D73A49;--shiki-dark:#F97583">function</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> Child</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({ </span><span style="color:#E36209;--shiki-dark:#FFAB70">name</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> }) {</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  console.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">log</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;Child render&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  return</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">span</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;{name}&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">span</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">});</span></span></code></pre>
+<p>加上 <code>React.memo</code> 后，上面例子中的 <code>Child</code> 在 <code>name</code> 不变时就不会重渲染了。</p>
+<p>但这里有个陷阱。如果父组件每次 render 都创建新的对象或函数作为 props，浅比较永远返回 <code>false</code>，<code>React.memo</code> 就形同虚设。这时候需要 <code>useMemo</code> 和 <code>useCallback</code> 来稳定引用。</p>
+<p>关于 <code>useMemo</code>、<code>useCallback</code> 的具体用法和常见误区，本系列第 06 篇会详细展开，这里不赘述。只需要记住一个判断标准：<strong>先用 React DevTools Profiler 确认性能瓶颈在哪里，再决定是否需要优化。</strong> 过早优化往往增加代码复杂度却没有实际收益。</p>
+<h2 id="七总结"><a href="#七总结">七、总结</a></h2>
+<p>React 的生命周期演进不是随意的 API 改名，而是 Fiber 架构引起的必然调整。Render Phase 可中断这一特性，直接宣判了 <code>Will*</code> 方法的死刑。</p>
+<p>现代 React 的副作用管理从”在特定时间点执行”转变为”声明依赖关系，让 React 决定何时执行”。<code>useEffect</code> 代表的不只是一个新 API，而是一种新的思维模型。</p>
+<p>render 本身只是 UI 描述的生成过程，不等于 DOM 更新。父组件 re-render 默认触发所有子组件 re-render，这是 React 的设计选择而非 bug。</p>
+<hr/>
+<p><strong>本系列其他文章：</strong></p>
+<ul>
+<li>上一篇：<a href="/posts/react-03/">从 JSX 到 DOM — 渲染流程与 Diff 算法</a></li>
+<li>下一篇：<a href="/posts/react-05/">useState — 批量更新与 Hook 底层机制</a></li>
+</ul>
+<p><strong>相关主题：</strong></p>
+<ul>
+<li>Fiber 架构详解：<a href="/posts/react-02/">可中断渲染与优先级调度</a></li>
+<li>useEffect 等核心 Hooks：<a href="/posts/react-06/">核心 Hooks 详解</a></li>
+</ul> </div> <!-- 文章底部 --> <footer class="mt-12 border-t border-border pt-8"> <!-- 分享提示 --> <div class="code-window"> <div class="code-window-titlebar"> <span class="flex-1 text-center font-mono text-xs text-[var(--color-text-secondary)]">share.ts</span> </div> <div class="p-4 font-mono text-sm"> <p class="syntax-comment">// 觉得这篇文章有帮助？</p> <p class="syntax-comment">// 欢迎分享给更多人</p> <p class="mt-4"> <span class="syntax-keyword">export const</span> <span class="syntax-variable">&nbsp;subscribe</span> <span class="text-[var(--color-text-primary)]">&nbsp;=&nbsp;</span> <a href="/rss.xml" class="syntax-string hover:underline">"/rss.xml"</a> <span class="text-[var(--color-text-primary)]">;</span> </p> </div> </div> </footer> </article> <!-- TOC 侧边栏 - 仅在大屏幕显示 --> <aside class="hidden lg:block"> <nav class="toc-container" aria-label="文章目录" data-astro-cid-xvrfupwn><div class="toc-header" data-astro-cid-xvrfupwn><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-xvrfupwn><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7" data-astro-cid-xvrfupwn></path></svg><span data-astro-cid-xvrfupwn>目录</span></div><ul class="toc-list" data-astro-cid-xvrfupwn><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#一那些被废弃的生命周期" class="toc-link" data-slug="一那些被废弃的生命周期" data-astro-cid-xvrfupwn>一、那些被废弃的生命周期</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#二fiber-与生命周期的矛盾" class="toc-link" data-slug="二fiber-与生命周期的矛盾" data-astro-cid-xvrfupwn>二、Fiber 与生命周期的矛盾</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#三现代替代方案" class="toc-link" data-slug="三现代替代方案" data-astro-cid-xvrfupwn>三、现代替代方案</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#四render-的本质不是-dom-更新而是-ui-描述" class="toc-link" data-slug="四render-的本质不是-dom-更新而是-ui-描述" data-astro-cid-xvrfupwn>四、Render 的本质：不是 DOM 更新，而是 UI 描述</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#五什么会触发-re-render" class="toc-link" data-slug="五什么会触发-re-render" data-astro-cid-xvrfupwn>五、什么会触发 re-render</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#六这意味着什么" class="toc-link" data-slug="六这意味着什么" data-astro-cid-xvrfupwn>六、这意味着什么</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#七总结" class="toc-link" data-slug="七总结" data-astro-cid-xvrfupwn>七、总结</a></li></ul></nav><script type="module">function s(){const n=document.querySelectorAll(".toc-link"),c=document.querySelectorAll("article h2[id], article h3[id]");if(n.length===0||c.length===0)return;const i=new IntersectionObserver(t=>{t.forEach(o=>{if(o.isIntersecting){const r=o.target.getAttribute("id");n.forEach(e=>{e.classList.toggle("active",e.getAttribute("data-slug")===r)})}})},{rootMargin:"-80px 0px -80% 0px",threshold:0});c.forEach(t=>i.observe(t)),n.forEach(t=>{t.addEventListener("click",o=>{o.preventDefault();const r=t.getAttribute("data-slug"),e=document.getElementById(r||"");if(e){const a=e.getBoundingClientRect().top+window.scrollY-100;window.scrollTo({top:a,behavior:"smooth"})}})})}s();document.addEventListener("astro:after-swap",s);</script> </aside> </div>  <script type="module">function i(){document.querySelectorAll("pre:has(code)").forEach(t=>{if(t.querySelector(".code-header"))return;const s=t.querySelector("code");if(!s)return;const r=Array.from(s.classList).find(a=>a.startsWith("language-")),d=r?r.replace("language-",""):"text",c=document.createElement("div");c.className="code-header";const n=document.createElement("span");n.className="code-lang",n.textContent=d.toUpperCase();const e=document.createElement("button");e.className="code-copy-btn",e.setAttribute("aria-label","复制代码"),e.innerHTML=`
+        <svg class="copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </svg>
+        <svg class="check-icon hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      `,e.addEventListener("click",async()=>{const a=s.textContent||"";try{await navigator.clipboard.writeText(a),e.classList.add("copied"),e.querySelector(".copy-icon")?.classList.add("hidden"),e.querySelector(".check-icon")?.classList.remove("hidden"),setTimeout(()=>{e.classList.remove("copied"),e.querySelector(".copy-icon")?.classList.remove("hidden"),e.querySelector(".check-icon")?.classList.add("hidden")},2e3)}catch(l){console.error("复制失败:",l)}}),c.appendChild(n),c.appendChild(e);const o=document.createElement("div");o.className="code-block-wrapper",t.parentNode?.insertBefore(o,t),o.appendChild(c),o.appendChild(t)})}i();document.addEventListener("astro:after-swap",i);</script>   <button id="back-to-top" class="back-to-top" aria-label="返回顶部" title="返回顶部" data-astro-cid-wlspcwf4> <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-wlspcwf4> <path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" data-astro-cid-wlspcwf4></path> </svg> </button> <script type="module">function o(){const e=document.getElementById("back-to-top");if(!e)return;function i(){window.scrollY>400?e.classList.add("visible"):e.classList.remove("visible")}e.addEventListener("click",()=>{window.scrollTo({top:0,behavior:"smooth"})});let t=!1;window.addEventListener("scroll",()=>{t||(requestAnimationFrame(()=>{i(),t=!1}),t=!0)}),i()}o();document.addEventListener("astro:after-swap",o);</script>   </main> <!-- 页脚 - VSCode 状态栏风格 --> <footer class="
+        border-t border-[var(--color-border)]
+        bg-[var(--color-surface)]
+        py-6
+        text-xs font-mono text-[var(--color-text-secondary)]
+      "> <div class="main-container"> <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"> <!-- 版权信息 --> <p class="text-center sm:text-left"> <span class="syntax-comment">// </span> <span class="syntax-keyword">const</span> <span class="syntax-variable"> copyright</span> <span> = </span> <span class="syntax-string">"2026 NorthSeacoder"</span> </p> <!-- 链接 --> <div class="flex items-center justify-center gap-4 sm:justify-end"> <a href="/rss.xml" class="
+                flex items-center gap-1.5
+                transition-colors
+                hover:text-[var(--color-accent)]
+              " aria-label="RSS 订阅"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:rss">   <symbol id="ai:lucide:rss" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></g></symbol><use href="#ai:lucide:rss"></use>  </svg> <span>RSS</span> </a> <a href="https://github.com/NorthSeacoder" target="_blank" rel="noopener noreferrer" class="
+                flex items-center gap-1.5
+                transition-colors
+                hover:text-[var(--color-accent)]
+              " aria-label="GitHub"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:github">   <symbol id="ai:lucide:github" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5c.08-1.25-.27-2.48-1-3.5c.28-1.15.28-2.35 0-3.5c0 0-1 0-3 1.5c-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.4 5.4 0 0 0 4 9c0 3.5 3 5.5 6 5.5c-.39.49-.68 1.05-.85 1.65S8.93 17.38 9 18v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></g></symbol><use href="#ai:lucide:github"></use>  </svg> <span>GitHub</span> </a> </div> </div> </div> </footer> </body></html>

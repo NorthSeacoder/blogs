@@ -1,0 +1,237 @@
+<!DOCTYPE html><html lang="zh-CN" class="min-h-full"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Astro v5.16.5"><!-- 防闪烁脚本：在 DOM 解析前执行 --><script>
+      (function () {
+        const STORAGE_KEY = 'theme';
+        const stored = localStorage.getItem(STORAGE_KEY);
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        // 根据存储值或系统偏好设置主题
+        if (stored === 'dark' || (stored === 'system' && prefersDark) || (!stored && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      })();
+    </script><!-- 字体预加载 --><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"><title>我不知道的 V8（05）— 为什么不建议使用 delete 删除属性 | ?.log</title><meta name="description" content="&#34;delete 会破坏 V8 优化&#34;——这个建议在前端社区流传很广，但通常没有解释背后的原因。知道&#34;不要用&#34;和知道&#34;为什么不要用&#34;是两回事。后者能帮你在真正需要用 delete 的场景里，做出更准确的判断。"><meta name="keywords" content="V8, delete, 隐藏类, 慢属性, 性能优化, 对象属性, 我不知道的"><link rel="canonical" href="https://example.com/posts/v8-05/"><link rel="alternate" type="application/rss+xml" title="RSS" href="/rss.xml"><meta property="og:title" content="我不知道的 V8（05）— 为什么不建议使用 delete 删除属性 | ?.log"><meta property="og:description" content="&#34;delete 会破坏 V8 优化&#34;——这个建议在前端社区流传很广，但通常没有解释背后的原因。知道&#34;不要用&#34;和知道&#34;为什么不要用&#34;是两回事。后者能帮你在真正需要用 delete 的场景里，做出更准确的判断。"><meta property="og:type" content="article"><meta property="og:url" content="https://example.com/posts/v8-05/"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="我不知道的 V8（05）— 为什么不建议使用 delete 删除属性 | ?.log"><meta name="twitter:description" content="&#34;delete 会破坏 V8 优化&#34;——这个建议在前端社区流传很广，但通常没有解释背后的原因。知道&#34;不要用&#34;和知道&#34;为什么不要用&#34;是两回事。后者能帮你在真正需要用 delete 的场景里，做出更准确的判断。"><script type="application/ld+json">{JSON.stringify(jsonLd)}</script><link rel="stylesheet" href="/_astro/index.sfjfXeKE.css">
+<link rel="stylesheet" href="/_astro/_slug_.KigR83JL.css"></head> <body class="flex min-h-screen flex-col"> <!-- 跳过链接 --> <a href="#main" class="skip-link">跳到主要内容</a> <!-- 导航栏 - VSCode 标签页风格 --> <header class="
+        fixed inset-x-0 top-0 z-50
+        bg-[var(--color-titlebar)]
+        border-b border-[var(--color-border)]
+        transition-colors duration-200
+      "> <div class="main-container flex h-12 items-center justify-between"> <!-- Logo - 终端风格 --> <a href="/" class="
+            flex items-center gap-2
+            font-mono text-sm font-medium
+            text-[var(--color-text-primary)]
+            transition-opacity hover:opacity-80
+          "> <span class="text-[var(--color-accent)]">~/</span> <span>?.log</span> <span class="text-[var(--color-comment)]">$</span> </a> <!-- 导航标签页 --> <div class="flex items-center"> <nav aria-label="主导航" class="flex items-center"> <a href="/" class="tab font-mono text-xs"> 首页 </a><a href="/posts/" class="tab font-mono text-xs active" aria-current="page"> 文章 </a><a href="/series/" class="tab font-mono text-xs"> 系列 </a><a href="/tags/" class="tab font-mono text-xs"> 标签 </a><a href="/archives/" class="tab font-mono text-xs"> 归档 </a><a href="/about/" class="tab font-mono text-xs"> 关于 </a> </nav> <!-- 工具栏按钮组 --> <div class="flex items-center gap-1 ml-2"> <!-- 搜索按钮 --> <a href="/search/" class="
+                flex items-center justify-center
+                h-7 w-7 rounded
+                text-[var(--color-text-secondary)]
+                bg-[var(--color-surface)]
+                border border-[var(--color-border)]
+                transition-colors
+                hover:bg-[var(--color-surface-hover)]
+                hover:text-[var(--color-text-primary)]
+              " aria-label="搜索" title="搜索 (⌘K)"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:search">   <symbol id="ai:lucide:search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m21 21l-4.34-4.34"/><circle cx="11" cy="11" r="8"/></g></symbol><use href="#ai:lucide:search"></use>  </svg> </a> <!-- 主题切换 --> <button id="theme-toggle" type="button" aria-label="切换主题" class="
+    relative flex h-7 w-7 items-center justify-center
+    rounded
+    bg-[var(--color-surface)]
+    border border-[var(--color-border)]
+    text-[var(--color-text-secondary)]
+    transition-colors
+    hover:bg-[var(--color-surface-hover)]
+    hover:text-[var(--color-text-primary)]
+    focus:outline-none
+  " data-astro-cid-x3pjskd3> <!-- 太阳图标 (亮色模式) --> <svg id="icon-sun" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" data-astro-cid-x3pjskd3></path> </svg> <!-- 月亮图标 (暗色模式) --> <svg id="icon-moon" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" data-astro-cid-x3pjskd3></path> </svg> <!-- 系统图标 (跟随系统) --> <svg id="icon-system" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" data-astro-cid-x3pjskd3></path> </svg> </button> <script type="module">const m="theme",s=["light","dark","system"];function r(){if(typeof localStorage>"u")return"system";const e=localStorage.getItem(m);return s.includes(e)?e:"system"}function l(){return typeof window>"u"?"light":window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}function u(e){return e==="system"?l():e}function d(e){const n=u(e),t=document.documentElement;n==="dark"?t.classList.add("dark"):t.classList.remove("dark"),f(e)}function f(e){const n=document.getElementById("icon-sun"),t=document.getElementById("icon-moon"),o=document.getElementById("icon-system");if(!n||!t||!o)return;[n,t,o].forEach(i=>{i.style.opacity="0",i.style.transform="scale(0.5) rotate(-180deg)"});let c;switch(e){case"light":c=n;break;case"dark":c=t;break;default:c=o}requestAnimationFrame(()=>{c.style.opacity="1",c.style.transform="scale(1) rotate(0deg)"})}function g(){const e=r(),t=(s.indexOf(e)+1)%s.length,o=s[t];localStorage.setItem(m,o),d(o)}function a(){const e=r();d(e),document.getElementById("theme-toggle")?.addEventListener("click",g),window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{r()==="system"&&d("system")})}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",a):a();document.addEventListener("astro:after-swap",a);</script>  </div> </div> </div> </header> <!-- 主内容区 --> <main id="main" class="main-container-wide flex-1 pb-16 pt-20">   <div class="reading-progress-container" aria-hidden="true" data-astro-cid-mu6cnre2> <div class="reading-progress-bar" id="reading-progress" data-astro-cid-mu6cnre2></div> </div> <script type="module">function a(){const e=document.getElementById("reading-progress"),n=document.querySelector("article");if(!e||!n)return;function o(){const r=n.getBoundingClientRect(),s=r.top+window.scrollY,l=r.height,i=window.innerHeight,d=window.scrollY,c=s-i/2,g=s+l-i/2,u=Math.min(Math.max((d-c)/(g-c),0),1);e.style.transform=`scaleX(${u})`}let t=!1;window.addEventListener("scroll",()=>{t||(requestAnimationFrame(()=>{o(),t=!1}),t=!0)}),o()}a();document.addEventListener("astro:after-swap",a);</script>   <div class="relative lg:grid lg:grid-cols-[1fr_220px] lg:gap-8 xl:grid-cols-[1fr_260px]"> <article class="animate-fade-in min-w-0"> <!-- 文章头部 --> <header class="mb-8"> <!-- 返回链接 --> <a href="/posts/" class="
+            group mb-6 inline-flex items-center gap-2
+            text-sm font-medium text-text-secondary
+            transition-colors hover:text-accent
+          "> <svg width="1em" height="1em" class="transition-transform group-hover:-translate-x-1" style="width: 1rem; height: 1rem;" data-icon="lucide:arrow-left">   <symbol id="ai:lucide:arrow-left" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m12 19l-7-7l7-7m7 7H5"/></symbol><use href="#ai:lucide:arrow-left"></use>  </svg> <span>返回文章列表</span> </a> <!-- 元信息 --> <div class="mb-4 flex flex-wrap items-center gap-4 text-sm text-text-secondary"> <!-- 发布日期 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:calendar">   <symbol id="ai:lucide:calendar" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M8 2v4m8-4v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></g></symbol><use href="#ai:lucide:calendar"></use>  </svg> <time datetime="2024-03-01T00:00:00.000Z"> 2024年3月1日 </time> </div> <!-- 阅读时间 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:clock">   <symbol id="ai:lucide:clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="10"/></g></symbol><use href="#ai:lucide:clock"></use>  </svg> <span>8 min read</span> </div> <!-- 更新日期 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:refresh-cw">   <symbol id="ai:lucide:refresh-cw" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9a9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5m5 4a9 9 0 0 1-9 9a9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></g></symbol><use href="#ai:lucide:refresh-cw"></use>  </svg> <span>更新于 2026年3月4日</span> </div> </div> <div class="mb-4 flex flex-wrap items-center gap-2 font-mono text-xs"> <a href="/series/V8/" class="
+                  inline-flex items-center gap-1 rounded px-2 py-1
+                  bg-[var(--color-accent)]/10 text-[var(--color-accent)]
+                  transition-colors hover:bg-[var(--color-accent)]/15
+                "> <svg width="1em" height="1em" class style="width: 0.75rem; height: 0.75rem;" data-icon="lucide:folder">   <symbol id="ai:lucide:folder" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol><use href="#ai:lucide:folder"></use>  </svg> <span>我不知道的 V8</span> </a> </div> <!-- 标题 --> <h1 class="text-3xl font-bold leading-tight text-text-primary sm:text-4xl"> 我不知道的 V8（05）— 为什么不建议使用 delete 删除属性 </h1> <!-- 描述 --> <p class="mt-4 text-lg leading-relaxed text-text-secondary"> &quot;delete 会破坏 V8 优化&quot;——这个建议在前端社区流传很广，但通常没有解释背后的原因。知道&quot;不要用&quot;和知道&quot;为什么不要用&quot;是两回事。后者能帮你在真正需要用 delete 的场景里，做出更准确的判断。 </p> <!-- 标签 --> <div class="mt-6 flex flex-wrap gap-2 font-mono text-xs" aria-label="标签"> <a href="/tags/V8/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"V8"</span> </a><a href="/tags/delete/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"delete"</span> </a><a href="/tags/~E9~9A~90~E8~97~8F~E7~B1~BB/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"隐藏类"</span> </a><a href="/tags/~E6~85~A2~E5~B1~9E~E6~80~A7/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"慢属性"</span> </a><a href="/tags/~E6~80~A7~E8~83~BD~E4~BC~98~E5~8C~96/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"性能优化"</span> </a><a href="/tags/~E5~AF~B9~E8~B1~A1~E5~B1~9E~E6~80~A7/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"对象属性"</span> </a><a href="/tags/~E6~88~91~E4~B8~8D~E7~9F~A5~E9~81~93~E7~9A~84/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"我不知道的"</span> </a> </div> </header> <!-- 封面图 -->  <!-- 文章内容 --> <div class="
+          prose prose-lg
+          prose-headings:font-bold
+          prose-a:text-accent prose-a:no-underline hover:prose-a:underline
+          prose-img:rounded prose-img:shadow-lg
+          prose-code:before:content-none prose-code:after:content-none
+          max-w-none
+        "> <h1 id="我不知道的-v805-为什么不建议使用-delete-删除属性"><a href="#我不知道的-v805-为什么不建议使用-delete-删除属性">我不知道的 V8（05）— 为什么不建议使用 delete 删除属性</a></h1>
+<p>“<code>delete</code> 会破坏 V8 优化”——这个建议在前端社区流传很广，但通常没有解释背后的原因。知道”不要用”和知道”为什么不要用”是两回事。后者能帮你在真正需要用 <code>delete</code> 的场景里，做出更准确的判断。</p>
+<h2 id="一delete-做了什么"><a href="#一delete-做了什么">一、delete 做了什么</a></h2>
+<p>表面上，<code>delete obj.name</code> 就是从对象上移除 <code>name</code> 属性。但在 V8 内部，这个操作的后果远不止于此。</p>
+<p>先看正常的对象创建：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="javascript"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> obj</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> { name: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&quot;V8&quot;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, version: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&quot;8.4&quot;</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> };</span></span></code></pre>
+<p>V8 的内部状态：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="plaintext"><code><span class="line"><span>隐藏类 C0:</span></span>
+<span class="line"><span>  name    → offset 0</span></span>
+<span class="line"><span>  version → offset 1</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>obj:</span></span>
+<span class="line"><span>  隐藏类 → C0</span></span>
+<span class="line"><span>  属性存储: [ &quot;V8&quot;, &quot;8.4&quot; ]</span></span></code></pre>
+<p>快属性模式下，访问 <code>obj.name</code> 就是读数组的 offset 0，极快。</p>
+<p>现在执行 <code>delete obj.name</code>：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="plaintext"><code><span class="line"><span>V8 执行 delete 的步骤：</span></span>
+<span class="line"><span>1. 检查 name 属性的描述符，确认 configurable 为 true（可删除）</span></span>
+<span class="line"><span>2. 对象当前是快属性模式：</span></span>
+<span class="line"><span>   → 将 offset 0 的槽位标记为&quot;空洞&quot;（hole）</span></span>
+<span class="line"><span>   → 当前隐藏类 C0 不再准确（它描述的属性不存在了）</span></span>
+<span class="line"><span>3. 决策：需要新建一个隐藏类，还是直接转为字典模式？</span></span>
+<span class="line"><span>   → 如果这是一次偶发操作，可能新建隐藏类 C1（只含 version）</span></span>
+<span class="line"><span>   → 如果已经有过多次属性变化，直接转为字典模式</span></span></code></pre>
+<p>转换后：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="plaintext"><code><span class="line"><span>隐藏类 C1:</span></span>
+<span class="line"><span>  version → offset 0   ← 重新计算了 offset</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>obj:</span></span>
+<span class="line"><span>  隐藏类 → C1            ← 隐藏类切换了</span></span>
+<span class="line"><span>  属性存储: [ &quot;8.4&quot; ]    ← 重新整理了存储</span></span></code></pre>
+<p>这不是简单地”从数组里删掉一个元素”，而是<strong>整个对象的元数据都发生了变化</strong>。</p>
+<h2 id="二隐藏类分裂为什么开销这么大"><a href="#二隐藏类分裂为什么开销这么大">二、隐藏类分裂：为什么开销这么大</a></h2>
+<p>每次 <code>delete</code> 触发的隐藏类变化，会带来连锁反应。</p>
+<p>假设代码里有 1000 个结构相同的对象，它们共享隐藏类 C0：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="javascript"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> users</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> Array.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">from</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({ length: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1000</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> }, (</span><span style="color:#E36209;--shiki-dark:#FFAB70">_</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#E36209;--shiki-dark:#FFAB70">i</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) </span><span style="color:#D73A49;--shiki-dark:#F97583">=&gt;</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> ({</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  name: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">`User${</span><span style="color:#24292E;--shiki-dark:#E1E4E8">i</span><span style="color:#032F62;--shiki-dark:#9ECBFF">}`</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  version: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&quot;8.4&quot;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}));</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 所有 1000 个 user 对象共享隐藏类 C0</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 内联缓存 (IC) 非常高效：一次学习，1000 次复用</span></span></code></pre>
+<p>现在对其中一个执行 <code>delete</code>：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="javascript"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">delete</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> users[</span><span style="color:#005CC5;--shiki-dark:#79B8FF">0</span><span style="color:#24292E;--shiki-dark:#E1E4E8">].name;</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// users[0] 的隐藏类从 C0 变成 C1</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 其他 999 个 user 还是 C0</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 访问 users[0] 的代码和访问 users[1] 的代码命中不同的隐藏类</span></span></code></pre>
+<p><strong>内联缓存的影响：</strong> 原本 V8 只需要学习一次 C0 的结构，就能高效处理所有 1000 个 user。<code>delete</code> 之后，同一个访问点（比如 <code>for...of</code> 循环里的 <code>user.name</code>）碰到了两种隐藏类（C0 和 C1），内联缓存从单态（Monomorphic，最快）退化为多态（Polymorphic，略慢）。</p>
+<p>继续删除更多对象的属性，碰到的隐藏类越来越多，内联缓存可能退化为超多态（Megamorphic），彻底失去优化效果。</p>
+<h2 id="三转为字典模式更严重的后果"><a href="#三转为字典模式更严重的后果">三、转为字典模式：更严重的后果</a></h2>
+<p>如果 <code>delete</code> 操作频繁，V8 会做一个更激进的决定：直接把对象转为<strong>字典模式（Dictionary Mode）</strong>。</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="javascript"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> obj</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> { a: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">1</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, b: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">2</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, c: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">3</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> };</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">delete</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> obj.a;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">obj.d </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 4</span><span style="color:#24292E;--shiki-dark:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">delete</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> obj.b;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">obj.e </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> 5</span><span style="color:#24292E;--shiki-dark:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 频繁的增删操作 → V8 判定：维持隐藏类得不偿失 → 转为字典模式</span></span></code></pre>
+<p>字典模式意味着：</p>
+<ul>
+<li>属性访问从偏移量读取变为哈希查找</li>
+<li>隐藏类优化完全失效</li>
+<li>内联缓存对字典模式对象的优化能力大幅下降</li>
+</ul>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="javascript"><code><span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 验证</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> obj</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> { name: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&quot;V8&quot;</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> };</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">console.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">log</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#D73A49;--shiki-dark:#F97583">%</span><span style="color:#6F42C1;--shiki-dark:#B392F0">HasFastProperties</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(obj)); </span><span style="color:#6A737D;--shiki-dark:#6A737D">// true</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">delete</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> obj.name;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">console.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">log</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#D73A49;--shiki-dark:#F97583">%</span><span style="color:#6F42C1;--shiki-dark:#B392F0">HasFastProperties</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(obj)); </span><span style="color:#6A737D;--shiki-dark:#6A737D">// false（可能直接进字典模式）</span></span></code></pre>
+<h2 id="四替代方案"><a href="#四替代方案">四、替代方案</a></h2>
+<p><strong>方案一：赋值 <code>null</code> 或 <code>undefined</code></strong></p>
+<p>保留属性的存在，只改变它的值。隐藏类不变。</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="javascript"><code><span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 不推荐：破坏隐藏类</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">delete</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> obj.name;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 推荐：保持隐藏类稳定</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">obj.name </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> null</span><span style="color:#24292E;--shiki-dark:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 或</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">obj.name </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> undefined</span><span style="color:#24292E;--shiki-dark:#E1E4E8">;</span></span></code></pre>
+<p>语义上的差异：<code>delete</code> 后 <code>&quot;name&quot; in obj</code> 为 <code>false</code>；赋值 <code>null</code> 后 <code>&quot;name&quot; in obj</code> 仍为 <code>true</code>，只是值为 <code>null</code>。如果代码依赖 <code>in</code> 操作符检查属性存在性，两种方式有行为差异。</p>
+<p><strong>方案二：对象解构排除属性（创建新对象）</strong></p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="javascript"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> { </span><span style="color:#005CC5;--shiki-dark:#79B8FF">name</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#D73A49;--shiki-dark:#F97583">...</span><span style="color:#005CC5;--shiki-dark:#79B8FF">rest</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> } </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> obj;</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// rest 是不含 name 的新对象</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 原来的 obj 不受影响，隐藏类稳定</span></span></code></pre>
+<p>适合需要”逻辑上移除属性”但不在乎原对象是否修改的场景。</p>
+<p><strong>方案三：用 Map 替代频繁增删的对象</strong></p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="javascript"><code><span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 频繁增删键值对 → 换 Map</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> map</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#D73A49;--shiki-dark:#F97583"> new</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> Map</span><span style="color:#24292E;--shiki-dark:#E1E4E8">();</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">map.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">set</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&quot;key&quot;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&quot;value&quot;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">map.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">delete</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&quot;key&quot;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);  </span><span style="color:#6A737D;--shiki-dark:#6A737D">// Map 天生支持高效删除，不影响其他操作的性能</span></span></code></pre>
+<h2 id="五什么时候-delete-是可以接受的"><a href="#五什么时候-delete-是可以接受的">五、什么时候 delete 是可以接受的</a></h2>
+<p>并非所有 <code>delete</code> 都会造成显著影响。以下情况可以接受：</p>
+<ul>
+<li><strong>冷路径代码</strong>：不在循环内、不在频繁执行的函数里</li>
+<li><strong>小型、低频访问的对象</strong>：如配置对象，创建一次，访问次数有限</li>
+<li><strong>逻辑正确性要求</strong>：代码必须依赖 <code>in</code> 操作符区分”属性不存在”和”属性值为 null”</li>
+</ul>
+<p>真正需要避免的场景：<strong>在热点代码（循环、渲染函数、事件处理器）里对结构稳定的对象频繁使用 <code>delete</code></strong>。</p>
+<h2 id="六总结"><a href="#六总结">六、总结</a></h2>
+<p><code>delete</code> 的性能问题不是”它慢”，而是它<strong>改变了对象的隐藏类</strong>。隐藏类的改变会：</p>
+<ol>
+<li>使当前对象与其他同类型对象的隐藏类不再一致，破坏内联缓存复用</li>
+<li>频繁操作时让 V8 放弃快属性，转为字典模式，访问速度进一步下降</li>
+</ol>
+<p>替代方案按优先级：</p>
+<ul>
+<li>赋值 <code>null</code>/<code>undefined</code>（大多数情况下足够）</li>
+<li>解构新对象（需要干净的新对象时）</li>
+<li>换 <code>Map</code>（需要频繁增删键值对时）</li>
+</ul>
+<hr/>
+<p><strong>本系列其他文章：</strong></p>
+<ul>
+<li>上一篇：<a href="/posts/v8-04/">隐藏类与快慢属性：对象性能的核心</a></li>
+<li>下一篇：<a href="/posts/v8-06/">prototype 和 <strong>proto</strong> 的本质区别</a></li>
+<li>延伸阅读：<a href="/posts/v8-08/">字典模式下的非线性优化与限制</a></li>
+</ul> </div> <!-- 文章底部 --> <footer class="mt-12 border-t border-border pt-8"> <!-- 分享提示 --> <div class="code-window"> <div class="code-window-titlebar"> <span class="flex-1 text-center font-mono text-xs text-[var(--color-text-secondary)]">share.ts</span> </div> <div class="p-4 font-mono text-sm"> <p class="syntax-comment">// 觉得这篇文章有帮助？</p> <p class="syntax-comment">// 欢迎分享给更多人</p> <p class="mt-4"> <span class="syntax-keyword">export const</span> <span class="syntax-variable">&nbsp;subscribe</span> <span class="text-[var(--color-text-primary)]">&nbsp;=&nbsp;</span> <a href="/rss.xml" class="syntax-string hover:underline">"/rss.xml"</a> <span class="text-[var(--color-text-primary)]">;</span> </p> </div> </div> </footer> </article> <!-- TOC 侧边栏 - 仅在大屏幕显示 --> <aside class="hidden lg:block"> <nav class="toc-container" aria-label="文章目录" data-astro-cid-xvrfupwn><div class="toc-header" data-astro-cid-xvrfupwn><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-xvrfupwn><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7" data-astro-cid-xvrfupwn></path></svg><span data-astro-cid-xvrfupwn>目录</span></div><ul class="toc-list" data-astro-cid-xvrfupwn><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#一delete-做了什么" class="toc-link" data-slug="一delete-做了什么" data-astro-cid-xvrfupwn>一、delete 做了什么</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#二隐藏类分裂为什么开销这么大" class="toc-link" data-slug="二隐藏类分裂为什么开销这么大" data-astro-cid-xvrfupwn>二、隐藏类分裂：为什么开销这么大</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#三转为字典模式更严重的后果" class="toc-link" data-slug="三转为字典模式更严重的后果" data-astro-cid-xvrfupwn>三、转为字典模式：更严重的后果</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#四替代方案" class="toc-link" data-slug="四替代方案" data-astro-cid-xvrfupwn>四、替代方案</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#五什么时候-delete-是可以接受的" class="toc-link" data-slug="五什么时候-delete-是可以接受的" data-astro-cid-xvrfupwn>五、什么时候 delete 是可以接受的</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#六总结" class="toc-link" data-slug="六总结" data-astro-cid-xvrfupwn>六、总结</a></li></ul></nav><script type="module">function s(){const n=document.querySelectorAll(".toc-link"),c=document.querySelectorAll("article h2[id], article h3[id]");if(n.length===0||c.length===0)return;const i=new IntersectionObserver(t=>{t.forEach(o=>{if(o.isIntersecting){const r=o.target.getAttribute("id");n.forEach(e=>{e.classList.toggle("active",e.getAttribute("data-slug")===r)})}})},{rootMargin:"-80px 0px -80% 0px",threshold:0});c.forEach(t=>i.observe(t)),n.forEach(t=>{t.addEventListener("click",o=>{o.preventDefault();const r=t.getAttribute("data-slug"),e=document.getElementById(r||"");if(e){const a=e.getBoundingClientRect().top+window.scrollY-100;window.scrollTo({top:a,behavior:"smooth"})}})})}s();document.addEventListener("astro:after-swap",s);</script> </aside> </div>  <script type="module">function i(){document.querySelectorAll("pre:has(code)").forEach(t=>{if(t.querySelector(".code-header"))return;const s=t.querySelector("code");if(!s)return;const r=Array.from(s.classList).find(a=>a.startsWith("language-")),d=r?r.replace("language-",""):"text",c=document.createElement("div");c.className="code-header";const n=document.createElement("span");n.className="code-lang",n.textContent=d.toUpperCase();const e=document.createElement("button");e.className="code-copy-btn",e.setAttribute("aria-label","复制代码"),e.innerHTML=`
+        <svg class="copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </svg>
+        <svg class="check-icon hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      `,e.addEventListener("click",async()=>{const a=s.textContent||"";try{await navigator.clipboard.writeText(a),e.classList.add("copied"),e.querySelector(".copy-icon")?.classList.add("hidden"),e.querySelector(".check-icon")?.classList.remove("hidden"),setTimeout(()=>{e.classList.remove("copied"),e.querySelector(".copy-icon")?.classList.remove("hidden"),e.querySelector(".check-icon")?.classList.add("hidden")},2e3)}catch(l){console.error("复制失败:",l)}}),c.appendChild(n),c.appendChild(e);const o=document.createElement("div");o.className="code-block-wrapper",t.parentNode?.insertBefore(o,t),o.appendChild(c),o.appendChild(t)})}i();document.addEventListener("astro:after-swap",i);</script>   <button id="back-to-top" class="back-to-top" aria-label="返回顶部" title="返回顶部" data-astro-cid-wlspcwf4> <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-wlspcwf4> <path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" data-astro-cid-wlspcwf4></path> </svg> </button> <script type="module">function o(){const e=document.getElementById("back-to-top");if(!e)return;function i(){window.scrollY>400?e.classList.add("visible"):e.classList.remove("visible")}e.addEventListener("click",()=>{window.scrollTo({top:0,behavior:"smooth"})});let t=!1;window.addEventListener("scroll",()=>{t||(requestAnimationFrame(()=>{i(),t=!1}),t=!0)}),i()}o();document.addEventListener("astro:after-swap",o);</script>   </main> <!-- 页脚 - VSCode 状态栏风格 --> <footer class="
+        border-t border-[var(--color-border)]
+        bg-[var(--color-surface)]
+        py-6
+        text-xs font-mono text-[var(--color-text-secondary)]
+      "> <div class="main-container"> <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"> <!-- 版权信息 --> <p class="text-center sm:text-left"> <span class="syntax-comment">// </span> <span class="syntax-keyword">const</span> <span class="syntax-variable"> copyright</span> <span> = </span> <span class="syntax-string">"2026 NorthSeacoder"</span> </p> <!-- 链接 --> <div class="flex items-center justify-center gap-4 sm:justify-end"> <a href="/rss.xml" class="
+                flex items-center gap-1.5
+                transition-colors
+                hover:text-[var(--color-accent)]
+              " aria-label="RSS 订阅"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:rss">   <symbol id="ai:lucide:rss" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></g></symbol><use href="#ai:lucide:rss"></use>  </svg> <span>RSS</span> </a> <a href="https://github.com/NorthSeacoder" target="_blank" rel="noopener noreferrer" class="
+                flex items-center gap-1.5
+                transition-colors
+                hover:text-[var(--color-accent)]
+              " aria-label="GitHub"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:github">   <symbol id="ai:lucide:github" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5c.08-1.25-.27-2.48-1-3.5c.28-1.15.28-2.35 0-3.5c0 0-1 0-3 1.5c-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.4 5.4 0 0 0 4 9c0 3.5 3 5.5 6 5.5c-.39.49-.68 1.05-.85 1.65S8.93 17.38 9 18v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></g></symbol><use href="#ai:lucide:github"></use>  </svg> <span>GitHub</span> </a> </div> </div> </div> </footer> </body></html>

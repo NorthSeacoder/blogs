@@ -1,0 +1,217 @@
+---
+title: 我不知道的 i18next（02）— Trans 组件的边界与陷阱
+description: >-
+  在 React 项目里用 i18next，很多人一遇到翻译就条件反射般地用 Trans 组件。但实际上，大部分场景 t() 函数就够了，Trans
+  只在特定条件下才有存在的必要。搞不清两者的边界，轻则代码臃肿，重则引入不必要的渲染开销。
+subtitle: Trans 组件的边界与陷阱
+pubDate: '2023-05-12'
+updatedDate: '2026-03-06'
+tags:
+  - i18next
+  - react-i18next
+  - Trans
+  - React
+  - 国际化
+  - 我不知道的
+lang: zh-CN
+keywords:
+  - i18next
+  - react-i18next
+  - Trans
+  - React
+  - 国际化
+  - 我不知道的
+topic: i18next
+category: i18next
+type: post
+series: i18next
+seriesOrder: 2
+slug: i18next-02
+model: claude-4.6-opus
+---
+# 我不知道的 i18next（02）— Trans 组件的边界与陷阱
+
+在 React 项目里用 i18next，很多人一遇到翻译就条件反射般地用 `Trans` 组件。但实际上，**大部分场景 `t()` 函数就够了**，`Trans` 只在特定条件下才有存在的必要。搞不清两者的边界，轻则代码臃肿，重则引入不必要的渲染开销。
+
+## 一、t() 能做的事比想象中多
+
+先看 `t()` 函数的能力范围：
+
+```javascript
+import { useTranslation } from 'react-i18next';
+
+function Greeting({ name, count }) {
+  const { t } = useTranslation();
+
+  return (
+    <div>
+      {/* 简单文本 */}
+      <p>{t('hello')}</p>
+
+      {/* 带插值 */}
+      <p>{t('welcome', { name })}</p>
+
+      {/* 带复数 */}
+      <p>{t('items', { count })}</p>
+    </div>
+  );
+}
+```
+
+对应的翻译文件：
+
+```json
+{
+  "hello": "Hello",
+  "welcome": "Welcome, {{name}}!",
+  "items_one": "You have {{count}} item",
+  "items_other": "You have {{count}} items"
+}
+```
+
+纯文本翻译、变量插值、复数处理——这三种场景占了国际化需求的 80% 以上，`t()` 全部能覆盖。
+
+## 二、Trans 组件存在的唯一理由
+
+那 `Trans` 什么时候必须用？**当翻译文本里需要嵌入 JSX 元素时。**
+
+看这个场景：翻译内容里有一个需要加粗的关键词、一个可点击的链接。
+
+```json
+{
+  "terms": "By continuing, you agree to our <1>Terms of Service</1> and <3>Privacy Policy</3>."
+}
+```
+
+`t()` 函数返回的是字符串，没法在字符串中间插入 React 组件。这时候只能用 `Trans`：
+
+```jsx
+import { Trans } from 'react-i18next';
+
+function Legal() {
+  return (
+    <Trans i18nKey="terms">
+      By continuing, you agree to our
+      <a href="/terms">Terms of Service</a>
+      and
+      <a href="/privacy">Privacy Policy</a>.
+    </Trans>
+  );
+}
+```
+
+翻译文本中的 `<1>` 和 `<3>` 是占位符，对应 `Trans` 子节点中的第 1 和第 3 个元素（从 0 开始计数，文本节点也算）。**这个编号规则是很多人踩坑的地方。**
+
+## 三、占位符编号的计数规则
+
+下面这段代码，你能说出占位符编号对应什么吗？
+
+```jsx
+<Trans i18nKey="message">
+  Hello          {/* 文本节点 → <0> */}
+  <strong>       {/* 元素节点 → <1> */}
+    world
+  </strong>
+  , welcome to   {/* 文本节点 → <2> */}
+  <a href="/">   {/* 元素节点 → <3> */}
+    our site
+  </a>
+</Trans>
+```
+
+`Trans` 用 `React.Children.toArray` 将子节点展平为数组，**每个子节点（包括文本节点）按顺序分配编号**。所以翻译文本应该写成：
+
+```json
+{
+  "message": "<0>Hello</0> <1>world</1>, welcome to <3>our site</3>"
+}
+```
+
+这里有一个很多人会忽略的细节——如果翻译人员调整了编号（比如写成 `<2>` 而不是 `<3>`），渲染出来的就不是链接而是纯文本。而且这个错误不会报错，只是静默失效。
+
+## 四、Trans 的解析过程
+
+理解编号规则后，看看 Trans 内部做了什么。整个过程分三步：
+
+**第一步：获取翻译字符串。** `i18nKey` 从资源中取出翻译文本（如 `"By continuing, you agree to our <1>Terms of Service</1>..."`）。
+
+**第二步：解析占位符。** 用正则将翻译字符串拆分为片段数组。`<1>Terms of Service</1>` 被解析为 `{ type: 'tag', index: 1, children: 'Terms of Service' }`。
+
+**第三步：映射到 JSX。** 将占位符的 `index` 与 `React.Children.toArray(children)` 的对应位置匹配。`index: 1` 对应子节点中的 `<a href="/terms">`，于是把翻译文本的内容填充进这个 React 元素。
+
+说白了，**Trans 做的事情就是"用翻译文本控制内容，用 JSX 子节点控制容器"**。翻译人员决定文字和顺序，开发者决定用什么 HTML 元素包裹。
+
+## 五、性能差异：Trans vs t()
+
+`Trans` 比 `t()` 多了解析占位符、遍历子节点、映射 JSX 三个步骤。在大多数场景下这个开销可以忽略，但有两种情况需要注意。
+
+**情况一：列表渲染中的 Trans**
+
+```jsx
+// 低效：每个列表项都触发 Trans 的解析逻辑
+{items.map(item => (
+  <li key={item.id}>
+    <Trans i18nKey="itemLabel">
+      Item: <strong>{{ name: item.name }}</strong>
+    </Trans>
+  </li>
+))}
+
+// 高效：纯文本场景用 t() 就够了
+{items.map(item => (
+  <li key={item.id}>
+    {t('itemLabel', { name: item.name })}
+  </li>
+))}
+```
+
+如果 `itemLabel` 的翻译是 `"Item: {{name}}"`——不需要 JSX 包裹——那 `Trans` 就是多余的。100 条数据意味着 100 次不必要的解析。
+
+**情况二：频繁更新的插值**
+
+```jsx
+// Trans 版本：count 每次变化都触发完整的解析 + JSX映射
+function Timer({ seconds }) {
+  return (
+    <Trans i18nKey="countdown" count={seconds}>
+      <strong>{{ seconds }}</strong> seconds left
+    </Trans>
+  );
+}
+
+// t() 版本：只做字符串插值，开销更小
+function Timer({ seconds }) {
+  const { t } = useTranslation();
+  return <p><strong>{seconds}</strong> {t('countdown_text')}</p>;
+}
+```
+
+当 `seconds` 每秒更新时，`Trans` 每次都要重新解析翻译字符串并映射 JSX。如果加粗效果可以在组件层面控制，用 `t()` + 手动包裹更高效。
+
+## 六、判断标准：什么时候用 Trans
+
+问题的关键在于——**翻译文本的中间是否需要插入 React 元素**。
+
+| 场景 | 选择 | 原因 |
+|------|------|------|
+| 纯文本 | `t()` | 无需 JSX |
+| 带变量插值 | `t()` | `{{name}}` 语法足够 |
+| 带复数 | `t()` | `count` 参数足够 |
+| 文本中间有链接 | `Trans` | 需要 `<a>` 元素 |
+| 文本中间有加粗/斜体 | `Trans` | 需要 `<strong>`/`<em>` |
+| 文本中间有自定义组件 | `Trans` | 需要嵌入 React 组件 |
+
+换句话说，**如果翻译结果可以是纯字符串，就用 `t()`；如果翻译结果必须包含 React 元素，才用 `Trans`**。
+
+## 七、总结
+
+Trans 组件不是 `t()` 的升级版，而是它的补充。`t()` 处理纯文本，`Trans` 处理需要嵌入 JSX 的文本。把 Trans 当成默认选项，是对它能力的误用——增加了代码复杂度和运行时开销，却没有带来额外价值。
+
+---
+
+**本系列其他文章：**
+- 上一篇：[命名空间与资源加载](/posts/i18next-01/)
+- 下一篇：[复数规则与 CLDR 标准](/posts/i18next-03/)
+
+**相关主题：**
+- 如果你对翻译文本膨胀和 RTL 布局适配感兴趣，可以看：[文本膨胀与 RTL 适配](/posts/i18next-04/)

@@ -1,0 +1,198 @@
+---
+title: 我不知道的 React（03）— 从 JSX 到 DOM 与 Diff 算法
+description: >-
+  很多人以为 JSX 就是在 JavaScript 里写 HTML，但实际上浏览器根本不认识 JSX。它既不是合法的 JavaScript，也不是真正的
+  HTML——它是一层语法糖，需要经过编译才能执行。
+subtitle: 从 JSX 到 DOM 与 Diff 算法
+pubDate: '2022-05-22'
+updatedDate: '2026-03-06'
+tags:
+  - React
+  - JSX
+  - Diff算法
+  - 虚拟DOM
+  - Key
+  - Reconciliation
+  - 我不知道的
+lang: zh-CN
+keywords:
+  - React
+  - JSX
+  - Diff算法
+  - 虚拟DOM
+  - Key
+  - Reconciliation
+  - 我不知道的
+topic: React
+category: React
+type: post
+series: React
+seriesOrder: 3
+slug: react-03
+model: claude-4.6-opus
+---
+## 一、JSX 不是 HTML
+
+很多人以为 JSX 就是在 JavaScript 里写 HTML，但实际上浏览器根本不认识 JSX。它既不是合法的 JavaScript，也不是真正的 HTML——它是一层语法糖，需要经过编译才能执行。
+
+说白了，JSX 存在的目的只有一个：让开发者用直觉式的标记语法来描述 UI，同时保留 JavaScript 的全部表达能力。
+
+编译由 Babel（或 TypeScript、SWC 等工具）在构建阶段完成。在 React 17 之前，JSX 统一编译为 `React.createElement` 调用；React 17 之后引入了新的 JSX Transform，编译产物改为从 `react/jsx-runtime` 导入的 `jsx` 函数，不再需要手动 `import React`。
+
+下面这组对比展示了同一段 JSX 在两种编译模式下的产物：
+
+```jsx
+// 你写的 JSX
+const element = <div className="app">Hello React</div>;
+
+// React 17 之前——经典模式
+const element = React.createElement(
+  'div',
+  { className: 'app' },
+  'Hello React'
+);
+
+// React 17+ ——新 JSX Transform
+import { jsx as _jsx } from 'react/jsx-runtime';
+const element = _jsx('div', {
+  className: 'app',
+  children: 'Hello React'
+});
+```
+
+两种模式的产物在结构上几乎一致，区别只在于调用入口和 `children` 的传递方式。**不管用哪种模式，编译的最终结果都是一个普通的函数调用，而非 DOM 操作。**
+
+## 二、React 元素：轻量级的 UI 描述
+
+`createElement`（或 `jsx`）的返回值不是 DOM 节点，而是一个普通的 JavaScript 对象。React 把这个对象叫做"React 元素"，社区里更常用"虚拟 DOM 节点"来称呼它。
+
+```js
+{
+  $$typeof: Symbol.for('react.element'),
+  type: 'div',
+  key: null,
+  ref: null,
+  props: {
+    className: 'app',
+    children: 'Hello React'
+  }
+}
+```
+
+这个对象里有几个值得注意的字段。`$$typeof` 是一个 Symbol，React 用它来识别合法的元素对象，同时防止 XSS 攻击——因为 JSON 无法包含 Symbol 类型，即使攻击者注入了形似 React 元素的 JSON，`$$typeof` 校验也会失败。`type` 记录的是节点类型，可以是字符串（原生 DOM 标签）或函数/类（自定义组件）。`key` 和 `ref` 单独提出来而不放在 `props` 里，因为它们是 React 内部调度和协调的专用字段。
+
+**React 元素本身是不可变的（immutable）。** 每次渲染都会生成一棵全新的元素树，React 通过对比新旧两棵树来决定 DOM 该怎么更新——这就是 Diff 算法要解决的问题。
+
+## 三、从元素到屏幕：Fiber 的角色
+
+React 元素只是"描述"，要真正操作 DOM 还需要一个中间层来调度工作。这就是 Fiber 的职责。
+
+换句话说，Fiber 节点是 React 元素的"运行时映像"。每个 React 元素在协调过程中会对应一个 Fiber 节点，Fiber 节点上挂载了 state、effect 副作用、父/子/兄弟指针等运行时信息，这些是纯描述性的 React 元素所不具备的。
+
+Fiber 架构把渲染工作拆成两个阶段：**Render 阶段**（可中断，负责计算差异）和 **Commit 阶段**（不可中断，负责同步更新 DOM）。关于 Fiber 的链表结构、时间切片、优先级调度等细节，在 [React-02：Fiber 架构](/blog/react-02) 中有完整的分析，这里不再展开。
+
+本文接下来的重点是：**在 Render 阶段，React 到底是怎样对比新旧两棵树的？**
+
+## 四、Diff 算法的三个核心策略
+
+将两棵树进行完全比较，理论上的最优算法复杂度是 O(n³)。对于一棵有 1000 个节点的树，这意味着 10 亿次比较，完全不现实。
+
+React 的做法是放弃通用最优解，转而基于三个启发式假设把复杂度压到 O(n)。这三个假设覆盖了绝大多数真实场景，是整个 Diff 算法的理论基础。
+
+### 策略一：跨层级的节点移动极少发生
+
+React 只会对同一层级的节点做比较，不会尝试跨层级复用。如果一个 `<div>` 在旧树里是根节点的直接子节点，在新树里被移到了第三层嵌套，React 不会去"寻找"它，而是直接销毁旧节点、创建新节点。
+
+很多人会忽略的细节是：这个策略在极端情况下确实会导致不必要的销毁重建。但在真实的前端开发中，跨层级移动 DOM 子树的情况非常罕见。React 用"放弃跨层级匹配"换来了"逐层扫描"的线性复杂度，这个取舍在实践中是值得的。
+
+### 策略二：不同类型的元素产出完全不同的树
+
+当 React 发现某个位置上的元素类型发生了变化——比如 `<div>` 变成了 `<span>`，或者 `<Input>` 变成了 `<Select>`——它会直接卸载整棵旧子树（触发 `componentWillUnmount` 或清理 effect），然后从头构建新子树。
+
+**即使旧子树下面有大量可复用的节点，只要根节点类型不同，React 就不会尝试复用。** 这听起来很浪费，但它避免了类型不同时深层比较所带来的复杂度。问题的关键在于：DOM 元素的类型改变几乎必然意味着结构和行为的根本变化，逐一比较子节点没有意义。
+
+### 策略三：开发者通过 Key 标识同层级的稳定节点
+
+前两个策略处理了"层级"和"类型"维度的比较，但列表渲染还有一个特殊问题：同类型的子节点之间如何匹配？
+
+如果没有额外提示，React 只能按位置（索引）逐一对比。这在列表发生插入、删除、重排时会导致大量误判。`key` 就是开发者给 React 的额外提示，用来精确标识"这个元素是谁"。
+
+这三个策略协同工作：先按层级扫描、再按类型判断、最后按 Key 匹配——共同构成了 React O(n) Diff 的完整逻辑。
+
+## 五、Key 的真正作用
+
+为了理解 Key 的作用，最直观的方式是看一组对比实验。假设有一个待办列表，初始渲染了 A、B 两个项目，现在要在头部插入一个新项目 C。
+
+先看没有 Key 的情况：
+
+```jsx
+// 旧列表
+<ul>
+  <li>A</li>
+  <li>B</li>
+</ul>
+
+// 新列表：头部插入 C
+<ul>
+  <li>C</li>
+  <li>A</li>
+  <li>B</li>
+</ul>
+```
+
+React 逐位置比较：位置 0 从 A 变成 C，更新文本；位置 1 从 B 变成 A，更新文本；位置 2 是新增的 B，创建节点。结果是三次 DOM 操作，其中两次是无意义的文本替换。**更危险的是，如果列表项是有状态的组件（比如包含输入框），状态会错位——原本属于 A 的输入内容会出现在 C 上。**
+
+加上 Key 之后：
+
+```jsx
+<ul>
+  <li key="A">A</li>
+  <li key="B">B</li>
+</ul>
+
+<ul>
+  <li key="C">C</li>
+  <li key="A">A</li>
+  <li key="B">B</li>
+</ul>
+```
+
+React 通过 Key 匹配：A 和 B 还在，只是前面多了一个 C。最终只需要一次 DOM 插入操作，A 和 B 的节点（包括状态）完全复用。
+
+如果你只记住一句话：**Key 不是给渲染用的，是给 Diff 用的。它的本质是为同层级同类型的节点提供稳定的身份标识。**
+
+这也是为什么不应该用数组索引作为 Key。当列表发生重排、插入或删除时，索引会发生变化，等于告诉 React"所有元素的身份都变了"，退化成无 Key 的效果。只有当列表静态不变、不会增删重排时，索引才是安全的。
+
+对于超长列表（数千甚至数万项），即便 Key 配置正确，一次性 Diff 和渲染大量节点仍然会有性能瓶颈。这时需要引入列表虚拟化（如 `react-window`），只渲染视口内可见的部分，从根本上减少节点数量。
+
+## 六、与 Vue Diff 的核心差异
+
+React 和 Vue 都使用虚拟 DOM + Diff 的更新策略，但在"怎么找到变化"和"怎么比较列表"两个维度上，思路截然不同。
+
+在更新触发层面，React 的理念是"UI 是状态的纯函数"。一次 `setState` 会触发组件及其子树的重新渲染，需要开发者通过 `React.memo`、`useMemo` 等手段主动收窄比较范围。Vue 则基于响应式系统精确追踪数据依赖，数据变化时自动通知相关组件更新，再配合模板编译阶段的静态标记跳过不变内容。
+
+说白了，React 走的是"大范围 Diff + 开发者主动优化"的路线，Vue 走的是"精确追踪 + 编译期优化"的路线。
+
+在列表 Diff 层面，差异更加具体。React 对子节点列表采用**单向遍历**：从左到右扫描，遇到 Key 匹配的节点就复用，不匹配的放入一个 Map 中待查。这种方式实现简洁，但在"尾部元素移到头部"这类场景下需要额外的移动操作。
+
+Vue 采用的是**双端比较**算法：同时维护新旧列表的头尾四个指针，优先比较两端节点。当头头、尾尾、头尾、尾头都不匹配时，才退化到 Map 查找。在列表两端发生增删或反转的场景下，双端比较通常能减少节点移动次数。
+
+但这并不意味着 Vue 的 Diff "更好"。React Fiber 的可中断渲染和优先级调度是 Vue 目前不具备的能力，在复杂交互场景下（大量并发更新、流式渲染），Fiber 的优势会体现出来。**两者的差异本质上是设计哲学的不同，而非单纯的性能高低。**
+
+## 七、总结
+
+从 JSX 到屏幕上的像素，React 的渲染流程可以概括为一条链路：
+
+**JSX → 编译（Babel/SWC）→ createElement/jsx → React 元素（虚拟 DOM）→ Fiber 节点 → Diff 对比 → DOM 更新**
+
+Diff 算法之所以能达到 O(n) 的性能，靠的是三个务实的假设：不跨层比较、不同类型直接替换、用 Key 标识同层节点。这三个假设在实际开发中几乎总是成立的。
+
+Key 的本质是给 Diff 提供身份标识。用对了 Key，列表更新只需最少的 DOM 操作；用错了（比如用索引），不仅性能退化，还可能引发状态错位的 bug。
+
+---
+
+### 系列导航
+
+- 上一篇：[React-02：Fiber 架构 — 可中断渲染与优先级调度](/blog/react-02)
+- 下一篇：[React-04：生命周期演进与 Render 触发机制](/blog/react-04)
+- [返回系列索引：我不知道的 React](/blog/react-00)

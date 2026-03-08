@@ -6,6 +6,7 @@
 import type { CollectionEntry } from 'astro:content';
 import CodeWindow from './CodeWindow.astro';
 import { siteConfig } from '../lib/siteConfig';
+import { getSeriesName } from '../lib/utils';
 
 interface Props {
   posts: CollectionEntry<'blog'>[];
@@ -19,13 +20,8 @@ const seriesSet = new Set<string>();
 
 posts.forEach((post) => {
   post.data.tags?.forEach((tag) => tagSet.add(tag));
-  if (post.data.series) {
-    seriesSet.add(post.data.series);
-  } else {
-    // 从标题解析系列
-    const match = post.data.title.match(/^我不知道的\s*(.+?)\s*[-–—]/);
-    if (match) seriesSet.add(match[1]);
-  }
+  const seriesName = getSeriesName(post);
+  if (seriesName) seriesSet.add(seriesName);
 });
 
 // 计算运行天数

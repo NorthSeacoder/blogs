@@ -1,0 +1,169 @@
+---
+title: 我不知道的打包工具（04）— Father：组件库构建工具的设计与实践
+description: >-
+  用 Webpack 打包一个组件库试试——光处理 ESM、CJS、UMD 三种格式输出，加上 TypeScript 编译、样式文件抽离、外部依赖
+  externals 配置，webpack.config.js 轻松写到 200 行，还没算上样式隔离和按需加载。
+subtitle: Father：组件库构建工具的设计与实践
+pubDate: '2025-01-07'
+updatedDate: '2026-03-06'
+tags:
+  - 打包工具
+  - Father
+  - 组件库
+  - Bundless
+  - Bundle
+  - CSS Modules
+  - 我不知道的
+lang: zh-CN
+keywords:
+  - 打包工具
+  - Father
+  - 组件库
+  - Bundless
+  - Bundle
+  - CSS Modules
+  - 我不知道的
+topic: 打包工具
+category: 前端工程化
+type: post
+series: 打包工具
+seriesOrder: 4
+slug: bundler-04
+model: claude-sonnet-4.6
+---
+# 我不知道的打包工具（04）— Father：组件库构建工具的设计与实践
+
+用 Webpack 打包一个组件库试试——光处理 ESM、CJS、UMD 三种格式输出，加上 TypeScript 编译、样式文件抽离、外部依赖 externals 配置，`webpack.config.js` 轻松写到 200 行，还没算上样式隔离和按需加载。
+
+问题的关键在于——组件库构建和应用构建是两个完全不同的需求。应用只需要一个最终产物，而组件库需要同时满足：保留模块目录结构（让消费端做 Tree Shaking）、打出单文件（给 CDN 和 `<script>` 标签用）、处理样式隔离（类名不能和消费者的项目冲突）。这就是 Father 存在的理由。
+
+## 一、Father 4.x 架构概览
+
+Father 是蚂蚁集团开源的组件库构建工具，Umi 生态成员之一，Ant Design 等知名组件库的构建都依赖它。
+
+很多人以为 Father 只是 Rollup 的封装，但那是 1.x/2.x 时代的旧架构。**Father 4.x（当前版本 4.4.4）已经是多引擎架构**，支持四种构建引擎：Babel、esbuild、SWC 和 Webpack。Bundless 模式可选 Babel/esbuild/SWC 作为编译器，Bundle 模式底层使用 Webpack 打包。
+
+Father 4.x 的设计理念是"约定大于配置"。一个典型的 `.fatherrc.ts` 只需要几行：
+
+```typescript
+// .fatherrc.ts
+import { defineConfig } from 'father';
+
+export default defineConfig({
+  esm: {},
+  cjs: {},
+  umd: {
+    name: 'MyLib',
+  },
+});
+```
+
+这几行配置就能同时输出 ESM（`es/` 目录）、CJS（`lib/` 目录）和 UMD（`dist/` 目录）三种格式。说白了，Father 把"组件库该怎么构建"这个问题的最佳实践内置了，开发者不用自己拼配置。
+
+4.x 还新增了持久缓存（二次构建速度大幅提升）、项目健康检查（自动检测 `package.json` 中的 `main`/`module`/`types` 字段是否正确指向产物）和依赖预打包等能力。
+
+## 二、Bundless 模式——保留模块结构的逐文件编译
+
+Bundless 是 Father 的默认输出模式，也是组件库最常用的分发方式。
+
+它的工作原理很直观：**不做打包，而是逐文件编译。** 每个源文件独立转译为目标格式，目录结构原样保留。假设源码目录如下：
+
+```
+src/
+├── index.ts
+├── Button/
+│   ├── index.tsx
+│   └── style.less
+└── Input/
+    ├── index.tsx
+    └── style.less
+```
+
+运行 `father build` 后，Bundless 模式输出的 `es/` 目录与 `src/` 一一对应：
+
+```
+es/
+├── index.js
+├── Button/
+│   ├── index.js
+│   └── style.css
+└── Input/
+    ├── index.js
+    └── style.css
+```
+
+这个设计的核心价值在于**对消费端的 Tree Shaking 非常友好**。当应用代码只引用了 `Button` 组件时，Webpack 或 Vite 在打包时可以直接忽略 `Input/` 目录下的所有文件。如果把整个库打成一个文件（Bundle 模式），打包工具就需要对单文件内部做静态分析来判断哪些导出被使用了，效果和可靠性都会打折扣。
+
+换句话说，Bundless 的定位是"半成品"——它不是最终运行的代码，而是交给应用构建工具（Vite、Webpack）去做最后一步打包。
+
+Bundless 的编译器可以在配置中选择：
+
+```typescript
+export default defineConfig({
+  esm: {
+    transformer: 'esbuild', // 可选 'babel' | 'esbuild' | 'swc'
+  },
+});
+```
+
+esbuild 和 SWC 比 Babel 快很多倍，但不支持部分 Babel 插件的高级转换。对于大多数组件库场景，esbuild 足够用了。
+
+## 三、Bundle 模式——面向 CDN 的单文件打包
+
+并非所有消费者都有构建工具。在没有 Webpack/Vite 的传统项目、JSFiddle/CodePen 等在线环境中，用户需要通过 `<script>` 标签直接引用组件库。
+
+这就是 Bundle 模式的用途：**将整个库打包为一个 UMD 格式的单文件**，输出到 `dist/` 目录，挂载全局变量。Father 4.x 的 Bundle 模式底层使用 Webpack，自动处理依赖合并、代码压缩和全局变量导出。配置中的 `externals` 用来排除不需要打入包内的依赖：
+
+```typescript
+export default defineConfig({
+  umd: {
+    name: 'MyLib',
+    externals: {
+      react: 'React',
+      'react-dom': 'ReactDOM',
+    },
+  },
+});
+```
+
+React 这类宿主环境一定会有的依赖，没必要重复打进包里，通过 externals 排除后，消费者页面只要保证全局有 `React` 变量即可。
+
+**Bundless 和 Bundle 不是二选一，而是配合使用。** 组件库的 `package.json` 通常同时声明 `module`（指向 `es/index.js`）和 `unpkg`（指向 `dist/index.min.js`），让不同场景的消费者各取所需。
+
+## 四、样式处理——为什么组件库比应用复杂得多
+
+这里有一个很多人会忽略的细节——组件库的样式处理比应用开发要复杂得多。
+
+应用的样式只需要在自己的环境里不冲突就行。但组件库的样式会被安装到成百上千个不同的项目中，它必须保证三件事：类名不会和消费者的类名撞车，Less/Sass 变量不会泄漏到全局，样式能按组件粒度按需加载。
+
+**CSS Modules 是 Father 处理样式隔离的核心方案。** 原理是在编译期将类名替换为包含文件路径和哈希值的唯一标识符。组件代码中这样写：
+
+```tsx
+// src/Button/index.tsx
+import styles from './style.module.less';
+
+export default () => (
+  <button className={styles.primary}>Click</button>
+);
+```
+
+编译后，`.primary` 被转换为类似 `Button_primary_a3x7k` 的唯一类名。消费者项目中即使也定义了 `.primary`，也不会产生冲突。说白了，CSS Modules 通过类名哈希化把"全局的 CSS"变成了"局部的 CSS"。
+
+Father 同时内置了 Less 和 Sass 预处理器支持，主题定制可以通过 Less 变量注入实现。比如 Ant Design 的经典做法——定义一组 Less 变量作为设计 token，消费者在自己的项目中覆盖这些变量就能切换主题色，不需要改组件库源码。
+
+配合 Bundless 模式保留的目录结构，每个组件的样式文件独立输出。消费者只需引入用到的组件的样式，而不是加载整个库的 CSS。这不是 Father 额外实现的功能，而是 Bundless 模式目录结构带来的天然优势——每个组件的 `style.css` 独立存在，`import 'my-lib/es/Button/style.css'` 就只加载 Button 的样式。
+
+## 五、总结
+
+Father 解决的核心问题是：**让组件库开发者不用操心构建配置。** Bundless 模式保留模块结构，让消费端高效 Tree Shaking；Bundle 模式打出 UMD 单文件，覆盖 CDN 和 `<script>` 标签场景；CSS Modules 在编译期做类名隔离，从根源上避免样式冲突。
+
+如果你只记住一句话：组件库构建和应用构建是两个不同的问题，Father 把前者的最佳实践内置成了零配置方案。
+
+---
+
+**本系列其他文章：**
+- 上一篇：[CJS、ESM、UMD 与 exports 字段 — 模块格式的那些坑](/posts/bundler-03/)
+- 下一篇：[构建工具选型 — 如何根据项目类型选择打包方案](/posts/bundler-05/)
+
+**相关主题：**
+- React 组件库开发中的逻辑复用模式：[逻辑复用的三代进化](/posts/react-08/)

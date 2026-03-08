@@ -1,0 +1,289 @@
+---
+title: 我不知道的 VSCode 扩展（02）— 菜单、视图与状态栏
+description: >-
+  上一篇提到，VSCode 扩展的很多能力是通过 package.json
+  声明式注册的。菜单、视图、状态栏就是最典型的三个——它们决定了用户"看到什么"和"怎么交互"。
+subtitle: 菜单、视图与状态栏
+pubDate: '2024-03-10'
+updatedDate: '2026-03-06'
+tags:
+  - VSCode 扩展
+  - 我不知道的
+  - 菜单
+  - TreeView
+  - 状态栏
+  - Contribution Points
+lang: zh-CN
+keywords:
+  - VSCode 扩展
+  - 我不知道的
+  - 菜单
+  - TreeView
+  - 状态栏
+  - Contribution Points
+topic: VSCode 扩展
+category: VSCode
+type: post
+series: VSCode 扩展
+seriesOrder: 2
+slug: vscode-extension-02
+optimized_from: '02.我不知道的 VSCode 扩展:菜单与视图的魔法.mdx'
+optimization_type: 深度升级
+style_version: 2026-03-03T00:00:00.000Z
+diagnosis:
+  style_conformity: 2
+  content_depth: 中
+  topic_structure: 保留
+---
+# 我不知道的 VSCode 扩展（02）— 菜单、视图与状态栏
+
+## 一、扩展的"面子工程"
+
+上一篇提到，VSCode 扩展的很多能力是通过 `package.json` 声明式注册的。菜单、视图、状态栏就是最典型的三个——它们决定了用户"看到什么"和"怎么交互"。
+
+很多人以为这些 UI 元素都要在代码里创建，但实际上，**菜单和视图容器完全是声明式的，写在 `package.json` 的 `contributes` 字段里就够了**。只有状态栏需要在代码中动态创建。
+
+## 二、右键菜单：不只是"加一个按钮"
+
+### 基本用法
+
+右键菜单通过 `contributes.menus` 注册。一个最简单的例子——把命令加到编辑器右键菜单：
+
+```json
+{
+  "contributes": {
+    "menus": {
+      "editor/context": [
+        {
+          "command": "my-ext.doSomething",
+          "group": "navigation",
+          "when": "editorFocus"
+        }
+      ]
+    }
+  }
+}
+```
+
+这里有三个字段需要理解：
+
+**`command`** — 关联一个已注册的命令 ID。点击菜单项时执行这个命令。
+
+**`group`** — 决定菜单项的**位置**。VSCode 的右键菜单被分成多个组，同一组内的菜单项会聚在一起，组之间用分隔线隔开。常用的组名：
+
+| 组名 | 位置 | 典型内容 |
+|------|------|---------|
+| `navigation` | 最顶部 | 跳转、定义相关操作 |
+| `1_modification` | 中部 | 剪切、复制、粘贴 |
+| `9_cutcopypaste` | 中下部 | 编辑操作 |
+| `z_commands` | 最底部 | 其他命令 |
+
+自定义组名（如 `z_myext`）会按字母序排到对应位置。
+
+**`when`** — 菜单项的**显示条件**，使用 [When Clause](https://code.visualstudio.com/api/references/when-clause-contexts) 表达式。说白了就是一组布尔条件，决定菜单项是否可见。
+
+### 这里有一个很多人会忽略的细节
+
+菜单不仅能注册到编辑器右键菜单，还能注册到很多其他位置：
+
+| 菜单位置 | 含义 |
+|---------|------|
+| `editor/context` | 编辑器右键菜单 |
+| `editor/title` | 编辑器标题栏（标签页右侧按钮区） |
+| `explorer/context` | 文件资源管理器右键菜单 |
+| `view/title` | 视图标题栏 |
+| `view/item/context` | 视图中某个节点的右键菜单 |
+| `commandPalette` | 命令面板（控制命令是否出现在面板中） |
+
+问题的关键在于——**`commandPalette` 这个位置经常被忽略**。默认情况下，所有注册的命令都会出现在命令面板中。但如果某个命令只应该通过右键菜单触发（比如"在当前文件上执行某操作"），在命令面板中暴露出来就没有意义了。这时可以通过 `commandPalette` 配合 `when` 条件来隐藏：
+
+```json
+{
+  "contributes": {
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "my-ext.fileSpecific",
+          "when": "false"
+        }
+      ]
+    }
+  }
+}
+```
+
+设置 `when: "false"` 就是永远不显示。
+
+## 三、树视图（TreeView）：从数据到 UI
+
+树视图是侧边栏中最常见的 UI 形式——文件资源管理器、Git 面板、测试面板都是树视图。
+
+创建一个树视图分两步：**声明容器**和**提供数据**。
+
+### 第一步：在 `package.json` 中声明
+
+```json
+{
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "myViewContainer",
+          "title": "My Extension",
+          "icon": "$(extensions)"
+        }
+      ]
+    },
+    "views": {
+      "myViewContainer": [
+        {
+          "id": "myTreeView",
+          "name": "项目列表"
+        }
+      ]
+    }
+  }
+}
+```
+
+`viewsContainers` 决定在侧边栏活动栏上显示哪个图标，`views` 决定这个图标下面有哪些视图面板。这里把视图挂到了 `activitybar`——也就是侧边栏最左侧那一列图标。
+
+除了 `activitybar`，还可以挂到 `panel`（底部面板区域，和终端、问题面板同级）。
+
+### 第二步：实现 TreeDataProvider
+
+声明只是告诉 VSCode"我要一个树视图"，但树里面有什么节点，需要在代码里提供。实现方式是创建一个 `TreeDataProvider` 并注册给 VSCode。
+
+```typescript
+import * as vscode from 'vscode';
+
+interface ProjectItem {
+  name: string;
+  path: string;
+  children?: ProjectItem[];
+}
+
+class ProjectTreeProvider implements vscode.TreeDataProvider<ProjectItem> {
+  private data: ProjectItem[] = [
+    {
+      name: 'frontend',
+      path: '/app/frontend',
+      children: [
+        { name: 'src', path: '/app/frontend/src' },
+        { name: 'tests', path: '/app/frontend/tests' },
+      ],
+    },
+    { name: 'backend', path: '/app/backend' },
+  ];
+
+  getTreeItem(item: ProjectItem): vscode.TreeItem {
+    const treeItem = new vscode.TreeItem(
+      item.name,
+      item.children
+        ? vscode.TreeItemCollapsibleState.Collapsed
+        : vscode.TreeItemCollapsibleState.None
+    );
+    treeItem.tooltip = item.path;
+    return treeItem;
+  }
+
+  getChildren(item?: ProjectItem): ProjectItem[] {
+    if (!item) {
+      return this.data;
+    }
+    return item.children ?? [];
+  }
+}
+```
+
+`TreeDataProvider` 接口只有两个必须实现的方法：
+
+**`getTreeItem(element)`** — 告诉 VSCode 某个数据项应该渲染成什么样的节点（标签、图标、展开状态）。
+
+**`getChildren(element?)`** — 告诉 VSCode 某个节点下有哪些子节点。参数为 `undefined` 时返回根节点。
+
+然后在 `activate()` 函数中注册：
+
+```typescript
+export function activate(context: vscode.ExtensionContext) {
+  const provider = new ProjectTreeProvider();
+  vscode.window.registerTreeDataProvider('myTreeView', provider);
+}
+```
+
+`registerTreeDataProvider` 的第一个参数 `'myTreeView'` 必须和 `package.json` 中 `views` 里声明的 `id` 一致——这就是声明层和执行层的连接点。
+
+### 树视图刷新：onDidChangeTreeData
+
+静态数据没什么问题，但如果数据会变化（比如文件列表变了），需要通知 VSCode 重新渲染。`TreeDataProvider` 提供了一个可选的事件 `onDidChangeTreeData`：
+
+```typescript
+class ProjectTreeProvider implements vscode.TreeDataProvider<ProjectItem> {
+  private _onDidChangeTreeData = new vscode.EventEmitter<ProjectItem | undefined>();
+  readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
+
+  refresh(): void {
+    this._onDidChangeTreeData.fire(undefined);
+  }
+
+  // ... getTreeItem, getChildren 同上
+}
+```
+
+调用 `provider.refresh()` 时，`fire(undefined)` 会通知 VSCode 整棵树需要刷新。如果只想刷新某个子树，传入对应的节点即可。
+
+换句话说，`onDidChangeTreeData` 和 React 的 `setState` 类似——是驱动 UI 更新的信号源。
+
+## 四、状态栏：动态创建的"小挂件"
+
+和菜单、视图不同，**状态栏项目不能在 `package.json` 中声明，只能在代码里动态创建**。这是因为状态栏的内容通常是动态的（比如显示当前 Git 分支、编码格式、行号）。
+
+```typescript
+export function activate(context: vscode.ExtensionContext) {
+  const statusBar = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Right,
+    100
+  );
+  statusBar.text = '$(check) All Good';
+  statusBar.tooltip = '当前没有问题';
+  statusBar.command = 'my-ext.showReport';
+  statusBar.show();
+
+  context.subscriptions.push(statusBar);
+}
+```
+
+几个要点：
+
+**`StatusBarAlignment`** — `Left` 或 `Right`，决定状态栏项在左侧还是右侧。
+
+**`priority`** — 数字越大越靠近边缘。同一侧的状态栏项按 priority 排序。
+
+**`text`** — 支持 [Product Icons](https://code.visualstudio.com/api/references/icons-in-labels)，用 `$(icon-name)` 语法引用 VSCode 内置图标。比如 `$(check)` 是一个对勾，`$(warning)` 是一个警告三角。
+
+**`context.subscriptions.push(statusBar)`** — 把状态栏项交给扩展上下文管理，扩展卸载时自动销毁，防止内存泄漏。这是一个容易遗漏的点，不加这行，每次重新激活扩展都会多出一个状态栏项。
+
+## 五、声明式 vs 命令式：设计选择背后的原因
+
+回顾这三个 UI 元素的注册方式：
+
+| UI 元素 | 注册方式 | 原因 |
+|---------|---------|------|
+| 菜单 | 声明式（`package.json`） | 安装时就需要可见，不依赖扩展激活 |
+| 视图容器/视图 | 声明式（`package.json`） | 侧边栏图标需要在启动时就渲染出来 |
+| 视图数据 | 命令式（`TreeDataProvider`） | 数据是动态的，需要代码提供 |
+| 状态栏 | 命令式（`createStatusBarItem`） | 内容完全动态，无法静态声明 |
+
+**这种声明式 + 命令式混合的设计不是随意的。** VSCode 在启动时需要快速渲染 UI——如果所有 UI 注册都要等扩展代码执行，几百个扩展加载下来，启动时间会飙到几十秒。所以能声明的尽量声明，只有真正动态的部分才走代码路径。
+
+如果你只记住一句话：**菜单和视图的"骨架"是声明的，"血肉"是代码填的。**
+
+---
+
+**本系列其他文章：**
+- 上一篇：[从 Hello World 到核心概念](/posts/vscode-extension-01/)
+- 下一篇：[Webview 与 Output Channel](/posts/vscode-extension-03/)
+
+**延伸阅读：**
+- [Contribution Points 官方文档](https://code.visualstudio.com/api/references/contribution-points)
+- [Tree View API 指南](https://code.visualstudio.com/api/extension-guides/tree-view)

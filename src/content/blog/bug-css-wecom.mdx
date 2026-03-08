@@ -1,0 +1,220 @@
+---
+title: 我不知道的 CSS — 一个 @layer 引发的样式崩塌
+description: >-
+  2024 年 7 月，某个企微自建应用在部分 macOS
+  用户的内置浏览器中出现了严重的样式异常——元素失去样式，布局错乱，组件形态完全丢失，页面像没有加载任何 CSS 一样。
+subtitle: 一个 @layer 引发的样式崩塌
+pubDate: '2024-07-16'
+updatedDate: '2026-03-06'
+tags:
+  - CSS
+  - '@layer'
+  - 兼容性
+  - Safari
+  - 企业微信
+  - bug
+  - 我不知道的
+  - bugs
+lang: zh-CN
+keywords:
+  - CSS
+  - '@layer'
+  - 兼容性
+  - Safari
+  - 企业微信
+  - bug
+  - 我不知道的
+  - bugs
+topic: bugs
+category: Bugs
+type: post
+series: bugs
+seriesOrder: 1
+slug: bug-css-wecom
+model: claude-4.6-opus
+---
+# 我不知道的 CSS — 一个 @layer 引发的样式崩塌
+
+## 一、页面"裸奔"了
+
+2024 年 7 月，某个企微自建应用在部分 macOS 用户的内置浏览器中出现了严重的样式异常——元素失去样式，布局错乱，组件形态完全丢失，页面像没有加载任何 CSS 一样。
+
+奇怪的是，这个 bug 并非所有用户都遇到。Windows 系统正常，macOS 上的 Chrome 正常，只有特定 macOS 用户的企微内置浏览器稳定复现。
+
+项目技术栈是 `@umijs/max` + Tailwind CSS + Ant Design。为了解决 Tailwind 和 antd 的样式冲突，项目使用了 CSS `@layer` 来隔离优先级：
+
+```css
+@layer tailwind-base, antd;
+
+@layer tailwind-base {
+  @tailwind base;
+}
+
+@tailwind components;
+@tailwind utilities;
+```
+
+这段配置在大多数环境下工作正常——Tailwind 的 base 样式放在低优先级层，antd 样式放在高优先级层，utilities 不在任何 layer 内，拥有最高优先级。看上去是一个优雅的解决方案。
+
+但问题恰恰出在 `@layer` 上。
+
+---
+
+## 二、@layer 到底是什么？
+
+在排查这个 bug 之前，有必要搞清楚 `@layer` 的机制。
+
+`@layer` 是 CSS Cascade Level 5 在 2022 年引入的新特性，它允许开发者显式声明样式的层叠优先级。说白了，就是在"特定性"和"书写顺序"之外，给 CSS 加了一层新的优先级控制维度。
+
+声明顺序决定了层的优先级——**后声明的层优先级更高**：
+
+```css
+@layer base, components, utilities;
+```
+
+在这个声明中，`utilities` 层的样式会覆盖 `components` 层，`components` 会覆盖 `base`，与选择器的特定性无关。
+
+还有一个关键规则：**不在任何 `@layer` 内的样式，优先级高于所有 `@layer` 内的样式**。这也是上面项目配置中 Tailwind utilities 能覆盖 antd 组件样式的原因——utilities 没有放进 layer。
+
+`@layer` 在 Chrome 99+、Firefox 97+、Safari 15.4+ 中得到支持。
+
+问题的关键在于那个版本号——**Safari 15.4**。
+
+---
+
+## 三、排查过程：从现象到根因
+
+**（1）排除客户端版本因素**
+
+最初怀疑是企微客户端版本的问题，但对比多个企微版本后发现，bug 与企微版本号无直接关联，同一版本的企微在不同用户机器上表现不同。排除。
+
+**（2）锁定浏览器引擎**
+
+收集问题用户的 User-Agent 数据后，发现了关键线索：macOS 系统的企微内置浏览器使用的是系统 Safari 的 WebKit 引擎。换句话说，企微内置浏览器的渲染能力取决于用户 macOS 系统自带的 Safari 版本。
+
+UA 中的 `AppleWebKit/605.1.15` 对应的是 Safari 15.x。
+
+**（3）兼容性验证**
+
+查阅 Can I Use 确认：`@layer` 在 Safari 15.4 才开始支持。而 Safari 15.4 对应的系统版本是 macOS 12.4（Monterey）。
+
+如果用户的 macOS 版本低于 12.4，系统自带的 Safari 版本就低于 15.4——`@layer` 规则会被浏览器当作"无法识别的 CSS"直接忽略。
+
+**（4）根因确认**
+
+当 `@layer` 被忽略后，包裹在 `@layer tailwind-base { ... }` 内的 Tailwind base 样式也一并被忽略。整个样式层级体系崩塌，页面丢失了大量基础样式。
+
+这就是"裸奔"的根本原因：**不是 CSS 文件没加载，而是浏览器不认识 `@layer`，把层内的样式当作无效规则跳过了**。
+
+---
+
+## 四、修复方案：postcss-preset-env 降级
+
+确认根因后，修复方案是引入 `postcss-preset-env`，让构建工具在打包阶段将 `@layer` 语法转换为传统 CSS：
+
+```javascript
+// config/config.ts
+import { defineConfig } from '@umijs/max';
+const postcssPresetEnv = require('postcss-preset-env');
+
+export default defineConfig({
+  extraPostCSSPlugins: [postcssPresetEnv()]
+});
+```
+
+`postcss-preset-env` 会根据 `browserslist` 配置，将 `@layer` 规则降级为等效的传统选择器写法。降级后的 CSS 不再依赖浏览器对 `@layer` 的支持，在低版本 Safari 中也能正常解析。
+
+同时需要确保 `package.json` 中的 `browserslist` 配置覆盖了目标浏览器：
+
+```json
+{
+  "browserslist": [
+    "> 0.5%",
+    "last 2 versions",
+    "Safari >= 14"
+  ]
+}
+```
+
+这里设置 `Safari >= 14` 而不是 `>= 15.4`，是因为企微用户的系统版本分布较广，需要留出足够的兼容余量。
+
+修复上线后，问题环境测试通过，样式恢复正常。
+
+---
+
+## 五、主动监控：别等用户来报 bug
+
+这个 bug 暴露了一个流程问题——样式兼容性问题完全依赖用户反馈来发现，响应滞后。
+
+一个可复用的方案是在页面加载后，用 JavaScript 检测关键元素的计算样式是否符合预期：
+
+```javascript
+window.addEventListener('load', () => {
+  const el = document.querySelector('.app-container');
+  if (!el) return;
+
+  const style = window.getComputedStyle(el);
+  const isStyleMissing =
+    style.display === '' ||
+    style.fontFamily === '' ||
+    (style.width === '0px' && style.visibility !== 'hidden');
+
+  if (isStyleMissing) {
+    // 上报到监控系统
+    reportStyleAnomaly({
+      ua: navigator.userAgent,
+      element: '.app-container',
+      computed: {
+        display: style.display,
+        fontFamily: style.fontFamily,
+        width: style.width
+      }
+    });
+  }
+});
+```
+
+这种方式可以在 CSS 兼容性问题发生时主动捕获，而不是等用户截图反馈。结合 Sentry 或其他监控平台，能做到分钟级的异常感知。
+
+另一个更前置的防线是**特征检测**——在运行时检查浏览器是否支持 `@layer`：
+
+```javascript
+if (!CSS.supports('(--layer-test: )') || !CSS.supports('@layer test { }')) {
+  console.warn('当前浏览器不支持 @layer，样式可能异常');
+}
+```
+
+---
+
+## 六、2026 年更新：@layer 的兼容性现状
+
+截至 2026 年，`@layer` 已在所有主流浏览器全面支持（Chrome 99+, Firefox 97+, Safari 15.4+, Edge 99+）。Can I Use 数据显示全球覆盖率超过 95%。
+
+这意味着本文描述的 bug 场景——用户 Safari 版本低于 15.4——在 2026 年已经非常少见。但这个案例的价值不在于 `@layer` 本身，而在于**排查思路**：
+
+**（1）** 新 CSS 特性上线前，必须确认目标环境的浏览器支持情况。企微、钉钉等内置浏览器的引擎版本往往落后于独立浏览器。
+
+**（2）** `browserslist` 配置不是写了就完事——PostCSS 只会对超出 browserslist 范围的特性做降级。如果目标用户的实际浏览器版本低于配置值，降级就不会生效。
+
+**（3）** 不可识别的 CSS at-rule（如 `@layer`、`@container`）在旧浏览器中的行为是**整个规则块被忽略**，而不是只忽略 at-rule 关键字。这会导致层内所有样式丢失，影响范围远超预期。
+
+---
+
+## 七、总结
+
+如果你只记住一句话：**CSS 的新 at-rule 在不支持的浏览器中，整个规则块会被静默忽略——没有报错，没有降级，只有样式消失。** 这是所有 CSS 新特性兼容性问题的共同模式，`@layer` 如此，`@container` 如此，未来的新特性也会如此。
+
+---
+
+**延伸阅读：**
+- [Can I Use — @layer](https://caniuse.com/css-layer)
+- [MDN — @layer](https://developer.mozilla.org/en-US/docs/Web/CSS/@layer)
+- [postcss-preset-env 文档](https://preset-env.cssdb.org/)
+
+---
+
+**本系列其他文章：**
+- 下一篇：规划中
+
+**相关主题：**
+- 如果你对 CSS 选择器匹配和层叠机制感兴趣，可以看：[选择器匹配、优先级与层叠：CSS 样式生效的底层逻辑](/posts/css-01/)

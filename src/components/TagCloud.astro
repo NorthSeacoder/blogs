@@ -4,6 +4,7 @@
  */
 import type { CollectionEntry } from 'astro:content';
 import CodeWindow from './CodeWindow.astro';
+import { getTagPath } from '../lib/utils';
 
 interface Props {
   posts: CollectionEntry<'blog'>[];
@@ -33,7 +34,7 @@ const tags = Array.from(tagMap.entries())
     {tags.map(([tag, count], index) => (
       <p class="pl-4">
         <a
-          href={`/tags/${tag}/`}
+          href={getTagPath(tag)}
           class="inline-flex items-baseline gap-0 hover:text-[var(--color-accent)] transition-colors"
         >
           <span class="syntax-string">"{tag}"</span><span class="text-[var(--color-text-primary)]">:</span>&nbsp;<span class="syntax-number">{count}</span>

@@ -1,0 +1,259 @@
+<!DOCTYPE html><html lang="zh-CN" class="min-h-full"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Astro v5.16.5"><!-- 防闪烁脚本：在 DOM 解析前执行 --><script>
+      (function () {
+        const STORAGE_KEY = 'theme';
+        const stored = localStorage.getItem(STORAGE_KEY);
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        // 根据存储值或系统偏好设置主题
+        if (stored === 'dark' || (stored === 'system' && prefersDark) || (!stored && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      })();
+    </script><!-- 字体预加载 --><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"><title>我不知道的 dumi（02）— 跨框架组件渲染：React 组件如何跑在 Vue 文档里 | ?.log</title><meta name="description" content="假设团队维护一个 React 组件库，文档用 dumi 构建。某天产品线提出需求：需要在 Vue 技术栈的项目文档中，嵌入这些 React 组件的实时预览。"><meta name="keywords" content="dumi, 跨框架, Web Components, React, Vue, Shadow DOM, 我不知道的"><link rel="canonical" href="https://example.com/posts/dumi-02/"><link rel="alternate" type="application/rss+xml" title="RSS" href="/rss.xml"><meta property="og:title" content="我不知道的 dumi（02）— 跨框架组件渲染：React 组件如何跑在 Vue 文档里 | ?.log"><meta property="og:description" content="假设团队维护一个 React 组件库，文档用 dumi 构建。某天产品线提出需求：需要在 Vue 技术栈的项目文档中，嵌入这些 React 组件的实时预览。"><meta property="og:type" content="article"><meta property="og:url" content="https://example.com/posts/dumi-02/"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="我不知道的 dumi（02）— 跨框架组件渲染：React 组件如何跑在 Vue 文档里 | ?.log"><meta name="twitter:description" content="假设团队维护一个 React 组件库，文档用 dumi 构建。某天产品线提出需求：需要在 Vue 技术栈的项目文档中，嵌入这些 React 组件的实时预览。"><script type="application/ld+json">{JSON.stringify(jsonLd)}</script><link rel="stylesheet" href="/_astro/index.sfjfXeKE.css">
+<link rel="stylesheet" href="/_astro/_slug_.KigR83JL.css"></head> <body class="flex min-h-screen flex-col"> <!-- 跳过链接 --> <a href="#main" class="skip-link">跳到主要内容</a> <!-- 导航栏 - VSCode 标签页风格 --> <header class="
+        fixed inset-x-0 top-0 z-50
+        bg-[var(--color-titlebar)]
+        border-b border-[var(--color-border)]
+        transition-colors duration-200
+      "> <div class="main-container flex h-12 items-center justify-between"> <!-- Logo - 终端风格 --> <a href="/" class="
+            flex items-center gap-2
+            font-mono text-sm font-medium
+            text-[var(--color-text-primary)]
+            transition-opacity hover:opacity-80
+          "> <span class="text-[var(--color-accent)]">~/</span> <span>?.log</span> <span class="text-[var(--color-comment)]">$</span> </a> <!-- 导航标签页 --> <div class="flex items-center"> <nav aria-label="主导航" class="flex items-center"> <a href="/" class="tab font-mono text-xs"> 首页 </a><a href="/posts/" class="tab font-mono text-xs active" aria-current="page"> 文章 </a><a href="/series/" class="tab font-mono text-xs"> 系列 </a><a href="/tags/" class="tab font-mono text-xs"> 标签 </a><a href="/archives/" class="tab font-mono text-xs"> 归档 </a><a href="/about/" class="tab font-mono text-xs"> 关于 </a> </nav> <!-- 工具栏按钮组 --> <div class="flex items-center gap-1 ml-2"> <!-- 搜索按钮 --> <a href="/search/" class="
+                flex items-center justify-center
+                h-7 w-7 rounded
+                text-[var(--color-text-secondary)]
+                bg-[var(--color-surface)]
+                border border-[var(--color-border)]
+                transition-colors
+                hover:bg-[var(--color-surface-hover)]
+                hover:text-[var(--color-text-primary)]
+              " aria-label="搜索" title="搜索 (⌘K)"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:search">   <symbol id="ai:lucide:search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m21 21l-4.34-4.34"/><circle cx="11" cy="11" r="8"/></g></symbol><use href="#ai:lucide:search"></use>  </svg> </a> <!-- 主题切换 --> <button id="theme-toggle" type="button" aria-label="切换主题" class="
+    relative flex h-7 w-7 items-center justify-center
+    rounded
+    bg-[var(--color-surface)]
+    border border-[var(--color-border)]
+    text-[var(--color-text-secondary)]
+    transition-colors
+    hover:bg-[var(--color-surface-hover)]
+    hover:text-[var(--color-text-primary)]
+    focus:outline-none
+  " data-astro-cid-x3pjskd3> <!-- 太阳图标 (亮色模式) --> <svg id="icon-sun" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" data-astro-cid-x3pjskd3></path> </svg> <!-- 月亮图标 (暗色模式) --> <svg id="icon-moon" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" data-astro-cid-x3pjskd3></path> </svg> <!-- 系统图标 (跟随系统) --> <svg id="icon-system" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" data-astro-cid-x3pjskd3></path> </svg> </button> <script type="module">const m="theme",s=["light","dark","system"];function r(){if(typeof localStorage>"u")return"system";const e=localStorage.getItem(m);return s.includes(e)?e:"system"}function l(){return typeof window>"u"?"light":window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}function u(e){return e==="system"?l():e}function d(e){const n=u(e),t=document.documentElement;n==="dark"?t.classList.add("dark"):t.classList.remove("dark"),f(e)}function f(e){const n=document.getElementById("icon-sun"),t=document.getElementById("icon-moon"),o=document.getElementById("icon-system");if(!n||!t||!o)return;[n,t,o].forEach(i=>{i.style.opacity="0",i.style.transform="scale(0.5) rotate(-180deg)"});let c;switch(e){case"light":c=n;break;case"dark":c=t;break;default:c=o}requestAnimationFrame(()=>{c.style.opacity="1",c.style.transform="scale(1) rotate(0deg)"})}function g(){const e=r(),t=(s.indexOf(e)+1)%s.length,o=s[t];localStorage.setItem(m,o),d(o)}function a(){const e=r();d(e),document.getElementById("theme-toggle")?.addEventListener("click",g),window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{r()==="system"&&d("system")})}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",a):a();document.addEventListener("astro:after-swap",a);</script>  </div> </div> </div> </header> <!-- 主内容区 --> <main id="main" class="main-container-wide flex-1 pb-16 pt-20">   <div class="reading-progress-container" aria-hidden="true" data-astro-cid-mu6cnre2> <div class="reading-progress-bar" id="reading-progress" data-astro-cid-mu6cnre2></div> </div> <script type="module">function a(){const e=document.getElementById("reading-progress"),n=document.querySelector("article");if(!e||!n)return;function o(){const r=n.getBoundingClientRect(),s=r.top+window.scrollY,l=r.height,i=window.innerHeight,d=window.scrollY,c=s-i/2,g=s+l-i/2,u=Math.min(Math.max((d-c)/(g-c),0),1);e.style.transform=`scaleX(${u})`}let t=!1;window.addEventListener("scroll",()=>{t||(requestAnimationFrame(()=>{o(),t=!1}),t=!0)}),o()}a();document.addEventListener("astro:after-swap",a);</script>   <div class="relative lg:grid lg:grid-cols-[1fr_220px] lg:gap-8 xl:grid-cols-[1fr_260px]"> <article class="animate-fade-in min-w-0"> <!-- 文章头部 --> <header class="mb-8"> <!-- 返回链接 --> <a href="/posts/" class="
+            group mb-6 inline-flex items-center gap-2
+            text-sm font-medium text-text-secondary
+            transition-colors hover:text-accent
+          "> <svg width="1em" height="1em" class="transition-transform group-hover:-translate-x-1" style="width: 1rem; height: 1rem;" data-icon="lucide:arrow-left">   <symbol id="ai:lucide:arrow-left" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m12 19l-7-7l7-7m7 7H5"/></symbol><use href="#ai:lucide:arrow-left"></use>  </svg> <span>返回文章列表</span> </a> <!-- 元信息 --> <div class="mb-4 flex flex-wrap items-center gap-4 text-sm text-text-secondary"> <!-- 发布日期 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:calendar">   <symbol id="ai:lucide:calendar" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M8 2v4m8-4v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></g></symbol><use href="#ai:lucide:calendar"></use>  </svg> <time datetime="2025-01-05T00:00:00.000Z"> 2025年1月5日 </time> </div> <!-- 阅读时间 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:clock">   <symbol id="ai:lucide:clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="10"/></g></symbol><use href="#ai:lucide:clock"></use>  </svg> <span>11 min read</span> </div> <!-- 更新日期 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:refresh-cw">   <symbol id="ai:lucide:refresh-cw" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9a9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5m5 4a9 9 0 0 1-9 9a9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></g></symbol><use href="#ai:lucide:refresh-cw"></use>  </svg> <span>更新于 2026年3月6日</span> </div> </div> <div class="mb-4 flex flex-wrap items-center gap-2 font-mono text-xs"> <a href="/series/dumi/" class="
+                  inline-flex items-center gap-1 rounded px-2 py-1
+                  bg-[var(--color-accent)]/10 text-[var(--color-accent)]
+                  transition-colors hover:bg-[var(--color-accent)]/15
+                "> <svg width="1em" height="1em" class style="width: 0.75rem; height: 0.75rem;" data-icon="lucide:folder">   <symbol id="ai:lucide:folder" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol><use href="#ai:lucide:folder"></use>  </svg> <span>我不知道的 dumi</span> </a> </div> <!-- 标题 --> <h1 class="text-3xl font-bold leading-tight text-text-primary sm:text-4xl"> 我不知道的 dumi（02）— 跨框架组件渲染：React 组件如何跑在 Vue 文档里 </h1> <!-- 描述 --> <p class="mt-4 text-lg leading-relaxed text-text-secondary"> 假设团队维护一个 React 组件库，文档用 dumi 构建。某天产品线提出需求：需要在 Vue 技术栈的项目文档中，嵌入这些 React 组件的实时预览。 </p> <!-- 标签 --> <div class="mt-6 flex flex-wrap gap-2 font-mono text-xs" aria-label="标签"> <a href="/tags/dumi/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"dumi"</span> </a><a href="/tags/~E8~B7~A8~E6~A1~86~E6~9E~B6/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"跨框架"</span> </a><a href="/tags/Web~20Components/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"Web Components"</span> </a><a href="/tags/React/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"React"</span> </a><a href="/tags/Vue/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"Vue"</span> </a><a href="/tags/Shadow~20DOM/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"Shadow DOM"</span> </a><a href="/tags/~E6~88~91~E4~B8~8D~E7~9F~A5~E9~81~93~E7~9A~84/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"我不知道的"</span> </a> </div> </header> <!-- 封面图 -->  <!-- 文章内容 --> <div class="
+          prose prose-lg
+          prose-headings:font-bold
+          prose-a:text-accent prose-a:no-underline hover:prose-a:underline
+          prose-img:rounded prose-img:shadow-lg
+          prose-code:before:content-none prose-code:after:content-none
+          max-w-none
+        "> <h1 id="我不知道的-dumi--react-组件如何跑在-vue-文档里"><a href="#我不知道的-dumi--react-组件如何跑在-vue-文档里">我不知道的 dumi — React 组件如何跑在 Vue 文档里</a></h1>
+<h2 id="一一个看似矛盾的需求"><a href="#一一个看似矛盾的需求">一、一个看似矛盾的需求</a></h2>
+<p>假设团队维护一个 React 组件库，文档用 dumi 构建。某天产品线提出需求：需要在 Vue 技术栈的项目文档中，嵌入这些 React 组件的实时预览。</p>
+<p>这听起来像是要在同一个页面里同时运行两套框架的渲染引擎——React 有自己的虚拟 DOM 和协调机制，Vue 也有自己的响应式系统和模板编译器。它们对 DOM 的控制方式完全不同，直接混用几乎必然冲突。</p>
+<p>但 dumi 2.0 确实支持跨框架组件渲染。它是怎么做到的？</p>
+<p>问题的关键在于——<strong>不是让两个框架”共享” DOM，而是给每个框架一个独立的 DOM 子树</strong>。</p>
+<hr/>
+<h2 id="二适配器模式用-web-components-当翻译官"><a href="#二适配器模式用-web-components-当翻译官">二、适配器模式：用 Web Components 当”翻译官”</a></h2>
+<p>dumi 的跨框架渲染基于一个核心思路：<strong>用 Web Components 作为框架之间的桥接层</strong>。</p>
+<p>Web Components 是浏览器原生的组件化标准，不依赖任何框架。通过 <code>customElements.define()</code> 注册的自定义元素，可以在任何 HTML 中使用——无论宿主环境是 Vue、React 还是纯 HTML。</p>
+<p>dumi 的做法是将 React 组件封装为 Web Components：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="javascript"><code><span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">class</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> ReactAdapter</span><span style="color:#D73A49;--shiki-dark:#F97583"> extends</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> HTMLElement</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">  connectedCallback</span><span style="color:#24292E;--shiki-dark:#E1E4E8">() {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> shadowRoot</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> this</span><span style="color:#24292E;--shiki-dark:#E1E4E8">.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">attachShadow</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({ mode: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;open&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> });</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> mountPoint</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> document.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">createElement</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;div&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    shadowRoot.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">appendChild</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(mountPoint);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> root</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> ReactDOM.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">createRoot</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(mountPoint);</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    root.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">render</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(React.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">createElement</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(ReactComponent, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">this</span><span style="color:#24292E;--shiki-dark:#E1E4E8">.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">getProps</span><span style="color:#24292E;--shiki-dark:#E1E4E8">()));</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">  disconnectedCallback</span><span style="color:#24292E;--shiki-dark:#E1E4E8">() {</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">    // 清理 React 渲染树，避免内存泄漏</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">  getProps</span><span style="color:#24292E;--shiki-dark:#E1E4E8">() {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    return</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> JSON</span><span style="color:#24292E;--shiki-dark:#E1E4E8">.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">parse</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#005CC5;--shiki-dark:#79B8FF">this</span><span style="color:#24292E;--shiki-dark:#E1E4E8">.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">getAttribute</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;props&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) </span><span style="color:#D73A49;--shiki-dark:#F97583">||</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> &#39;{}&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">customElements.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">define</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;react-button&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, ReactAdapter);</span></span></code></pre>
+<p>注册完成后，在 Vue 文档中就可以直接使用：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="html"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">&lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">template</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">div</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">h2</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;React Button 组件预览&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">h2</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">react-button</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> :props</span><span style="color:#24292E;--shiki-dark:#E1E4E8">=</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&quot;JSON.stringify({ type: &#39;primary&#39;, label: &#39;点击&#39; })&quot;</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> /&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  &lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">div</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">template</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span></code></pre>
+<p>说白了，Web Components 在这里扮演的角色就像一个”翻译官”——外部看到的是一个标准的 HTML 自定义元素，内部运行的是 React 渲染引擎。宿主框架（Vue）不需要知道这个元素内部是怎么实现的，只需要像使用普通 HTML 元素一样使用它。</p>
+<hr/>
+<h2 id="三隔离的三个维度css状态事件"><a href="#三隔离的三个维度css状态事件">三、隔离的三个维度：CSS、状态、事件</a></h2>
+<p>让两个框架在同一个页面共存，最大的挑战不是”启动两个渲染引擎”——而是<strong>隔离</strong>。如果 React 组件的样式影响了 Vue 的布局，或者 React 的事件冒泡到 Vue 的事件处理器中，页面就会出问题。</p>
+<p>dumi 在三个维度做了隔离：</p>
+<h3 id="css-隔离shadow-dom"><a href="#css-隔离shadow-dom">CSS 隔离：Shadow DOM</a></h3>
+<p>上面的代码中，<code>this.attachShadow({ mode: &#39;open&#39; })</code> 创建了一个 Shadow DOM。Shadow DOM 是浏览器提供的原生样式隔离机制——<strong>Shadow DOM 内部的样式不会泄露到外部，外部的样式也不会影响内部</strong>。</p>
+<p>这意味着 React 组件的 CSS（无论是 CSS Modules、styled-components 还是普通全局样式）都被封印在 Shadow DOM 内部，不会和 Vue 文档的样式产生冲突。</p>
+<p>但 Shadow DOM 也有一个常见陷阱——<strong>外部的 CSS 变量（Custom Properties）可以穿透 Shadow DOM 边界</strong>。这在主题定制场景下是优点（可以统一控制主题色），但也可能导致意外的样式影响。</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="css"><code><span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">/* 宿主页面 */</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">:root</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> { </span><span style="color:#E36209;--shiki-dark:#FFAB70">--primary-color</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">blue</span><span style="color:#24292E;--shiki-dark:#E1E4E8">; }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">/* Shadow DOM 内部的 React 组件 */</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">.button</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> { </span><span style="color:#005CC5;--shiki-dark:#79B8FF">color</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">var</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#E36209;--shiki-dark:#FFAB70">--primary-color</span><span style="color:#24292E;--shiki-dark:#E1E4E8">); }  </span><span style="color:#6A737D;--shiki-dark:#6A737D">/* 会读取到宿主的 blue */</span></span></code></pre>
+<h3 id="状态隔离独立作用域"><a href="#状态隔离独立作用域">状态隔离：独立作用域</a></h3>
+<p>dumi 的组件预览使用 <code>react-live</code> 库提供的 <code>LiveProvider</code> 组件。每个预览实例都有自己独立的 <code>scope</code>——注入的变量（如 <code>React</code>、<code>useState</code>）在不同预览之间互不干扰。</p>
+<p>更关键的是，dumi 对预览代码的执行使用了 <code>new Function()</code> 而非直接 <code>eval()</code>。<code>new Function()</code> 创建的函数在全局作用域而非当前作用域中执行，这在一定程度上避免了预览代码意外访问到 dumi 内部变量。</p>
+<h3 id="事件隔离shadow-dom-的事件边界"><a href="#事件隔离shadow-dom-的事件边界">事件隔离：Shadow DOM 的事件边界</a></h3>
+<p>Shadow DOM 有一个重要的事件行为：<strong>Shadow DOM 内部触发的事件，在冒泡出 Shadow Root 时会被”重定向”（retarget）——事件的 <code>target</code> 会被替换为 Shadow Host 元素本身</strong>。</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="javascript"><code><span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// Shadow DOM 内部的 React 按钮被点击</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 事件冒泡到 Shadow Root 时：</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">//   event.target → &lt;react-button&gt;（而不是内部的 &lt;button&gt;）</span></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// Vue 的事件处理器看到的是自定义元素被点击，不会感知到内部的 React DOM 结构</span></span></code></pre>
+<p>这个重定向机制天然地隔离了两个框架的事件系统——Vue 的事件委托不会意外捕获到 React 内部元素的事件细节。</p>
+<hr/>
+<h2 id="四iframe-沙箱更强的隔离方案"><a href="#四iframe-沙箱更强的隔离方案">四、iframe 沙箱：更强的隔离方案</a></h2>
+<p>Web Components + Shadow DOM 能处理大多数场景，但有些情况需要更强的隔离。比如：</p>
+<p><strong>（1）</strong> 组件依赖全局变量（如 <code>window.CONFIG</code>、<code>document.title</code>）</p>
+<p><strong>（2）</strong> 组件会修改全局样式（如 Ant Design 的 <code>ConfigProvider</code> 全局注入）</p>
+<p><strong>（3）</strong> 组件使用了 <code>Portal</code>，渲染目标是 <code>document.body</code></p>
+<p>这些场景下，Shadow DOM 的隔离不够——需要 JavaScript 执行环境级别的隔离。dumi 提供了 iframe 模式：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="markdown"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">```jsx iframe</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> React, { useState } </span><span style="color:#D73A49;--shiki-dark:#F97583">from</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> &#39;react&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">export</span><span style="color:#D73A49;--shiki-dark:#F97583"> default</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> () </span><span style="color:#D73A49;--shiki-dark:#F97583">=&amp;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">gt; {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  const</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> [</span><span style="color:#005CC5;--shiki-dark:#79B8FF">count</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#005CC5;--shiki-dark:#79B8FF">setCount</span><span style="color:#24292E;--shiki-dark:#E1E4E8">] </span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> useState</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#005CC5;--shiki-dark:#79B8FF">0</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  return</span><span style="color:#D73A49;--shiki-dark:#F97583"> &amp;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">lt;button onClick</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#24292E;--shiki-dark:#E1E4E8">{() =&amp;gt; </span><span style="color:#6F42C1;--shiki-dark:#B392F0">setCount</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#E36209;--shiki-dark:#FFAB70">c</span><span style="color:#D73A49;--shiki-dark:#F97583"> =&amp;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">gt; </span><span style="color:#E36209;--shiki-dark:#FFAB70">c</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> + 1)}</span><span style="color:#D73A49;--shiki-dark:#F97583">&amp;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">gt;</span><span style="color:#6F42C1;--shiki-dark:#B392F0">Count</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {count}</span><span style="color:#D73A49;--shiki-dark:#F97583">&amp;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">lt;</span><span style="color:#D73A49;--shiki-dark:#F97583">/</span><span style="color:#24292E;--shiki-dark:#E1E4E8">button</span><span style="color:#D73A49;--shiki-dark:#F97583">&amp;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">gt;;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">};</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">```　</span></span></code></pre>
+<p>标记 <code>iframe</code> 后，dumi 会为这个代码块生成一个独立的 iframe 页面。iframe 拥有完全独立的 <code>window</code>、<code>document</code>、CSS 上下文——比 Shadow DOM 的隔离更彻底，但性能开销也更大（每个 iframe 都是一个独立的浏览文档）。</p>
+<p>换句话说，dumi 提供了两级隔离方案：<strong>Shadow DOM 是”轻量隔离”，iframe 是”完全隔离”</strong>。选择哪个取决于组件的侵入性——如果组件只修改自己的 DOM 子树，Shadow DOM 足够；如果组件会”逃逸”到全局环境，就需要 iframe。</p>
+<hr/>
+<h2 id="五跨框架通信postmessage-桥接"><a href="#五跨框架通信postmessage-桥接">五、跨框架通信：postMessage 桥接</a></h2>
+<p>隔离之后，下一个问题是通信。如果 Vue 文档中的 React 组件需要响应宿主页面的操作（比如切换主题、传递配置），怎么办？</p>
+<p>对于 Web Components 方案，通信相对简单——通过自定义元素的属性（attributes）传递数据：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="javascript"><code><span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// Vue 侧：修改属性</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">document.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">querySelector</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;react-button&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">).</span><span style="color:#6F42C1;--shiki-dark:#B392F0">setAttribute</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;props&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">  JSON</span><span style="color:#24292E;--shiki-dark:#E1E4E8">.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">stringify</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({ theme: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;dark&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> })</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// React 适配器侧：监听属性变化</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">class</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> ReactAdapter</span><span style="color:#D73A49;--shiki-dark:#F97583"> extends</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> HTMLElement</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  static</span><span style="color:#D73A49;--shiki-dark:#F97583"> get</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> observedAttributes</span><span style="color:#24292E;--shiki-dark:#E1E4E8">() { </span><span style="color:#D73A49;--shiki-dark:#F97583">return</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> [</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;props&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">]; }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">  attributeChangedCallback</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#E36209;--shiki-dark:#FFAB70">name</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#E36209;--shiki-dark:#FFAB70">oldVal</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, </span><span style="color:#E36209;--shiki-dark:#FFAB70">newVal</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">    if</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> (name </span><span style="color:#D73A49;--shiki-dark:#F97583">===</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> &#39;props&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#005CC5;--shiki-dark:#79B8FF">      this</span><span style="color:#24292E;--shiki-dark:#E1E4E8">.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">rerender</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#005CC5;--shiki-dark:#79B8FF">JSON</span><span style="color:#24292E;--shiki-dark:#E1E4E8">.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">parse</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(newVal));</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">    }</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<p>对于 iframe 方案，通信必须通过 <code>window.postMessage</code>：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="javascript"><code><span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 宿主页面 → iframe</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> iframe</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> document.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">querySelector</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;iframe.dumi-preview&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">iframe.contentWindow.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">postMessage</span><span style="color:#24292E;--shiki-dark:#E1E4E8">({ type: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;theme-change&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, theme: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;dark&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> }, </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;*&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// iframe 内部监听</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">window.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">addEventListener</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;message&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, (</span><span style="color:#E36209;--shiki-dark:#FFAB70">event</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) </span><span style="color:#D73A49;--shiki-dark:#F97583">=&gt;</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">  if</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> (event.data.type </span><span style="color:#D73A49;--shiki-dark:#F97583">===</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> &#39;theme-change&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">    setTheme</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(event.data.theme);</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">});</span></span></code></pre>
+<p><code>postMessage</code> 是浏览器为跨域/跨文档通信设计的标准 API。它是异步的、序列化的（数据会经过结构化克隆），不会创建引用共享——天然适合隔离环境之间的通信。</p>
+<hr/>
+<h2 id="六性能与取舍"><a href="#六性能与取舍">六、性能与取舍</a></h2>
+<p>跨框架渲染的代价是什么？</p>
+<p><strong>（1）</strong> <strong>额外的运行时体积</strong>：页面需要同时加载 React 和 Vue 的运行时。React 的 <code>react</code> + <code>react-dom</code> 约 40KB（gzip），Vue 3 约 30KB（gzip）。对文档站点来说可以接受，但对生产应用需要慎重考虑。</p>
+<p><strong>（2）</strong> <strong>首屏渲染开销</strong>：Web Components 的注册和 Shadow DOM 创建有额外开销。如果页面有大量跨框架组件预览，建议使用懒加载——只在组件进入视口时才初始化渲染。</p>
+<p><strong>（3）</strong> <strong>调试复杂度</strong>：Shadow DOM 内部的元素在 DevTools 中需要展开 Shadow Root 才能看到。iframe 的调试更复杂，需要切换到对应 iframe 的执行上下文。</p>
+<p>在实际项目中，跨框架渲染主要用于<strong>文档展示场景</strong>——让一个框架的组件库能在另一个框架的文档中展示实时预览。如果是生产应用中需要混用框架（如 React 应用中嵌入 Vue 组件），通常有更轻量的方案（如 Module Federation 或直接用 Web Components 封装）。</p>
+<hr/>
+<h2 id="七总结"><a href="#七总结">七、总结</a></h2>
+<p>dumi 的跨框架组件渲染，核心思路是<strong>用 Web Components 做桥接，用 Shadow DOM / iframe 做隔离，用属性传递 / postMessage 做通信</strong>。</p>
+<p>如果你只记住一句话：<strong>跨框架渲染不是让两个框架共享 DOM，而是给每个框架一个隔离的 DOM 子树，然后用标准的浏览器 API 桥接它们。</strong> Web Components 就是那个”标准 API”——它不属于任何框架，所以它可以连接所有框架。</p>
+<hr/>
+<p><strong>延伸阅读：</strong></p>
+<ul>
+<li><a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Components">MDN — Web Components</a></li>
+<li><a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_shadow_DOM">MDN — Shadow DOM</a></li>
+<li><a href="https://d.umijs.org/">dumi 官方文档 — 跨框架支持</a></li>
+<li><a href="https://github.com/FormidableLabs/react-live">react-live — GitHub</a></li>
+</ul>
+<hr/>
+<p><strong>本系列其他文章：</strong></p>
+<ul>
+<li>上一篇：<a href="/posts/dumi-01/">从 Markdown 到文档站点：dumi 的 SSG 流程与约定式路由</a></li>
+</ul>
+<p><strong>相关主题：</strong></p>
+<ul>
+<li>如果你对 React 组件的渲染机制感兴趣，可以看：<a href="/series/React/">我不知道的 React 系列</a></li>
+</ul> </div> <!-- 文章底部 --> <footer class="mt-12 border-t border-border pt-8"> <!-- 分享提示 --> <div class="code-window"> <div class="code-window-titlebar"> <span class="flex-1 text-center font-mono text-xs text-[var(--color-text-secondary)]">share.ts</span> </div> <div class="p-4 font-mono text-sm"> <p class="syntax-comment">// 觉得这篇文章有帮助？</p> <p class="syntax-comment">// 欢迎分享给更多人</p> <p class="mt-4"> <span class="syntax-keyword">export const</span> <span class="syntax-variable">&nbsp;subscribe</span> <span class="text-[var(--color-text-primary)]">&nbsp;=&nbsp;</span> <a href="/rss.xml" class="syntax-string hover:underline">"/rss.xml"</a> <span class="text-[var(--color-text-primary)]">;</span> </p> </div> </div> </footer> </article> <!-- TOC 侧边栏 - 仅在大屏幕显示 --> <aside class="hidden lg:block"> <nav class="toc-container" aria-label="文章目录" data-astro-cid-xvrfupwn><div class="toc-header" data-astro-cid-xvrfupwn><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-xvrfupwn><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7" data-astro-cid-xvrfupwn></path></svg><span data-astro-cid-xvrfupwn>目录</span></div><ul class="toc-list" data-astro-cid-xvrfupwn><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#一一个看似矛盾的需求" class="toc-link" data-slug="一一个看似矛盾的需求" data-astro-cid-xvrfupwn>一、一个看似矛盾的需求</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#二适配器模式用-web-components-当翻译官" class="toc-link" data-slug="二适配器模式用-web-components-当翻译官" data-astro-cid-xvrfupwn>二、适配器模式：用 Web Components 当”翻译官”</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#三隔离的三个维度css状态事件" class="toc-link" data-slug="三隔离的三个维度css状态事件" data-astro-cid-xvrfupwn>三、隔离的三个维度：CSS、状态、事件</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#css-隔离shadow-dom" class="toc-link" data-slug="css-隔离shadow-dom" data-astro-cid-xvrfupwn>CSS 隔离：Shadow DOM</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#状态隔离独立作用域" class="toc-link" data-slug="状态隔离独立作用域" data-astro-cid-xvrfupwn>状态隔离：独立作用域</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#事件隔离shadow-dom-的事件边界" class="toc-link" data-slug="事件隔离shadow-dom-的事件边界" data-astro-cid-xvrfupwn>事件隔离：Shadow DOM 的事件边界</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#四iframe-沙箱更强的隔离方案" class="toc-link" data-slug="四iframe-沙箱更强的隔离方案" data-astro-cid-xvrfupwn>四、iframe 沙箱：更强的隔离方案</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#五跨框架通信postmessage-桥接" class="toc-link" data-slug="五跨框架通信postmessage-桥接" data-astro-cid-xvrfupwn>五、跨框架通信：postMessage 桥接</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#六性能与取舍" class="toc-link" data-slug="六性能与取舍" data-astro-cid-xvrfupwn>六、性能与取舍</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#七总结" class="toc-link" data-slug="七总结" data-astro-cid-xvrfupwn>七、总结</a></li></ul></nav><script type="module">function s(){const n=document.querySelectorAll(".toc-link"),c=document.querySelectorAll("article h2[id], article h3[id]");if(n.length===0||c.length===0)return;const i=new IntersectionObserver(t=>{t.forEach(o=>{if(o.isIntersecting){const r=o.target.getAttribute("id");n.forEach(e=>{e.classList.toggle("active",e.getAttribute("data-slug")===r)})}})},{rootMargin:"-80px 0px -80% 0px",threshold:0});c.forEach(t=>i.observe(t)),n.forEach(t=>{t.addEventListener("click",o=>{o.preventDefault();const r=t.getAttribute("data-slug"),e=document.getElementById(r||"");if(e){const a=e.getBoundingClientRect().top+window.scrollY-100;window.scrollTo({top:a,behavior:"smooth"})}})})}s();document.addEventListener("astro:after-swap",s);</script> </aside> </div>  <script type="module">function i(){document.querySelectorAll("pre:has(code)").forEach(t=>{if(t.querySelector(".code-header"))return;const s=t.querySelector("code");if(!s)return;const r=Array.from(s.classList).find(a=>a.startsWith("language-")),d=r?r.replace("language-",""):"text",c=document.createElement("div");c.className="code-header";const n=document.createElement("span");n.className="code-lang",n.textContent=d.toUpperCase();const e=document.createElement("button");e.className="code-copy-btn",e.setAttribute("aria-label","复制代码"),e.innerHTML=`
+        <svg class="copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </svg>
+        <svg class="check-icon hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      `,e.addEventListener("click",async()=>{const a=s.textContent||"";try{await navigator.clipboard.writeText(a),e.classList.add("copied"),e.querySelector(".copy-icon")?.classList.add("hidden"),e.querySelector(".check-icon")?.classList.remove("hidden"),setTimeout(()=>{e.classList.remove("copied"),e.querySelector(".copy-icon")?.classList.remove("hidden"),e.querySelector(".check-icon")?.classList.add("hidden")},2e3)}catch(l){console.error("复制失败:",l)}}),c.appendChild(n),c.appendChild(e);const o=document.createElement("div");o.className="code-block-wrapper",t.parentNode?.insertBefore(o,t),o.appendChild(c),o.appendChild(t)})}i();document.addEventListener("astro:after-swap",i);</script>   <button id="back-to-top" class="back-to-top" aria-label="返回顶部" title="返回顶部" data-astro-cid-wlspcwf4> <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-wlspcwf4> <path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" data-astro-cid-wlspcwf4></path> </svg> </button> <script type="module">function o(){const e=document.getElementById("back-to-top");if(!e)return;function i(){window.scrollY>400?e.classList.add("visible"):e.classList.remove("visible")}e.addEventListener("click",()=>{window.scrollTo({top:0,behavior:"smooth"})});let t=!1;window.addEventListener("scroll",()=>{t||(requestAnimationFrame(()=>{i(),t=!1}),t=!0)}),i()}o();document.addEventListener("astro:after-swap",o);</script>   </main> <!-- 页脚 - VSCode 状态栏风格 --> <footer class="
+        border-t border-[var(--color-border)]
+        bg-[var(--color-surface)]
+        py-6
+        text-xs font-mono text-[var(--color-text-secondary)]
+      "> <div class="main-container"> <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"> <!-- 版权信息 --> <p class="text-center sm:text-left"> <span class="syntax-comment">// </span> <span class="syntax-keyword">const</span> <span class="syntax-variable"> copyright</span> <span> = </span> <span class="syntax-string">"2026 NorthSeacoder"</span> </p> <!-- 链接 --> <div class="flex items-center justify-center gap-4 sm:justify-end"> <a href="/rss.xml" class="
+                flex items-center gap-1.5
+                transition-colors
+                hover:text-[var(--color-accent)]
+              " aria-label="RSS 订阅"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:rss">   <symbol id="ai:lucide:rss" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></g></symbol><use href="#ai:lucide:rss"></use>  </svg> <span>RSS</span> </a> <a href="https://github.com/NorthSeacoder" target="_blank" rel="noopener noreferrer" class="
+                flex items-center gap-1.5
+                transition-colors
+                hover:text-[var(--color-accent)]
+              " aria-label="GitHub"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:github">   <symbol id="ai:lucide:github" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5c.08-1.25-.27-2.48-1-3.5c.28-1.15.28-2.35 0-3.5c0 0-1 0-3 1.5c-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.4 5.4 0 0 0 4 9c0 3.5 3 5.5 6 5.5c-.39.49-.68 1.05-.85 1.65S8.93 17.38 9 18v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></g></symbol><use href="#ai:lucide:github"></use>  </svg> <span>GitHub</span> </a> </div> </div> </div> </footer> </body></html>

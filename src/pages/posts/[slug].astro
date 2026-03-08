@@ -6,7 +6,13 @@ import TableOfContents from '../../components/TableOfContents.astro';
 import CodeBlockEnhancer from '../../components/CodeBlockEnhancer.astro';
 import ReadingProgress from '../../components/ReadingProgress.astro';
 import BackToTop from '../../components/BackToTop.astro';
-import { estimateReadingTime, format } from '../../lib/utils';
+import {
+  estimateReadingTime,
+  format,
+  getSeriesName,
+  getTagPath,
+  isSeriesIndex,
+} from '../../lib/utils';
 import { siteConfig } from '../../lib/siteConfig';
 
 export async function getStaticPaths() {
@@ -32,6 +38,9 @@ const jsonLd = {
   },
 };
 const readingTime = estimateReadingTime(post.body);
+const seriesName = getSeriesName(post);
+const seriesLink = seriesName ? `/series/${encodeURIComponent(seriesName)}/` : null;
+const isIndex = isSeriesIndex(post);
 ---
 
 <BaseLayout
@@ -92,6 +101,24 @@ const readingTime = estimateReadingTime(post.body);
           }
         </div>
 
+        {
+          seriesLink && (
+            <div class="mb-4 flex flex-wrap items-center gap-2 font-mono text-xs">
+              <a
+                href={seriesLink}
+                class="
+                  inline-flex items-center gap-1 rounded px-2 py-1
+                  bg-[var(--color-accent)]/10 text-[var(--color-accent)]
+                  transition-colors hover:bg-[var(--color-accent)]/15
+                "
+              >
+                <Icon name="folder" size={3} />
+                <span>{isIndex ? '系列导读' : `我不知道的 ${seriesName}`}</span>
+              </a>
+            </div>
+          )
+        }
+
         <!-- 标题 -->
         <h1 class="text-3xl font-bold leading-tight text-text-primary sm:text-4xl">
           {post.data.title}
@@ -108,7 +135,7 @@ const readingTime = estimateReadingTime(post.body);
             <div class="mt-6 flex flex-wrap gap-2 font-mono text-xs" aria-label="标签">
               {post.data.tags.map((tag) => (
                 <a
-                  href={`/tags/${tag}/`}
+                  href={getTagPath(tag)}
                   class="
                     inline-flex items-center gap-1
                     rounded px-2 py-1

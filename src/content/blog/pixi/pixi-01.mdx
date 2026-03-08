@@ -1,0 +1,196 @@
+---
+title: 我不知道的 Pixi.js（01）— 渲染引擎的核心架构
+description: >-
+  很多人以为 Pixi.js 就是"在 canvas 上画图的库"，但实际上——它是一个完整的渲染管线系统。从 v8 开始，Pixi.js 同时支持
+  WebGL 和 WebGPU 两套后端，渲染架构也因此经历了一次彻底重构。
+subtitle: 渲染引擎的核心架构
+pubDate: '2024-07-01'
+updatedDate: '2026-03-06'
+tags:
+  - Pixi.js
+  - 我不知道的
+  - WebGL
+  - WebGPU
+  - 渲染引擎
+lang: zh-CN
+keywords:
+  - Pixi.js
+  - 我不知道的
+  - WebGL
+  - WebGPU
+  - 渲染引擎
+topic: Pixi.js
+category: Pixi.js
+type: post
+series: Pixi.js
+seriesOrder: 1
+slug: pixi-01
+model: claude-4.6-opus
+---
+很多人以为 Pixi.js 就是"在 canvas 上画图的库"，但实际上——它是一个完整的渲染管线系统。从 v8 开始，Pixi.js 同时支持 WebGL 和 WebGPU 两套后端，渲染架构也因此经历了一次彻底重构。
+
+这篇文章拆解 Pixi.js 渲染引擎的核心流程：初始化如何选择后端、场景树怎么组织对象、变换矩阵如何逐级传递、渲染队列怎么把树"压平"成绘制指令。
+
+---
+
+## 一、初始化：引擎和浏览器的第一次协商
+
+Pixi.js v8 的初始化方式和老版本差别很大。v7 时代可以直接 `new PIXI.Renderer()`，同步创建完事；v8 改成了异步初始化，原因是 **WebGPU 的上下文获取本身就是异步的**。
+
+下面这段代码展示了 v8 的标准初始化流程：
+
+```javascript
+import { Application } from 'pixi.js';
+
+const app = new Application();
+
+await app.init({
+  width: 800,
+  height: 600,
+  antialias: true,
+  preference: 'webgpu', // 'webgl' | 'webgpu'
+});
+
+document.body.appendChild(app.canvas);
+```
+
+这里有一个很多人会忽略的细节——`preference` 参数决定了渲染后端的优先级，但并不是"指定"。如果浏览器不支持 WebGPU，引擎会自动回退到 WebGL2，再不行回退到 WebGL1。v8.16.0 甚至重新引入了实验性的 Canvas 2D 渲染器作为最终兜底。
+
+**说白了，`init()` 做了三件事**：检测浏览器能力 → 创建对应的 GPU 上下文 → 初始化渲染管线（着色器、缓冲区、默认纹理）。之所以必须异步，是因为 WebGPU 的 `navigator.gpu.requestAdapter()` 和 `adapter.requestDevice()` 都返回 Promise。
+
+对比一下 v7 的写法：
+
+```javascript
+// v7 — 同步创建，只有 WebGL 一种后端
+const renderer = new PIXI.Renderer({
+  width: 800,
+  height: 600,
+  antialias: true,
+});
+document.body.appendChild(renderer.view);
+```
+
+看起来 v7 更简洁，但代价是丧失了对 WebGPU 的支持能力。v8 用一个 `await` 换来了双后端兼容，这个取舍是值得的。
+
+---
+
+## 二、场景树：Container 如何组织所有对象
+
+渲染引擎需要知道"画什么"。Pixi.js 用一棵树来组织所有可渲染对象，根节点是 `app.stage`，类型是 `Container`。
+
+v8 有一个重要变化：**`DisplayObject` 被移除了，`Container` 成为所有可渲染对象的基类**。这不只是改了个名字——v7 的 `DisplayObject` 是一个抽象基类，自身不能被渲染；v8 的 `Container` 既能当容器，也能直接作为可渲染节点。
+
+```javascript
+import { Container, Sprite, Graphics } from 'pixi.js';
+
+const stage = app.stage; // 根 Container
+
+const background = new Container();
+const character = Sprite.from('hero.png');
+const healthBar = new Graphics().rect(0, 0, 100, 10).fill('red');
+
+background.addChild(character);
+background.addChild(healthBar);
+stage.addChild(background);
+```
+
+这棵树的遍历顺序决定了渲染顺序。Pixi.js 采用深度优先遍历（DFS），父节点先处理，子节点后处理。如果你只记住一句话，记住这个：**树的结构就是渲染顺序的蓝图，调整父子关系等于调整绘制层级**。
+
+`sortableChildren` 属性可以打破默认遍历顺序。启用后，容器会按子节点的 `zIndex` 排序再遍历：
+
+```javascript
+background.sortableChildren = true;
+character.zIndex = 10;
+healthBar.zIndex = 5;
+// healthBar 先绘制（底层），character 后绘制（上层）
+```
+
+问题的关键在于——`sortableChildren` 每帧都会执行排序，对象数量多的时候（比如弹幕、粒子系统）会带来可观的性能开销。对于静态层级，直接用 `addChild` 的顺序控制绘制层级更高效。
+
+---
+
+## 三、变换矩阵：从本地坐标到世界坐标
+
+场景树中每个节点都有自己的位置（position）、旋转（rotation）、缩放（scale）。但渲染器最终需要的是每个对象在屏幕上的绝对坐标——也就是世界坐标。
+
+这个转换靠**变换矩阵的逐级相乘**完成。每个 `Container` 维护一个本地变换矩阵（localTransform），记录相对于父节点的变换。渲染前，引擎从根节点开始，把父节点的世界矩阵和子节点的本地矩阵相乘，得到子节点的世界变换矩阵（worldTransform）。
+
+换句话说，一个对象的最终屏幕位置 = 从根到该节点的所有变换矩阵连乘的结果。
+
+下面这段代码演示了矩阵传递的效果：
+
+```javascript
+const parent = new Container();
+parent.position.set(100, 0);
+parent.rotation = Math.PI / 4; // 旋转 45 度
+
+const child = new Container();
+child.position.set(50, 0);
+
+parent.addChild(child);
+stage.addChild(parent);
+
+// child 的世界坐标不是 (150, 0)
+// 而是 parent 旋转 45 度后，再沿旋转后的方向偏移 50 像素
+// 实际约为 (135.4, 35.4)
+```
+
+很多人以为子节点的 `position` 是相对于画布的，但实际上它是相对于父节点的本地坐标系。**旋转和缩放会改变坐标轴的方向和刻度**，这就是为什么嵌套深了之后，对象位置经常和直觉不一致。
+
+Pixi.js 的优化策略是"脏标记"（dirty flag）：只有当节点的 `position`、`rotation`、`scale` 变化时，才重新计算其世界矩阵。没变化的节点直接复用上一帧的缓存结果。这让变换计算的实际开销远小于"每帧全量计算"。
+
+---
+
+## 四、渲染队列：把树压平成绘制指令
+
+场景树是层级结构，但 GPU 不认识树——它只认绘制指令。Pixi.js 需要把树"压平"成一个有序的渲染队列，然后逐条执行。
+
+这个过程分两步：
+
+**（1）遍历收集**：深度优先遍历场景树，按顺序收集所有可见对象。不可见的节点（`visible = false`）和被裁剪掉的节点会跳过。v8 引入了 `cullable` 属性，启用后会根据对象是否在视口内决定是否进入渲染队列。
+
+```javascript
+sprite.cullable = true;
+// 只有在屏幕可见区域内的 sprite 才会进入渲染队列
+```
+
+**（2）批处理合并**：这是 Pixi.js 性能的核心所在。如果连续多个 Sprite 使用同一张纹理，引擎会把它们合并成一次绘制调用（draw call）。说白了，就是把多个小任务打包成一个大任务一次性提交给 GPU。
+
+这里有一个很多人会忽略的细节——**纹理切换会打断批处理**。假设渲染队列是 [spriteA-纹理1, spriteB-纹理2, spriteC-纹理1]，即使 A 和 C 用同一张纹理，中间被 B 打断了，就需要三次 draw call。把相同纹理的对象放在树中相邻的位置，能显著减少 draw call 数量。
+
+v8 的批处理系统相比 v7 做了重大重构。v7 的 `BatchRenderer` 是一个独立插件，v8 把批处理内化到了渲染管线中，默认启用且无法关闭。这么做的好处是批处理和其他渲染阶段（滤镜、遮罩）可以更紧密地配合，减少中间状态切换。
+
+---
+
+## 五、完整流程：一帧是怎么画出来的
+
+把上面四步串起来，一帧的渲染流程是：
+
+**（1）Ticker 触发帧更新** → 用户回调执行（更新游戏逻辑、动画状态）
+
+**（2）场景树遍历** → 从 `stage` 出发 DFS，更新脏节点的世界变换矩阵
+
+**（3）构建渲染队列** → 收集可见对象，执行批处理合并
+
+**（4）提交绘制指令** → WebGL 调用 `gl.drawElements()` 或 WebGPU 调用 `passEncoder.draw()`
+
+**（5）呈现到屏幕** → 交换缓冲区，画面更新
+
+整个过程在一帧内完成，目标是 16.67ms（60 FPS）。其中步骤 4 的耗时主要取决于 draw call 数量和 GPU 负载，步骤 2 和 3 的耗时取决于场景树的规模。
+
+如果你只记住一句话：**减少 draw call 和控制场景树深度，是 Pixi.js 性能优化的两个核心杠杆**。
+
+---
+
+## 总结
+
+Pixi.js 的渲染引擎不是一个简单的"画图工具"。它是一个完整的管线系统：异步初始化协商 GPU 能力，场景树组织渲染对象，变换矩阵计算世界坐标，批处理把绘制指令压缩到最少。v8 的双后端支持（WebGL + WebGPU）让这个架构比 v7 复杂不少，但也更灵活、更高效。
+
+---
+
+**本系列其他文章：**
+- 下一篇：[纹理与 Sprites 的管理机制](/posts/pixi-02/)
+
+**延伸阅读：**
+- [PixiJS v8 Migration Guide](https://pixijs.download/dev/docs/migrations.html)
+- [PixiJS v8 Architecture Overview](https://pixijs.com/blog/pixi-v8-launches)

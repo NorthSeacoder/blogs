@@ -1,0 +1,225 @@
+<!DOCTYPE html><html lang="zh-CN" class="min-h-full"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="Astro v5.16.5"><!-- 防闪烁脚本：在 DOM 解析前执行 --><script>
+      (function () {
+        const STORAGE_KEY = 'theme';
+        const stored = localStorage.getItem(STORAGE_KEY);
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        // 根据存储值或系统偏好设置主题
+        if (stored === 'dark' || (stored === 'system' && prefersDark) || (!stored && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      })();
+    </script><!-- 字体预加载 --><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"><title>我不知道的 React（03）— 从 JSX 到 DOM 与 Diff 算法 | ?.log</title><meta name="description" content="很多人以为 JSX 就是在 JavaScript 里写 HTML，但实际上浏览器根本不认识 JSX。它既不是合法的 JavaScript，也不是真正的 HTML——它是一层语法糖，需要经过编译才能执行。"><meta name="keywords" content="React, JSX, Diff算法, 虚拟DOM, Key, Reconciliation, 我不知道的"><link rel="canonical" href="https://example.com/posts/react-03/"><link rel="alternate" type="application/rss+xml" title="RSS" href="/rss.xml"><meta property="og:title" content="我不知道的 React（03）— 从 JSX 到 DOM 与 Diff 算法 | ?.log"><meta property="og:description" content="很多人以为 JSX 就是在 JavaScript 里写 HTML，但实际上浏览器根本不认识 JSX。它既不是合法的 JavaScript，也不是真正的 HTML——它是一层语法糖，需要经过编译才能执行。"><meta property="og:type" content="article"><meta property="og:url" content="https://example.com/posts/react-03/"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="我不知道的 React（03）— 从 JSX 到 DOM 与 Diff 算法 | ?.log"><meta name="twitter:description" content="很多人以为 JSX 就是在 JavaScript 里写 HTML，但实际上浏览器根本不认识 JSX。它既不是合法的 JavaScript，也不是真正的 HTML——它是一层语法糖，需要经过编译才能执行。"><script type="application/ld+json">{JSON.stringify(jsonLd)}</script><link rel="stylesheet" href="/_astro/index.sfjfXeKE.css">
+<link rel="stylesheet" href="/_astro/_slug_.KigR83JL.css"></head> <body class="flex min-h-screen flex-col"> <!-- 跳过链接 --> <a href="#main" class="skip-link">跳到主要内容</a> <!-- 导航栏 - VSCode 标签页风格 --> <header class="
+        fixed inset-x-0 top-0 z-50
+        bg-[var(--color-titlebar)]
+        border-b border-[var(--color-border)]
+        transition-colors duration-200
+      "> <div class="main-container flex h-12 items-center justify-between"> <!-- Logo - 终端风格 --> <a href="/" class="
+            flex items-center gap-2
+            font-mono text-sm font-medium
+            text-[var(--color-text-primary)]
+            transition-opacity hover:opacity-80
+          "> <span class="text-[var(--color-accent)]">~/</span> <span>?.log</span> <span class="text-[var(--color-comment)]">$</span> </a> <!-- 导航标签页 --> <div class="flex items-center"> <nav aria-label="主导航" class="flex items-center"> <a href="/" class="tab font-mono text-xs"> 首页 </a><a href="/posts/" class="tab font-mono text-xs active" aria-current="page"> 文章 </a><a href="/series/" class="tab font-mono text-xs"> 系列 </a><a href="/tags/" class="tab font-mono text-xs"> 标签 </a><a href="/archives/" class="tab font-mono text-xs"> 归档 </a><a href="/about/" class="tab font-mono text-xs"> 关于 </a> </nav> <!-- 工具栏按钮组 --> <div class="flex items-center gap-1 ml-2"> <!-- 搜索按钮 --> <a href="/search/" class="
+                flex items-center justify-center
+                h-7 w-7 rounded
+                text-[var(--color-text-secondary)]
+                bg-[var(--color-surface)]
+                border border-[var(--color-border)]
+                transition-colors
+                hover:bg-[var(--color-surface-hover)]
+                hover:text-[var(--color-text-primary)]
+              " aria-label="搜索" title="搜索 (⌘K)"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:search">   <symbol id="ai:lucide:search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m21 21l-4.34-4.34"/><circle cx="11" cy="11" r="8"/></g></symbol><use href="#ai:lucide:search"></use>  </svg> </a> <!-- 主题切换 --> <button id="theme-toggle" type="button" aria-label="切换主题" class="
+    relative flex h-7 w-7 items-center justify-center
+    rounded
+    bg-[var(--color-surface)]
+    border border-[var(--color-border)]
+    text-[var(--color-text-secondary)]
+    transition-colors
+    hover:bg-[var(--color-surface-hover)]
+    hover:text-[var(--color-text-primary)]
+    focus:outline-none
+  " data-astro-cid-x3pjskd3> <!-- 太阳图标 (亮色模式) --> <svg id="icon-sun" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" data-astro-cid-x3pjskd3></path> </svg> <!-- 月亮图标 (暗色模式) --> <svg id="icon-moon" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" data-astro-cid-x3pjskd3></path> </svg> <!-- 系统图标 (跟随系统) --> <svg id="icon-system" class="absolute h-3.5 w-3.5 transition-all duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-x3pjskd3> <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" data-astro-cid-x3pjskd3></path> </svg> </button> <script type="module">const m="theme",s=["light","dark","system"];function r(){if(typeof localStorage>"u")return"system";const e=localStorage.getItem(m);return s.includes(e)?e:"system"}function l(){return typeof window>"u"?"light":window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}function u(e){return e==="system"?l():e}function d(e){const n=u(e),t=document.documentElement;n==="dark"?t.classList.add("dark"):t.classList.remove("dark"),f(e)}function f(e){const n=document.getElementById("icon-sun"),t=document.getElementById("icon-moon"),o=document.getElementById("icon-system");if(!n||!t||!o)return;[n,t,o].forEach(i=>{i.style.opacity="0",i.style.transform="scale(0.5) rotate(-180deg)"});let c;switch(e){case"light":c=n;break;case"dark":c=t;break;default:c=o}requestAnimationFrame(()=>{c.style.opacity="1",c.style.transform="scale(1) rotate(0deg)"})}function g(){const e=r(),t=(s.indexOf(e)+1)%s.length,o=s[t];localStorage.setItem(m,o),d(o)}function a(){const e=r();d(e),document.getElementById("theme-toggle")?.addEventListener("click",g),window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{r()==="system"&&d("system")})}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",a):a();document.addEventListener("astro:after-swap",a);</script>  </div> </div> </div> </header> <!-- 主内容区 --> <main id="main" class="main-container-wide flex-1 pb-16 pt-20">   <div class="reading-progress-container" aria-hidden="true" data-astro-cid-mu6cnre2> <div class="reading-progress-bar" id="reading-progress" data-astro-cid-mu6cnre2></div> </div> <script type="module">function a(){const e=document.getElementById("reading-progress"),n=document.querySelector("article");if(!e||!n)return;function o(){const r=n.getBoundingClientRect(),s=r.top+window.scrollY,l=r.height,i=window.innerHeight,d=window.scrollY,c=s-i/2,g=s+l-i/2,u=Math.min(Math.max((d-c)/(g-c),0),1);e.style.transform=`scaleX(${u})`}let t=!1;window.addEventListener("scroll",()=>{t||(requestAnimationFrame(()=>{o(),t=!1}),t=!0)}),o()}a();document.addEventListener("astro:after-swap",a);</script>   <div class="relative lg:grid lg:grid-cols-[1fr_220px] lg:gap-8 xl:grid-cols-[1fr_260px]"> <article class="animate-fade-in min-w-0"> <!-- 文章头部 --> <header class="mb-8"> <!-- 返回链接 --> <a href="/posts/" class="
+            group mb-6 inline-flex items-center gap-2
+            text-sm font-medium text-text-secondary
+            transition-colors hover:text-accent
+          "> <svg width="1em" height="1em" class="transition-transform group-hover:-translate-x-1" style="width: 1rem; height: 1rem;" data-icon="lucide:arrow-left">   <symbol id="ai:lucide:arrow-left" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m12 19l-7-7l7-7m7 7H5"/></symbol><use href="#ai:lucide:arrow-left"></use>  </svg> <span>返回文章列表</span> </a> <!-- 元信息 --> <div class="mb-4 flex flex-wrap items-center gap-4 text-sm text-text-secondary"> <!-- 发布日期 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:calendar">   <symbol id="ai:lucide:calendar" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M8 2v4m8-4v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></g></symbol><use href="#ai:lucide:calendar"></use>  </svg> <time datetime="2022-05-22T00:00:00.000Z"> 2022年5月22日 </time> </div> <!-- 阅读时间 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:clock">   <symbol id="ai:lucide:clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="10"/></g></symbol><use href="#ai:lucide:clock"></use>  </svg> <span>14 min read</span> </div> <!-- 更新日期 --> <div class="flex items-center gap-1.5"> <svg width="1em" height="1em" class style="width: 1rem; height: 1rem;" data-icon="lucide:refresh-cw">   <symbol id="ai:lucide:refresh-cw" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9a9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5m5 4a9 9 0 0 1-9 9a9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></g></symbol><use href="#ai:lucide:refresh-cw"></use>  </svg> <span>更新于 2026年3月6日</span> </div> </div> <div class="mb-4 flex flex-wrap items-center gap-2 font-mono text-xs"> <a href="/series/React/" class="
+                  inline-flex items-center gap-1 rounded px-2 py-1
+                  bg-[var(--color-accent)]/10 text-[var(--color-accent)]
+                  transition-colors hover:bg-[var(--color-accent)]/15
+                "> <svg width="1em" height="1em" class style="width: 0.75rem; height: 0.75rem;" data-icon="lucide:folder">   <symbol id="ai:lucide:folder" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol><use href="#ai:lucide:folder"></use>  </svg> <span>我不知道的 React</span> </a> </div> <!-- 标题 --> <h1 class="text-3xl font-bold leading-tight text-text-primary sm:text-4xl"> 我不知道的 React（03）— 从 JSX 到 DOM 与 Diff 算法 </h1> <!-- 描述 --> <p class="mt-4 text-lg leading-relaxed text-text-secondary"> 很多人以为 JSX 就是在 JavaScript 里写 HTML，但实际上浏览器根本不认识 JSX。它既不是合法的 JavaScript，也不是真正的 HTML——它是一层语法糖，需要经过编译才能执行。 </p> <!-- 标签 --> <div class="mt-6 flex flex-wrap gap-2 font-mono text-xs" aria-label="标签"> <a href="/tags/React/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"React"</span> </a><a href="/tags/JSX/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"JSX"</span> </a><a href="/tags/Diff~E7~AE~97~E6~B3~95/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"Diff算法"</span> </a><a href="/tags/~E8~99~9A~E6~8B~9FDOM/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"虚拟DOM"</span> </a><a href="/tags/Key/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"Key"</span> </a><a href="/tags/Reconciliation/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"Reconciliation"</span> </a><a href="/tags/~E6~88~91~E4~B8~8D~E7~9F~A5~E9~81~93~E7~9A~84/" class="
+                    inline-flex items-center gap-1
+                    rounded px-2 py-1
+                    bg-[var(--color-surface-elevated)] text-[var(--color-text-secondary)]
+                    transition-colors
+                    hover:text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10
+                  "> <span class="syntax-string">"我不知道的"</span> </a> </div> </header> <!-- 封面图 -->  <!-- 文章内容 --> <div class="
+          prose prose-lg
+          prose-headings:font-bold
+          prose-a:text-accent prose-a:no-underline hover:prose-a:underline
+          prose-img:rounded prose-img:shadow-lg
+          prose-code:before:content-none prose-code:after:content-none
+          max-w-none
+        "> <h2 id="一jsx-不是-html"><a href="#一jsx-不是-html">一、JSX 不是 HTML</a></h2>
+<p>很多人以为 JSX 就是在 JavaScript 里写 HTML，但实际上浏览器根本不认识 JSX。它既不是合法的 JavaScript，也不是真正的 HTML——它是一层语法糖，需要经过编译才能执行。</p>
+<p>说白了，JSX 存在的目的只有一个：让开发者用直觉式的标记语法来描述 UI，同时保留 JavaScript 的全部表达能力。</p>
+<p>编译由 Babel（或 TypeScript、SWC 等工具）在构建阶段完成。在 React 17 之前，JSX 统一编译为 <code>React.createElement</code> 调用；React 17 之后引入了新的 JSX Transform，编译产物改为从 <code>react/jsx-runtime</code> 导入的 <code>jsx</code> 函数，不再需要手动 <code>import React</code>。</p>
+<p>下面这组对比展示了同一段 JSX 在两种编译模式下的产物：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="jsx"><code><span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 你写的 JSX</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> element</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">div</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> className</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&quot;app&quot;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;Hello React&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">div</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// React 17 之前——经典模式</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> element</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> React.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">createElement</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  &#39;div&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  { className: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;app&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> },</span></span>
+<span class="line"><span style="color:#032F62;--shiki-dark:#9ECBFF">  &#39;Hello React&#39;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// React 17+ ——新 JSX Transform</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">import</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> { jsx </span><span style="color:#D73A49;--shiki-dark:#F97583">as</span><span style="color:#24292E;--shiki-dark:#E1E4E8"> _jsx } </span><span style="color:#D73A49;--shiki-dark:#F97583">from</span><span style="color:#032F62;--shiki-dark:#9ECBFF"> &#39;react/jsx-runtime&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#D73A49;--shiki-dark:#F97583">const</span><span style="color:#005CC5;--shiki-dark:#79B8FF"> element</span><span style="color:#D73A49;--shiki-dark:#F97583"> =</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> _jsx</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;div&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">, {</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  className: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;app&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  children: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;Hello React&#39;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">});</span></span></code></pre>
+<p>两种模式的产物在结构上几乎一致，区别只在于调用入口和 <code>children</code> 的传递方式。<strong>不管用哪种模式，编译的最终结果都是一个普通的函数调用，而非 DOM 操作。</strong></p>
+<h2 id="二react-元素轻量级的-ui-描述"><a href="#二react-元素轻量级的-ui-描述">二、React 元素：轻量级的 UI 描述</a></h2>
+<p><code>createElement</code>（或 <code>jsx</code>）的返回值不是 DOM 节点，而是一个普通的 JavaScript 对象。React 把这个对象叫做”React 元素”，社区里更常用”虚拟 DOM 节点”来称呼它。</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="js"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">{</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">  $$typeof</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: Symbol.</span><span style="color:#6F42C1;--shiki-dark:#B392F0">for</span><span style="color:#24292E;--shiki-dark:#E1E4E8">(</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;react.element&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">),</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">  type</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;div&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">  key</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">null</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">  ref</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#005CC5;--shiki-dark:#79B8FF">null</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">  props</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: {</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">    className</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;app&#39;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#6F42C1;--shiki-dark:#B392F0">    children</span><span style="color:#24292E;--shiki-dark:#E1E4E8">: </span><span style="color:#032F62;--shiki-dark:#9ECBFF">&#39;Hello React&#39;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">}</span></span></code></pre>
+<p>这个对象里有几个值得注意的字段。<code>$$typeof</code> 是一个 Symbol，React 用它来识别合法的元素对象，同时防止 XSS 攻击——因为 JSON 无法包含 Symbol 类型，即使攻击者注入了形似 React 元素的 JSON，<code>$$typeof</code> 校验也会失败。<code>type</code> 记录的是节点类型，可以是字符串（原生 DOM 标签）或函数/类（自定义组件）。<code>key</code> 和 <code>ref</code> 单独提出来而不放在 <code>props</code> 里，因为它们是 React 内部调度和协调的专用字段。</p>
+<p><strong>React 元素本身是不可变的（immutable）。</strong> 每次渲染都会生成一棵全新的元素树，React 通过对比新旧两棵树来决定 DOM 该怎么更新——这就是 Diff 算法要解决的问题。</p>
+<h2 id="三从元素到屏幕fiber-的角色"><a href="#三从元素到屏幕fiber-的角色">三、从元素到屏幕：Fiber 的角色</a></h2>
+<p>React 元素只是”描述”，要真正操作 DOM 还需要一个中间层来调度工作。这就是 Fiber 的职责。</p>
+<p>换句话说，Fiber 节点是 React 元素的”运行时映像”。每个 React 元素在协调过程中会对应一个 Fiber 节点，Fiber 节点上挂载了 state、effect 副作用、父/子/兄弟指针等运行时信息，这些是纯描述性的 React 元素所不具备的。</p>
+<p>Fiber 架构把渲染工作拆成两个阶段：<strong>Render 阶段</strong>（可中断，负责计算差异）和 <strong>Commit 阶段</strong>（不可中断，负责同步更新 DOM）。关于 Fiber 的链表结构、时间切片、优先级调度等细节，在 <a href="/blog/react-02">React-02：Fiber 架构</a> 中有完整的分析，这里不再展开。</p>
+<p>本文接下来的重点是：<strong>在 Render 阶段，React 到底是怎样对比新旧两棵树的？</strong></p>
+<h2 id="四diff-算法的三个核心策略"><a href="#四diff-算法的三个核心策略">四、Diff 算法的三个核心策略</a></h2>
+<p>将两棵树进行完全比较，理论上的最优算法复杂度是 O(n³)。对于一棵有 1000 个节点的树，这意味着 10 亿次比较，完全不现实。</p>
+<p>React 的做法是放弃通用最优解，转而基于三个启发式假设把复杂度压到 O(n)。这三个假设覆盖了绝大多数真实场景，是整个 Diff 算法的理论基础。</p>
+<h3 id="策略一跨层级的节点移动极少发生"><a href="#策略一跨层级的节点移动极少发生">策略一：跨层级的节点移动极少发生</a></h3>
+<p>React 只会对同一层级的节点做比较，不会尝试跨层级复用。如果一个 <code>&lt;div&gt;</code> 在旧树里是根节点的直接子节点，在新树里被移到了第三层嵌套，React 不会去”寻找”它，而是直接销毁旧节点、创建新节点。</p>
+<p>很多人会忽略的细节是：这个策略在极端情况下确实会导致不必要的销毁重建。但在真实的前端开发中，跨层级移动 DOM 子树的情况非常罕见。React 用”放弃跨层级匹配”换来了”逐层扫描”的线性复杂度，这个取舍在实践中是值得的。</p>
+<h3 id="策略二不同类型的元素产出完全不同的树"><a href="#策略二不同类型的元素产出完全不同的树">策略二：不同类型的元素产出完全不同的树</a></h3>
+<p>当 React 发现某个位置上的元素类型发生了变化——比如 <code>&lt;div&gt;</code> 变成了 <code>&lt;span&gt;</code>，或者 <code>&lt;Input&gt;</code> 变成了 <code>&lt;Select&gt;</code>——它会直接卸载整棵旧子树（触发 <code>componentWillUnmount</code> 或清理 effect），然后从头构建新子树。</p>
+<p><strong>即使旧子树下面有大量可复用的节点，只要根节点类型不同，React 就不会尝试复用。</strong> 这听起来很浪费，但它避免了类型不同时深层比较所带来的复杂度。问题的关键在于：DOM 元素的类型改变几乎必然意味着结构和行为的根本变化，逐一比较子节点没有意义。</p>
+<h3 id="策略三开发者通过-key-标识同层级的稳定节点"><a href="#策略三开发者通过-key-标识同层级的稳定节点">策略三：开发者通过 Key 标识同层级的稳定节点</a></h3>
+<p>前两个策略处理了”层级”和”类型”维度的比较，但列表渲染还有一个特殊问题：同类型的子节点之间如何匹配？</p>
+<p>如果没有额外提示，React 只能按位置（索引）逐一对比。这在列表发生插入、删除、重排时会导致大量误判。<code>key</code> 就是开发者给 React 的额外提示，用来精确标识”这个元素是谁”。</p>
+<p>这三个策略协同工作：先按层级扫描、再按类型判断、最后按 Key 匹配——共同构成了 React O(n) Diff 的完整逻辑。</p>
+<h2 id="五key-的真正作用"><a href="#五key-的真正作用">五、Key 的真正作用</a></h2>
+<p>为了理解 Key 的作用，最直观的方式是看一组对比实验。假设有一个待办列表，初始渲染了 A、B 两个项目，现在要在头部插入一个新项目 C。</p>
+<p>先看没有 Key 的情况：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="jsx"><code><span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 旧列表</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">&lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">ul</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">li</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;A&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">li</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">li</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;B&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">li</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">ul</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D;--shiki-dark:#6A737D">// 新列表：头部插入 C</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">&lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">ul</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">li</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;C&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">li</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">li</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;A&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">li</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">li</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;B&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">li</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">ul</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span></code></pre>
+<p>React 逐位置比较：位置 0 从 A 变成 C，更新文本；位置 1 从 B 变成 A，更新文本；位置 2 是新增的 B，创建节点。结果是三次 DOM 操作，其中两次是无意义的文本替换。<strong>更危险的是，如果列表项是有状态的组件（比如包含输入框），状态会错位——原本属于 A 的输入内容会出现在 C 上。</strong></p>
+<p>加上 Key 之后：</p>
+<pre class="astro-code astro-code-themes github-light github-dark" style="background-color:#fff;--shiki-dark-bg:#24292e;color:#24292e;--shiki-dark:#e1e4e8;overflow-x:auto;white-space:pre-wrap;word-wrap:break-word" tabindex="0" data-language="jsx"><code><span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">&lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">ul</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">li</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> key</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&quot;A&quot;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;A&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">li</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">li</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> key</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&quot;B&quot;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;B&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">li</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">ul</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">&lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">ul</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">li</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> key</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&quot;C&quot;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;C&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">li</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">li</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> key</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&quot;A&quot;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;A&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">li</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">  &lt;</span><span style="color:#22863A;--shiki-dark:#85E89D">li</span><span style="color:#6F42C1;--shiki-dark:#B392F0"> key</span><span style="color:#D73A49;--shiki-dark:#F97583">=</span><span style="color:#032F62;--shiki-dark:#9ECBFF">&quot;B&quot;</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;B&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">li</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span>
+<span class="line"><span style="color:#24292E;--shiki-dark:#E1E4E8">&lt;/</span><span style="color:#22863A;--shiki-dark:#85E89D">ul</span><span style="color:#24292E;--shiki-dark:#E1E4E8">&gt;</span></span></code></pre>
+<p>React 通过 Key 匹配：A 和 B 还在，只是前面多了一个 C。最终只需要一次 DOM 插入操作，A 和 B 的节点（包括状态）完全复用。</p>
+<p>如果你只记住一句话：<strong>Key 不是给渲染用的，是给 Diff 用的。它的本质是为同层级同类型的节点提供稳定的身份标识。</strong></p>
+<p>这也是为什么不应该用数组索引作为 Key。当列表发生重排、插入或删除时，索引会发生变化，等于告诉 React”所有元素的身份都变了”，退化成无 Key 的效果。只有当列表静态不变、不会增删重排时，索引才是安全的。</p>
+<p>对于超长列表（数千甚至数万项），即便 Key 配置正确，一次性 Diff 和渲染大量节点仍然会有性能瓶颈。这时需要引入列表虚拟化（如 <code>react-window</code>），只渲染视口内可见的部分，从根本上减少节点数量。</p>
+<h2 id="六与-vue-diff-的核心差异"><a href="#六与-vue-diff-的核心差异">六、与 Vue Diff 的核心差异</a></h2>
+<p>React 和 Vue 都使用虚拟 DOM + Diff 的更新策略，但在”怎么找到变化”和”怎么比较列表”两个维度上，思路截然不同。</p>
+<p>在更新触发层面，React 的理念是”UI 是状态的纯函数”。一次 <code>setState</code> 会触发组件及其子树的重新渲染，需要开发者通过 <code>React.memo</code>、<code>useMemo</code> 等手段主动收窄比较范围。Vue 则基于响应式系统精确追踪数据依赖，数据变化时自动通知相关组件更新，再配合模板编译阶段的静态标记跳过不变内容。</p>
+<p>说白了，React 走的是”大范围 Diff + 开发者主动优化”的路线，Vue 走的是”精确追踪 + 编译期优化”的路线。</p>
+<p>在列表 Diff 层面，差异更加具体。React 对子节点列表采用<strong>单向遍历</strong>：从左到右扫描，遇到 Key 匹配的节点就复用，不匹配的放入一个 Map 中待查。这种方式实现简洁，但在”尾部元素移到头部”这类场景下需要额外的移动操作。</p>
+<p>Vue 采用的是<strong>双端比较</strong>算法：同时维护新旧列表的头尾四个指针，优先比较两端节点。当头头、尾尾、头尾、尾头都不匹配时，才退化到 Map 查找。在列表两端发生增删或反转的场景下，双端比较通常能减少节点移动次数。</p>
+<p>但这并不意味着 Vue 的 Diff “更好”。React Fiber 的可中断渲染和优先级调度是 Vue 目前不具备的能力，在复杂交互场景下（大量并发更新、流式渲染），Fiber 的优势会体现出来。<strong>两者的差异本质上是设计哲学的不同，而非单纯的性能高低。</strong></p>
+<h2 id="七总结"><a href="#七总结">七、总结</a></h2>
+<p>从 JSX 到屏幕上的像素，React 的渲染流程可以概括为一条链路：</p>
+<p><strong>JSX → 编译（Babel/SWC）→ createElement/jsx → React 元素（虚拟 DOM）→ Fiber 节点 → Diff 对比 → DOM 更新</strong></p>
+<p>Diff 算法之所以能达到 O(n) 的性能，靠的是三个务实的假设：不跨层比较、不同类型直接替换、用 Key 标识同层节点。这三个假设在实际开发中几乎总是成立的。</p>
+<p>Key 的本质是给 Diff 提供身份标识。用对了 Key，列表更新只需最少的 DOM 操作；用错了（比如用索引），不仅性能退化，还可能引发状态错位的 bug。</p>
+<hr/>
+<h3 id="系列导航"><a href="#系列导航">系列导航</a></h3>
+<ul>
+<li>上一篇：<a href="/blog/react-02">React-02：Fiber 架构 — 可中断渲染与优先级调度</a></li>
+<li>下一篇：<a href="/blog/react-04">React-04：生命周期演进与 Render 触发机制</a></li>
+<li><a href="/blog/react-00">返回系列索引：我不知道的 React</a></li>
+</ul> </div> <!-- 文章底部 --> <footer class="mt-12 border-t border-border pt-8"> <!-- 分享提示 --> <div class="code-window"> <div class="code-window-titlebar"> <span class="flex-1 text-center font-mono text-xs text-[var(--color-text-secondary)]">share.ts</span> </div> <div class="p-4 font-mono text-sm"> <p class="syntax-comment">// 觉得这篇文章有帮助？</p> <p class="syntax-comment">// 欢迎分享给更多人</p> <p class="mt-4"> <span class="syntax-keyword">export const</span> <span class="syntax-variable">&nbsp;subscribe</span> <span class="text-[var(--color-text-primary)]">&nbsp;=&nbsp;</span> <a href="/rss.xml" class="syntax-string hover:underline">"/rss.xml"</a> <span class="text-[var(--color-text-primary)]">;</span> </p> </div> </div> </footer> </article> <!-- TOC 侧边栏 - 仅在大屏幕显示 --> <aside class="hidden lg:block"> <nav class="toc-container" aria-label="文章目录" data-astro-cid-xvrfupwn><div class="toc-header" data-astro-cid-xvrfupwn><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-xvrfupwn><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7" data-astro-cid-xvrfupwn></path></svg><span data-astro-cid-xvrfupwn>目录</span></div><ul class="toc-list" data-astro-cid-xvrfupwn><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#一jsx-不是-html" class="toc-link" data-slug="一jsx-不是-html" data-astro-cid-xvrfupwn>一、JSX 不是 HTML</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#二react-元素轻量级的-ui-描述" class="toc-link" data-slug="二react-元素轻量级的-ui-描述" data-astro-cid-xvrfupwn>二、React 元素：轻量级的 UI 描述</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#三从元素到屏幕fiber-的角色" class="toc-link" data-slug="三从元素到屏幕fiber-的角色" data-astro-cid-xvrfupwn>三、从元素到屏幕：Fiber 的角色</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#四diff-算法的三个核心策略" class="toc-link" data-slug="四diff-算法的三个核心策略" data-astro-cid-xvrfupwn>四、Diff 算法的三个核心策略</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#策略一跨层级的节点移动极少发生" class="toc-link" data-slug="策略一跨层级的节点移动极少发生" data-astro-cid-xvrfupwn>策略一：跨层级的节点移动极少发生</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#策略二不同类型的元素产出完全不同的树" class="toc-link" data-slug="策略二不同类型的元素产出完全不同的树" data-astro-cid-xvrfupwn>策略二：不同类型的元素产出完全不同的树</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#策略三开发者通过-key-标识同层级的稳定节点" class="toc-link" data-slug="策略三开发者通过-key-标识同层级的稳定节点" data-astro-cid-xvrfupwn>策略三：开发者通过 Key 标识同层级的稳定节点</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#五key-的真正作用" class="toc-link" data-slug="五key-的真正作用" data-astro-cid-xvrfupwn>五、Key 的真正作用</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#六与-vue-diff-的核心差异" class="toc-link" data-slug="六与-vue-diff-的核心差异" data-astro-cid-xvrfupwn>六、与 Vue Diff 的核心差异</a></li><li class="toc-item toc-depth-2" data-astro-cid-xvrfupwn><a href="#七总结" class="toc-link" data-slug="七总结" data-astro-cid-xvrfupwn>七、总结</a></li><li class="toc-item toc-depth-3" data-astro-cid-xvrfupwn><a href="#系列导航" class="toc-link" data-slug="系列导航" data-astro-cid-xvrfupwn>系列导航</a></li></ul></nav><script type="module">function s(){const n=document.querySelectorAll(".toc-link"),c=document.querySelectorAll("article h2[id], article h3[id]");if(n.length===0||c.length===0)return;const i=new IntersectionObserver(t=>{t.forEach(o=>{if(o.isIntersecting){const r=o.target.getAttribute("id");n.forEach(e=>{e.classList.toggle("active",e.getAttribute("data-slug")===r)})}})},{rootMargin:"-80px 0px -80% 0px",threshold:0});c.forEach(t=>i.observe(t)),n.forEach(t=>{t.addEventListener("click",o=>{o.preventDefault();const r=t.getAttribute("data-slug"),e=document.getElementById(r||"");if(e){const a=e.getBoundingClientRect().top+window.scrollY-100;window.scrollTo({top:a,behavior:"smooth"})}})})}s();document.addEventListener("astro:after-swap",s);</script> </aside> </div>  <script type="module">function i(){document.querySelectorAll("pre:has(code)").forEach(t=>{if(t.querySelector(".code-header"))return;const s=t.querySelector("code");if(!s)return;const r=Array.from(s.classList).find(a=>a.startsWith("language-")),d=r?r.replace("language-",""):"text",c=document.createElement("div");c.className="code-header";const n=document.createElement("span");n.className="code-lang",n.textContent=d.toUpperCase();const e=document.createElement("button");e.className="code-copy-btn",e.setAttribute("aria-label","复制代码"),e.innerHTML=`
+        <svg class="copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </svg>
+        <svg class="check-icon hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      `,e.addEventListener("click",async()=>{const a=s.textContent||"";try{await navigator.clipboard.writeText(a),e.classList.add("copied"),e.querySelector(".copy-icon")?.classList.add("hidden"),e.querySelector(".check-icon")?.classList.remove("hidden"),setTimeout(()=>{e.classList.remove("copied"),e.querySelector(".copy-icon")?.classList.remove("hidden"),e.querySelector(".check-icon")?.classList.add("hidden")},2e3)}catch(l){console.error("复制失败:",l)}}),c.appendChild(n),c.appendChild(e);const o=document.createElement("div");o.className="code-block-wrapper",t.parentNode?.insertBefore(o,t),o.appendChild(c),o.appendChild(t)})}i();document.addEventListener("astro:after-swap",i);</script>   <button id="back-to-top" class="back-to-top" aria-label="返回顶部" title="返回顶部" data-astro-cid-wlspcwf4> <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" data-astro-cid-wlspcwf4> <path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" data-astro-cid-wlspcwf4></path> </svg> </button> <script type="module">function o(){const e=document.getElementById("back-to-top");if(!e)return;function i(){window.scrollY>400?e.classList.add("visible"):e.classList.remove("visible")}e.addEventListener("click",()=>{window.scrollTo({top:0,behavior:"smooth"})});let t=!1;window.addEventListener("scroll",()=>{t||(requestAnimationFrame(()=>{i(),t=!1}),t=!0)}),i()}o();document.addEventListener("astro:after-swap",o);</script>   </main> <!-- 页脚 - VSCode 状态栏风格 --> <footer class="
+        border-t border-[var(--color-border)]
+        bg-[var(--color-surface)]
+        py-6
+        text-xs font-mono text-[var(--color-text-secondary)]
+      "> <div class="main-container"> <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"> <!-- 版权信息 --> <p class="text-center sm:text-left"> <span class="syntax-comment">// </span> <span class="syntax-keyword">const</span> <span class="syntax-variable"> copyright</span> <span> = </span> <span class="syntax-string">"2026 NorthSeacoder"</span> </p> <!-- 链接 --> <div class="flex items-center justify-center gap-4 sm:justify-end"> <a href="/rss.xml" class="
+                flex items-center gap-1.5
+                transition-colors
+                hover:text-[var(--color-accent)]
+              " aria-label="RSS 订阅"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:rss">   <symbol id="ai:lucide:rss" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></g></symbol><use href="#ai:lucide:rss"></use>  </svg> <span>RSS</span> </a> <a href="https://github.com/NorthSeacoder" target="_blank" rel="noopener noreferrer" class="
+                flex items-center gap-1.5
+                transition-colors
+                hover:text-[var(--color-accent)]
+              " aria-label="GitHub"> <svg width="1em" height="1em" class style="width: 0.875rem; height: 0.875rem;" data-icon="lucide:github">   <symbol id="ai:lucide:github" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5c.08-1.25-.27-2.48-1-3.5c.28-1.15.28-2.35 0-3.5c0 0-1 0-3 1.5c-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.4 5.4 0 0 0 4 9c0 3.5 3 5.5 6 5.5c-.39.49-.68 1.05-.85 1.65S8.93 17.38 9 18v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></g></symbol><use href="#ai:lucide:github"></use>  </svg> <span>GitHub</span> </a> </div> </div> </div> </footer> </body></html>

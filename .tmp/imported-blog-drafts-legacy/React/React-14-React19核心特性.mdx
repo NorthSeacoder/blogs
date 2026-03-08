@@ -1,0 +1,283 @@
+---
+title: 我不知道的 React（14）— React 19 核心特性：Compiler、Actions 与新 Hooks
+description: >-
+  React 19 于 2024 年底正式发布。这个版本带来的变化不是"多了几个新
+  API"那么简单——它在编译层面、数据交互层面和异步处理层面同时发力，试图从根本上减少 React
+  开发中最常见的两类样板代码：手动性能优化和手动异步状态管理。
+subtitle: React 19 核心特性：Compiler、Actions 与新 Hooks
+pubDate: '2024-05-27'
+updatedDate: '2026-03-06'
+tags:
+  - React
+  - React 19
+  - React Compiler
+  - Actions
+  - useOptimistic
+  - use Hook
+  - 性能优化
+lang: zh-CN
+keywords:
+  - React
+  - React 19
+  - React Compiler
+  - Actions
+  - useOptimistic
+  - use Hook
+  - 性能优化
+topic: React
+category: React
+type: post
+series: React
+seriesOrder: 14
+slug: react-14
+model: claude-4.6-opus
+optimized_from: 015. React 19.mdx
+optimization_type: 深度升级
+style_version: 2026-03-03T00:00:00.000Z
+diagnosis:
+  style_conformity: 8
+  content_depth: 深
+  topic_structure: 保留
+---
+# 我不知道的 React（14）— React 19 核心特性：Compiler、Actions 与新 Hooks
+
+React 19 于 2024 年底正式发布。这个版本带来的变化不是"多了几个新 API"那么简单——它在编译层面、数据交互层面和异步处理层面同时发力，试图从根本上减少 React 开发中最常见的两类样板代码：手动性能优化和手动异步状态管理。
+
+很多人看到 React Compiler 就兴奋地以为"再也不用写 `useMemo` 了"，看到 Actions 就以为"表单提交不用管 loading 状态了"。思路是对的，但 Compiler 有它的前提条件，Actions 有它的适用边界。这篇把 React 19 的核心特性拆开讲清楚——它到底做了什么，以及它做不到什么。
+
+## 一、React Compiler：编译时的自动 Memoization
+
+在 React 19 之前，避免不必要的重渲染需要开发者手动用 `useMemo` 缓存计算结果、用 `useCallback` 缓存函数引用、用 `React.memo` 缓存组件。这些优化手段本身不复杂，但有两个实际问题：一是容易遗漏（团队里有人忘了加 `React.memo`，整条优化链就断了），二是加多了反而影响可读性（到处都是 `useMemo` 包裹的代码，业务逻辑被稀释了）。
+
+React Compiler 的做法是：**在编译阶段（构建时）对组件代码做静态分析，自动识别哪些值可以跨渲染复用，然后在底层插入 memoization 逻辑。** 开发者不需要手动写 `useMemo` 或 `useCallback`，Compiler 自己判断哪里需要缓存。
+
+但这里有一个很多人会忽略的前提——Compiler 的分析依赖一个假设：**你的组件是纯函数，state 和 props 是不可变的。**
+
+如果组件里有这类代码，Compiler 可能无法正确优化，甚至直接跳过：
+
+```javascript
+function Counter({ items }) {
+  items.sort((a, b) => a - b);
+  return <ul>{items.map(item => <li key={item}>{item}</li>)}</ul>;
+}
+```
+
+`items.sort()` 直接修改了传入的 props 数组——这违反了"props 不可变"的规则。Compiler 如果假设 `items` 在两次渲染之间引用没变就可以跳过渲染，但实际上 `items` 的内容已经被 sort 改了。这种情况下，要么 Compiler 保守地跳过优化，要么产出错误的结果。
+
+正确的写法是先拷贝再排序：
+
+```javascript
+function Counter({ items }) {
+  const sorted = [...items].sort((a, b) => a - b);
+  return <ul>{sorted.map(item => <li key={item}>{item}</li>)}</ul>;
+}
+```
+
+说白了，React Compiler 不是"帮你优化烂代码"，而是"帮你把符合规范的代码自动优化到最佳"。写出符合 React 规则的代码是前提，Compiler 只是把手动加 `useMemo`/`useCallback` 这步给自动化了。
+
+另外，Compiler 解决的是"因状态变化导致的不必要重渲染"问题。**它不能解决所有性能问题。** 大列表渲染（需要虚拟化）、动画性能（需要 GPU 加速）、网络请求优化——这些不在 Compiler 的能力范围内。
+
+## 二、Actions：表单提交的标准化方案
+
+在 React 19 之前，一个典型的表单提交处理长这样：
+
+```jsx
+function CreateUserForm() {
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setIsPending(true);
+    setError(null);
+    try {
+      await createUser(new FormData(e.target));
+      setSuccess(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input name="name" required />
+      <button disabled={isPending}>
+        {isPending ? '创建中...' : '创建用户'}
+      </button>
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {success && <p style={{ color: 'green' }}>创建成功</p>}
+    </form>
+  );
+}
+```
+
+三个 `useState`，`try/catch/finally` 里手动切换状态——每写一个表单都是这套模式。代码不难写，但重复度很高，而且容易漏掉某个状态的重置。
+
+React 19 的 Actions API 把这个模式标准化了。核心变化是：`<form>` 标签的 `action` prop 可以直接接受一个异步函数，React 自动管理这个函数执行期间的 pending 状态。
+
+```jsx
+import { useFormState, useFormStatus } from 'react-dom';
+
+async function createUserAction(prevState, formData) {
+  const name = formData.get('name');
+  try {
+    await createUser(name);
+    return { success: true, message: `用户 ${name} 创建成功` };
+  } catch (err) {
+    return { success: false, message: err.message };
+  }
+}
+
+function CreateUserForm() {
+  const [state, formAction] = useFormState(createUserAction, {
+    success: false,
+    message: null
+  });
+
+  return (
+    <form action={formAction}>
+      <input name="name" required />
+      <SubmitButton />
+      {state.message && (
+        <p style={{ color: state.success ? 'green' : 'red' }}>
+          {state.message}
+        </p>
+      )}
+    </form>
+  );
+}
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button type="submit" disabled={pending}>
+      {pending ? '创建中...' : '创建用户'}
+    </button>
+  );
+}
+```
+
+两个关键点。`useFormState` 接收一个 Action 函数和初始状态，返回当前状态和一个包装后的 formAction——把 formAction 传给 `<form action>`，Action 的返回值会自动成为新的 state。`useFormStatus` 返回最近父级 `<form>` 的提交状态，`pending` 字段在 Action 执行期间为 `true`。
+
+**这两个 Hook 的分工和 ErrorBoundary 的两个方法有些相似**（还记得第 11 篇吗？）：`useFormState` 负责"结果管理"，`useFormStatus` 负责"过程反馈"。一个管"最终变成了什么"，一个管"现在正在做什么"。
+
+换句话说，Actions API 不是新发明了一种表单处理模式，而是把大家本来就在写的 `isPending + try/catch` 模式做了标准化封装，减少了手动管理状态的代码量。
+
+## 三、useOptimistic：乐观更新的内建支持
+
+很多人以为网络请求的用户体验问题只有"加载慢"一种，但还有一种更微妙的问题——**用户操作后必须等服务器确认才能看到结果。** 比如点了"点赞"按钮，要等 API 返回成功后数字才加 1。网络快的时候感觉不到延迟，网络稍慢就会觉得"点了没反应"。
+
+乐观更新的策略是：**先假设操作会成功，立刻更新 UI，同时在后台发送请求。如果请求成功，一切如常；如果失败，回滚到之前的状态。**
+
+React 19 之前，乐观更新需要手动实现——用一个临时 state 显示乐观值，请求完成后切换回真实值，失败时回滚。`useOptimistic` 把这个流程内建了：
+
+```jsx
+function LikeButton({ initialCount, onLike }) {
+  const [optimisticCount, setOptimisticCount] = useOptimistic(
+    initialCount,
+    (current, increment) => current + increment
+  );
+
+  async function handleLike() {
+    setOptimisticCount(1);
+    try {
+      await onLike();
+    } catch {
+      // 请求失败时 React 自动回滚到 initialCount
+    }
+  }
+
+  return <button onClick={handleLike}>赞 {optimisticCount}</button>;
+}
+```
+
+`setOptimisticCount(1)` 调用后，`optimisticCount` 立刻从 `initialCount` 变成 `initialCount + 1`（由第二个参数——更新函数决定）。如果异步操作成功且外部传入的 `initialCount` prop 更新了，React 会把乐观值和真实值合并。如果异步操作失败，`optimisticCount` 自动回退到 `initialCount`。
+
+## 四、use Hook：在渲染中读取 Promise 和 Context
+
+`use` 是 React 19 新增的一个特殊 Hook——说它"特殊"是因为它打破了 Hooks 的常规规则：**`use` 可以在条件语句和循环中调用。**
+
+它有两个用途。
+
+**读取 Context**，功能上等价于 `useContext`，但语法更简洁，而且可以在 `if` 块中使用：
+
+```jsx
+function Button() {
+  const theme = use(ThemeContext);
+  return <button className={theme}>按钮</button>;
+}
+```
+
+**读取 Promise**，配合 Suspense 使用。当 `use` 接收一个 Promise 时，如果 Promise 还没 resolve，组件会挂起（suspend），触发最近的 Suspense 边界显示 fallback：
+
+```jsx
+function MessageComponent({ messagePromise }) {
+  const message = use(messagePromise);
+  return <p>{message}</p>;
+}
+
+function App() {
+  return (
+    <Suspense fallback={<p>加载中...</p>}>
+      <MessageComponent messagePromise={fetchMessage()} />
+    </Suspense>
+  );
+}
+```
+
+问题的关键在于——`use` 读取 Promise 的前提是 Promise 已经被创建且传给了组件。**不要在组件内部每次渲染都创建新的 Promise**，否则会陷入无限挂起。Promise 应该在父组件中创建，或者通过状态管理库缓存。
+
+## 五、其他语法层面的简化
+
+React 19 还做了两个小但很实用的简化。
+
+**ref 不再需要 forwardRef。** 函数组件现在可以直接接收 `ref` 作为 prop：
+
+```jsx
+// React 19 之前
+const Input = forwardRef((props, ref) => (
+  <input ref={ref} {...props} />
+));
+
+// React 19
+function Input({ ref, ...props }) {
+  return <input ref={ref} {...props} />;
+}
+```
+
+少写一层 `forwardRef` 包裹，代码更直观。
+
+**Context.Provider 不再必须。** Context 对象本身可以直接作为 Provider 使用：
+
+```jsx
+// React 19 之前
+<ThemeContext.Provider value="dark">
+  <App />
+</ThemeContext.Provider>
+
+// React 19
+<ThemeContext value="dark">
+  <App />
+</ThemeContext>
+```
+
+这两个改动都是纯粹的语法简化，底层行为没有变化。
+
+## 六、总结
+
+React 19 的核心思路是"把开发者本来就在做的事情自动化"。Compiler 自动做 memoization（你不用写 `useMemo`/`useCallback` 了），Actions 自动管理表单提交的 pending/error/success 状态（你不用写三个 `useState` 了），`useOptimistic` 自动处理乐观更新的回滚（你不用手动维护临时状态了）。
+
+但这些自动化都有前提条件——Compiler 要求代码是纯函数且遵循不可变性，Actions 只标准化了"请求-响应"模式的表单交互，`useOptimistic` 解决的是 UI 反馈延迟而不是网络延迟本身。理解它们的能力边界，才能在合适的场景使用合适的工具。
+
+---
+
+**本系列其他文章：**
+- 上一篇：[React Router 原理、模式与实践](/posts/react-13/)
+- 下一篇：[RSC vs SSR — 服务端渲染范式详解](/posts/react-15/)
+
+**相关主题：**
+- Compiler 依赖的不可变性原则：[useState 与 Hook 底层机制](/posts/react-05/)
+- Suspense 与错误边界的协作：[ErrorBoundary 的工作原理与局限性](/posts/react-11/)

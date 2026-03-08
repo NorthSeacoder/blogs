@@ -1,0 +1,90 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Blog Post Frontmatter",
+  "description": "博客文章 frontmatter 配置 schema",
+  "type": "object",
+  "required": ["title", "description", "pubDate"],
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "文章标题（必填）",
+      "minLength": 1,
+      "examples": ["使用 Astro 打造极快的博客"]
+    },
+    "description": {
+      "type": "string",
+      "description": "文章摘要，用于 SEO 和文章列表（必填）",
+      "minLength": 10,
+      "maxLength": 160,
+      "examples": ["介绍项目目标、性能与可访问性设计，展示 Astro + Tailwind 的基础搭建。"]
+    },
+    "pubDate": {
+      "type": "string",
+      "format": "date",
+      "description": "发布日期（必填，格式：YYYY-MM-DD）",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "examples": ["2024-12-01"]
+    },
+    "updatedDate": {
+      "type": "string",
+      "format": "date",
+      "description": "更新日期（可选，格式：YYYY-MM-DD）",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "examples": ["2025-03-01"]
+    },
+    "tags": {
+      "type": "array",
+      "description": "文章标签数组（可选，建议添加）",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "examples": [["Astro", "Performance", "Web Development"]]
+    },
+    "draft": {
+      "type": "boolean",
+      "description": "是否为草稿（可选，默认 false）",
+      "default": false,
+      "examples": [false, true]
+    },
+    "cover": {
+      "type": "string",
+      "description": "封面图路径（可选，相对于 src/content/blog/）",
+      "examples": ["../../assets/covers/astro-cover.svg", "/images/cover.jpg"]
+    },
+    "coverAlt": {
+      "type": "string",
+      "description": "封面图 Alt 文本（可选，但如果有 cover 则强烈建议添加）",
+      "minLength": 5,
+      "examples": ["Night gradient background with Astro text"]
+    },
+    "canonical": {
+      "type": "string",
+      "format": "uri",
+      "description": "规范链接（可选，完整 URL）",
+      "pattern": "^https?://",
+      "examples": ["https://example.com/posts/hello-astro/"]
+    },
+    "lang": {
+      "type": "string",
+      "description": "语言代码（可选，默认继承站点配置）",
+      "pattern": "^[a-z]{2}(-[A-Z]{2})?$",
+      "examples": ["zh-CN", "en-US", "ja-JP"]
+    },
+    "keywords": {
+      "type": "array",
+      "description": "SEO 关键词数组（可选，建议添加）",
+      "items": {
+        "type": "string",
+        "minLength": 2
+      },
+      "minItems": 1,
+      "maxItems": 10,
+      "uniqueItems": true,
+      "examples": [["Astro", "Tailwind", "性能优化", "静态站点生成"]]
+    }
+  },
+  "additionalProperties": false
+}

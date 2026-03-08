@@ -5,8 +5,9 @@ const blog = defineCollection({
   schema: z.object({
     title: z.string(),
     description: z.string(),
-    pubDate: z.date(),
-    updatedDate: z.date().optional(),
+    subtitle: z.string().optional(),
+    pubDate: z.coerce.date(),
+    updatedDate: z.coerce.date().optional(),
     tags: z.array(z.string()).optional(),
     draft: z.boolean().optional(),
     cover: z.string().optional(),
@@ -14,9 +15,12 @@ const blog = defineCollection({
     canonical: z.string().url().optional(),
     lang: z.string().optional(),
     keywords: z.array(z.string()).optional(),
-    // 系列文章支持
-    series: z.string().optional(),        // 系列名称，如 "HTTP", "JavaScript"
-    seriesOrder: z.number().optional(),   // 系列内排序
+    topic: z.string().optional(),
+    category: z.string().optional(),
+    model: z.string().optional(),
+    type: z.enum(['post', 'index']).optional(),
+    series: z.string().optional(),
+    seriesOrder: z.number().int().nonnegative().optional(),
   }),
 });
 

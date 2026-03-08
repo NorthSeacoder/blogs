@@ -1,0 +1,228 @@
+---
+title: 我不知道的 VSCode 扩展（08）— 开发工具链与效率提升
+description: >-
+  yo code 生成的项目能跑，但它的工具链选择停留在"能用"的水平——tsc 编译、没有打包器、没有测试框架预配置、没有 CI/CD
+  模板。对于正经的扩展项目来说，还需要额外的工具补强。
+subtitle: 开发工具链与效率提升
+pubDate: '2024-06-12'
+updatedDate: '2026-03-06'
+tags:
+  - VSCode 扩展
+  - 我不知道的
+  - 工具链
+  - starter-vscode
+  - reactive-vscode
+  - esbuild
+  - webview-ui-toolkit
+lang: zh-CN
+keywords:
+  - VSCode 扩展
+  - 我不知道的
+  - 工具链
+  - starter-vscode
+  - reactive-vscode
+  - esbuild
+  - webview-ui-toolkit
+topic: VSCode 扩展
+category: VSCode
+type: post
+series: VSCode 扩展
+seriesOrder: 8
+slug: vscode-extension-08
+---
+# 我不知道的 VSCode 扩展（08）— 开发工具链与效率提升
+
+## 一、官方脚手架够用，但不够好
+
+`yo code` 生成的项目能跑，但它的工具链选择停留在"能用"的水平——`tsc` 编译、没有打包器、没有测试框架预配置、没有 CI/CD 模板。对于正经的扩展项目来说，还需要额外的工具补强。
+
+## 二、项目模板：starter-vscode
+
+[starter-vscode](https://github.com/antfu/starter-vscode)（antfu 维护）是目前社区中最成熟的 VSCode 扩展启动模板，解决了 `yo code` 的几个核心短板：
+
+| 特性 | yo code | starter-vscode |
+|------|---------|---------------|
+| 构建工具 | tsc | esbuild（快 10-100 倍） |
+| 包管理器 | npm | pnpm |
+| 测试框架 | 无 | Vitest |
+| 自动发布 | 无 | GitHub Actions 预配置 |
+| Lint | 无 | ESLint + antfu config |
+| 调试配置 | 基础 | 完善（含 watch 模式） |
+
+### esbuild vs tsc：为什么用打包器
+
+很多人以为 VSCode 扩展不需要打包——tsc 编译成 JS 就能跑。技术上确实如此，但有两个问题：
+
+**（1）编译速度。** tsc 在大项目上编译一次可能要几秒甚至十几秒，esbuild 通常在 100ms 以内。开发时的 watch 模式体验差距巨大。
+
+**（2）扩展包体积。** 不打包的话，`node_modules` 会被整个打进 `.vsix` 文件（除非手动配 `.vscodeignore`）。用 esbuild 把所有依赖打成一个 bundle 文件，扩展体积可以从几十 MB 缩到几百 KB。
+
+问题的关键在于——**Marketplace 上的用户安装体验直接取决于 `.vsix` 的大小**。一个 50MB 的扩展和一个 500KB 的扩展，用户的安装意愿完全不同。
+
+### 如何使用 starter-vscode
+
+```bash
+# 方法 1：GitHub 模板
+# 点击 https://github.com/antfu/starter-vscode 的 "Use this template"
+
+# 方法 2：手动 clone
+git clone https://github.com/antfu/starter-vscode.git my-extension
+cd my-extension
+pnpm install
+pnpm dev
+```
+
+`pnpm dev` 会同时启动 esbuild watch 和 TypeScript 类型检查。修改代码后，在 Extension Development Host 窗口按 `Ctrl+R` 重新加载即可看到效果。
+
+## 三、reactive-vscode：用 Vue 的方式写扩展
+
+[reactive-vscode](https://github.com/KermanX/reactive-vscode) 把 Vue 3 的 Reactivity API 引入了扩展开发。它的核心思路是：**用响应式数据驱动 VSCode UI 更新，而不是手动命令式调用 API**。
+
+### 传统写法 vs reactive-vscode 写法
+
+下面是一个状态栏计数器的对比。
+
+传统写法——手动管理状态栏的更新：
+
+```typescript
+import * as vscode from 'vscode';
+
+let count = 0;
+let statusBarItem: vscode.StatusBarItem;
+
+export function activate(context: vscode.ExtensionContext) {
+  statusBarItem = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Right
+  );
+  statusBarItem.text = `Count: ${count}`;
+  statusBarItem.command = 'my-ext.increment';
+  statusBarItem.show();
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('my-ext.increment', () => {
+      count++;
+      statusBarItem.text = `Count: ${count}`; // 手动更新 UI
+    })
+  );
+
+  context.subscriptions.push(statusBarItem);
+}
+```
+
+reactive-vscode 写法——数据变了 UI 自动更新：
+
+```typescript
+import { defineExtension, ref, useCommand, useStatusBarItem } from 'reactive-vscode';
+import { StatusBarAlignment } from 'vscode';
+
+export = defineExtension(() => {
+  const count = ref(0);
+
+  useCommand('my-ext.increment', () => {
+    count.value++;
+  });
+
+  useStatusBarItem({
+    alignment: StatusBarAlignment.Right,
+    text: () => `Count: ${count.value}`,
+    command: 'my-ext.increment',
+  });
+});
+```
+
+差异在哪里？传统写法中，`count` 变了之后必须**手动**把新值写到 `statusBarItem.text` 上。reactive-vscode 的 `text` 是一个计算属性，`count.value` 变化时自动重新求值并更新状态栏。
+
+换句话说，reactive-vscode 把 VSCode 扩展开发从"命令式 API 调用"变成了"声明式响应式绑定"，和 Vue 组件的开发体验一致。
+
+### 常用的 composable
+
+| 函数 | 对应的 VSCode API |
+|------|-----------------|
+| `useCommand` | `vscode.commands.registerCommand` |
+| `useStatusBarItem` | `vscode.window.createStatusBarItem` |
+| `useActiveTextEditor` | `vscode.window.activeTextEditor` 的响应式版本 |
+| `useConfiguration` | `vscode.workspace.getConfiguration` |
+| `useWebviewView` | Webview 视图提供者 |
+| `useTreeView` | TreeDataProvider |
+
+### 什么时候该用
+
+reactive-vscode 适合**有复杂状态管理需求**的扩展——比如多个 UI 组件联动、配置变化需要同步更新多处。对于简单扩展（一个命令一个操作），直接用原生 API 反而更直观。
+
+## 四、vscode-webview-ui-toolkit
+
+如果扩展需要 Webview UI，手写 HTML + CSS 会遇到一个问题——**怎么让 Webview 看起来像 VSCode 原生界面**。
+
+[vscode-webview-ui-toolkit](https://github.com/microsoft/vscode-webview-ui-toolkit)（微软官方维护）提供了一组 Web Components，样式和行为与 VSCode 原生 UI 一致：
+
+```html
+<script type="module"
+  src="https://cdn.jsdelivr.net/npm/@vscode/webview-ui-toolkit@1/dist/toolkit.min.js">
+</script>
+
+<vscode-button appearance="primary">Save</vscode-button>
+<vscode-text-field placeholder="Search..."></vscode-text-field>
+<vscode-dropdown>
+  <vscode-option>Option 1</vscode-option>
+  <vscode-option>Option 2</vscode-option>
+</vscode-dropdown>
+```
+
+因为是 Web Components，不依赖 React/Vue/Angular，任何前端框架都能用。
+
+可用的组件包括：Button、TextField、TextArea、Checkbox、Radio、Dropdown、DataGrid、Divider、Link、Tag、Badge、Panels、ProgressRing。
+
+这里有一个很多人会忽略的细节——**toolkit 的组件会自动适配 VSCode 当前的主题颜色**。用户切换到深色主题，Webview 中的按钮和输入框也会跟着变色，不需要额外处理。
+
+## 五、esbuild 配置要点
+
+如果不用 starter-vscode 模板，自己配 esbuild 也不复杂。核心配置：
+
+```javascript
+const esbuild = require('esbuild');
+
+esbuild.build({
+  entryPoints: ['src/extension.ts'],
+  bundle: true,
+  outfile: 'out/extension.js',
+  external: ['vscode'],
+  format: 'cjs',
+  platform: 'node',
+  sourcemap: true,
+  minify: process.env.NODE_ENV === 'production',
+});
+```
+
+关键是 `external: ['vscode']`——**`vscode` 模块是 VSCode 运行时提供的，不能被打包进 bundle**。如果打包了会报错。
+
+`format: 'cjs'` 是因为 VSCode 的扩展加载器使用 CommonJS 的 `require()` 来加载入口文件。即使项目内部用 ESM，输出格式必须是 CJS。
+
+在 `package.json` 中把 `main` 字段指向打包后的文件：
+
+```json
+{
+  "main": "./out/extension.js"
+}
+```
+
+## 六、工具选型总结
+
+| 需求 | 推荐工具 | 原因 |
+|------|---------|------|
+| 快速创建项目 | starter-vscode | 现代工具链预配置 |
+| 复杂状态管理 | reactive-vscode | 响应式绑定，减少样板代码 |
+| Webview UI | vscode-webview-ui-toolkit | 官方维护，自动适配主题 |
+| 快速编译 | esbuild | 比 tsc 快 100 倍 |
+| 包体积优化 | esbuild bundle + .vscodeignore | 减少安装体积 |
+| 测试 | @vscode/test-electron + Vitest | 集成测试 + 单元测试 |
+
+---
+
+**本系列其他文章：**
+- 上一篇：[发布与 CI/CD 流水线](/posts/vscode-extension-07/)
+- 下一篇：[架构、进程模型与源码导读](/posts/vscode-extension-09/)
+
+**延伸阅读：**
+- [starter-vscode GitHub](https://github.com/antfu/starter-vscode)
+- [reactive-vscode 文档](https://reactive-vscode.netlify.app/)
+- [vscode-webview-ui-toolkit Storybook](https://microsoft.github.io/vscode-webview-ui-toolkit/)

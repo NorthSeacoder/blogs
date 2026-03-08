@@ -4,15 +4,15 @@ import PostCard from '../../../components/PostCard.astro';
 import CodeWindow from '../../../components/CodeWindow.astro';
 import Icon from '../../../components/Icon.astro';
 import { getCollection } from 'astro:content';
-import { filterDrafts, sortPosts } from '../../../lib/utils';
+import { filterContentPosts, filterDrafts, getTagParam, sortPosts } from '../../../lib/utils';
 
 export async function getStaticPaths() {
-  const posts = filterDrafts(await getCollection('blog'));
+  const posts = filterContentPosts(filterDrafts(await getCollection('blog')));
   const tags = new Set<string>();
   posts.forEach((post) => post.data.tags?.forEach((tag) => tags.add(tag)));
 
   return Array.from(tags).map((tag) => ({
-    params: { tag },
+    params: { tag: getTagParam(tag) },
     props: { tag, posts: sortPosts(posts.filter((p) => p.data.tags?.includes(tag))) },
   }));
 }
@@ -28,11 +28,7 @@ const { tag, posts } = Astro.props as {
     <!-- 返回链接 -->
     <a
       href="/tags/"
-      class="
-        group mb-4 inline-flex items-center gap-1.5
-        font-mono text-xs text-[var(--color-text-secondary)]
-        transition-colors hover:text-[var(--color-accent)]
-      "
+      class="group mb-4 inline-flex items-center gap-1.5 font-mono text-xs text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-accent)]"
     >
       <Icon name="arrow-left" size={3} class="transition-transform group-hover:-translate-x-1" />
       <span>../tags/</span>
@@ -53,16 +49,20 @@ const { tag, posts } = Astro.props as {
     </div>
 
     <!-- 文章列表 -->
-    {posts.length > 0 ? (
-      <div class="space-y-3">
-        {posts.map((post, index) => <PostCard post={post} index={index} />)}
-      </div>
-    ) : (
-      <CodeWindow filename="empty.ts">
-        <p class="font-mono text-sm text-[var(--color-text-secondary)]">
-          <span class="syntax-comment">// 该标签下暂无文章</span>
-        </p>
-      </CodeWindow>
-    )}
+    {
+      posts.length > 0 ? (
+        <div class="space-y-3">
+          {posts.map((post, index) => (
+            <PostCard post={post} index={index} />
+          ))}
+        </div>
+      ) : (
+        <CodeWindow filename="empty.ts">
+          <p class="font-mono text-sm text-[var(--color-text-secondary)]">
+            <span class="syntax-comment">// 该标签下暂无文章</span>
+          </p>
+        </CodeWindow>
+      )
+    }
   </div>
 </BaseLayout>
