@@ -102,7 +102,7 @@
 - Node `22 LTS`
 - pnpm `10.24.0`
 
-### 4.3 需要确认 Pagefind 索引是否正确进入 `dist/`
+### 4.3 Pagefind 索引已经验证可进入 `dist/`
 
 当前脚本是：
 
@@ -110,18 +110,12 @@
 "build": "astro build && pagefind"
 ```
 
-上线前要确认两件事：
+已用 Node `20.19.4` 本地验证通过，Pagefind 实际输出为：
 
-1. `pagefind` 是否明确索引 `dist/`
-2. 搜索索引最终是否落在 `dist/pagefind/`
+- Source: `dist`
+- Output: `dist/pagefind`
 
-如果不是，就需要把脚本调整为类似：
-
-```json
-"build": "astro build && pagefind --site dist"
-```
-
-否则即使页面能打开，搜索页也可能在生产环境失效。
+所以当前脚本可以继续保留，不需要为了部署额外修改构建命令。
 
 ## 5. 推荐部署拓扑
 
@@ -254,7 +248,7 @@ pnpm build
 - 搜索索引已经生成
 - 访问本地预览时搜索可用
 
-如搜索索引不在 `dist/`，先修正 `pagefind` 命令，再继续。
+当前已验证搜索索引会生成在 `dist/pagefind/`。
 
 ### Step 5：在 ECS 上创建站点
 
@@ -347,4 +341,3 @@ blog.mengpeng.tech
 4. 在 ECS 上创建 `blog.mengpeng.tech` 站点
 5. 新增博客仓库自己的 deploy workflow
 6. 首次上线后再决定是否需要 NAS 统一化
-

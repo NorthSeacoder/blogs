@@ -2,7 +2,7 @@ export const siteConfig = {
   title: '?.log',
   description: '探索未知的技术笔记',
   author: 'NorthSeacoder',
-  siteUrl: 'https://example.com',
+  siteUrl: 'https://blog.mengpeng.tech',
   language: 'zh-CN',
   keywords: ['前端', '工程化', 'TypeScript', 'React', 'Vue'],
   // 站点创建日期，用于计算运行天数

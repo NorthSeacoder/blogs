@@ -8,7 +8,7 @@ import rehypeAutolinkHeadings from 'rehype-autolink-headings';
 import icon from 'astro-icon';
 
 export default defineConfig({
-  site: 'https://example.com',
+  site: 'https://blog.mengpeng.tech',
   output: 'static',
   integrations: [
     mdx(),

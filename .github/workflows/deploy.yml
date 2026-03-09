@@ -1,0 +1,56 @@
+name: Deploy Blog
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-blog-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Prepare pnpm
+        run: corepack prepare pnpm@10.24.0 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build site
+        run: pnpm build
+
+      - name: Verify build output
+        run: |
+          test -d dist
+          test -f dist/index.html
+          test -d dist/pagefind
+          test -f dist/rss.xml
+          test -f dist/sitemap-index.xml
+
+      - name: Deploy to ECS
+        uses: easingthemes/ssh-deploy@main
+        with:
+          SSH_PRIVATE_KEY: ${{ secrets.ALIYUN_SERVER_ACCESS_TOKEN }}
+          REMOTE_HOST: ${{ secrets.ALIYUN_SERVER_HOST }}
+          REMOTE_USER: root
+          SOURCE: 'dist/'
+          TARGET: '/opt/1panel/apps/openresty/openresty/www/sites/blog.mengpeng.tech/index/'
+          ARGS: '-rlgoDzvc -i --delete'
+          EXCLUDE: '/node_modules/'
