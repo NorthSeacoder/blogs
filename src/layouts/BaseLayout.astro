@@ -152,7 +152,10 @@ const currentPath = Astro.url.pathname;
     </header>
 
     <!-- 主内容区 -->
-    <main id="main" class:list={[wide ? 'main-container-wide' : 'main-container', 'flex-1 pb-16 pt-20']}>
+    <main
+      id="main"
+      class:list={[wide ? 'main-container-wide' : 'main-container', 'w-full flex-1 pb-16 pt-20']}
+    >
       <slot />
     </main>
 

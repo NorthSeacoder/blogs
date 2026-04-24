@@ -3,8 +3,8 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import CodeWindow from '../../components/CodeWindow.astro';
 ---
 
-<BaseLayout title="站内搜索" description="使用 Pagefind 搜索全文内容。">
-  <div class="animate-fade-in max-w-3xl mx-auto">
+<BaseLayout title="站内搜索" description="使用 Pagefind 搜索全文内容。" wide>
+  <div class="animate-fade-in mx-auto w-full max-w-5xl">
     <!-- 页面标题 - 代码风格 -->
     <div class="mb-6">
       <h1 class="font-mono text-sm text-[var(--color-text-secondary)]">
@@ -15,11 +15,11 @@ import CodeWindow from '../../components/CodeWindow.astro';
     </div>
 
     <!-- 搜索容器 -->
-    <CodeWindow filename="query.ts">
+    <CodeWindow filename="query.ts" class="w-full">
       <div class="font-mono text-sm">
         <p class="syntax-comment">// 输入关键词搜索文章</p>
         <p class="syntax-comment">// 按 / 键可快速聚焦</p>
-        <div id="search" class="mt-4"></div>
+        <div id="search" class="mt-4 w-full"></div>
       </div>
     </CodeWindow>
   </div>
@@ -41,6 +41,45 @@ import CodeWindow from '../../components/CodeWindow.astro';
     }
 
     /* 搜索表单容器 */
+    #search,
+    #search .pagefind-ui,
+    .pagefind-ui__form {
+      width: 100% !important;
+    }
+
+    #search {
+      min-height: 4.5rem;
+    }
+
+    .search-fallback {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .search-fallback__input {
+      width: 100%;
+      background: var(--color-surface) !important;
+      border: 1px solid var(--color-border) !important;
+      color: var(--color-text-muted) !important;
+      font-size: 0.875rem;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 0.625rem 1rem;
+      border-radius: 4px;
+    }
+
+    .search-fallback__message {
+      color: var(--color-text-secondary);
+      font-size: 0.75rem;
+      line-height: 1.6;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .search-fallback__message::before {
+      content: '// ';
+      color: var(--color-comment);
+    }
+
     .pagefind-ui__form {
       position: relative;
     }
@@ -204,34 +243,67 @@ import CodeWindow from '../../components/CodeWindow.astro';
     }
   </style>
 
-  <link rel="stylesheet" href="/pagefind/pagefind-ui.css" />
-  <script src="/pagefind/pagefind-ui.js" type="text/javascript"></script>
-  <script type="text/javascript">
-    function initSearch() {
+  <script>
+    import { PagefindUI } from '@pagefind/default-ui';
+    import '@pagefind/default-ui/css/ui.css';
+
+    let searchInstance;
+
+    function renderFallback(searchEl) {
+      searchEl.innerHTML = `
+        <div class="search-fallback">
+          <input
+            class="search-fallback__input"
+            type="text"
+            value='const query = "..."'
+            aria-label="搜索暂不可用"
+            disabled
+          />
+          <p class="search-fallback__message">
+            当前开发服务没有生成 Pagefind 索引。运行 \`pnpm build\` 后用 \`pnpm preview\` 验证搜索，或保留已生成的 \`dist/pagefind\` 资源再接入。
+          </p>
+        </div>
+      `;
+    }
+
+    async function hasPagefindIndex() {
+      try {
+        const response = await fetch('/pagefind/pagefind-entry.json', { method: 'HEAD' });
+        return response.ok;
+      } catch {
+        return false;
+      }
+    }
+
+    async function initSearch() {
       const searchEl = document.getElementById('search');
       if (!searchEl) return;
 
-      // 清空之前的内容
+      searchInstance?.destroy();
+      searchInstance = undefined;
       searchEl.innerHTML = '';
 
-      const PagefindUIConstructor = window.PagefindUI;
-      if (typeof PagefindUIConstructor !== 'undefined') {
-        new PagefindUIConstructor({
-          element: '#search',
-          showSubResults: true,
-          autofocus: true,
-          translations: {
-            placeholder: 'const query = "..."',
-            zero_results: '未找到匹配结果',
-            many_results: '找到 [COUNT] 条结果',
-            one_result: '找到 1 条结果',
-            alt_search: '尝试搜索 [TERM]',
-            search_label: '搜索',
-            filters_label: '筛选',
-            load_more: '// 加载更多...',
-          },
-        });
+      if (!(await hasPagefindIndex())) {
+        renderFallback(searchEl);
+        return;
       }
+
+      searchInstance = new PagefindUI({
+        element: '#search',
+        bundlePath: '/pagefind/',
+        showSubResults: true,
+        autofocus: true,
+        translations: {
+          placeholder: 'const query = "..."',
+          zero_results: '未找到匹配结果',
+          many_results: '找到 [COUNT] 条结果',
+          one_result: '找到 1 条结果',
+          alt_search: '尝试搜索 [TERM]',
+          search_label: '搜索',
+          filters_label: '筛选',
+          load_more: '// 加载更多...',
+        },
+      });
     }
 
     document.addEventListener('DOMContentLoaded', initSearch);
